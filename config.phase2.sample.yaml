@@ -1,0 +1,19 @@
+# Sample configuration for Phase 2 manual runs against live CG RERA.
+# Keep this extremely constrained for safe, human-supervised crawls.
+run:
+  mode: LISTINGS_ONLY  # Start with listings only; switch to FULL manually after validation
+  search_filters:
+    districts:
+      - Raipur
+      - Durg
+    statuses:
+      - Ongoing
+    project_types: []  # Leave empty to minimize search breadth
+  output_base_dir: ./outputs/phase2_runs
+  state_code: CG
+  max_search_combinations: 2  # Constrain to 1–2 combinations for safety
+  max_total_listings: 50      # Cap listings processed across all combinations
+browser:
+  driver: playwright
+  headless: false  # Keep visible for CAPTCHA solving
+  slow_mo_ms: 250
