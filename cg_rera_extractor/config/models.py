@@ -7,11 +7,12 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-class CrawlMode(str, Enum):
-    """Supported crawl execution modes."""
+class RunMode(str, Enum):
+    """Supported run execution modes."""
 
+    DRY_RUN = "DRY_RUN"
+    LISTINGS_ONLY = "LISTINGS_ONLY"
     FULL = "FULL"
-    INCREMENTAL = "INCREMENTAL"
 
 
 class SearchFilterConfig(BaseModel):
@@ -25,10 +26,12 @@ class SearchFilterConfig(BaseModel):
 class RunConfig(BaseModel):
     """Options controlling a full extraction run."""
 
-    mode: CrawlMode
+    mode: RunMode = RunMode.FULL
     search_filters: SearchFilterConfig
     output_base_dir: str
     state_code: str = "CG"
+    max_search_combinations: int | None = 10
+    max_total_listings: int | None = 200
 
 
 class BrowserConfig(BaseModel):
@@ -50,7 +53,7 @@ class AppConfig(BaseModel):
 __all__ = [
     "AppConfig",
     "BrowserConfig",
-    "CrawlMode",
+    "RunMode",
     "RunConfig",
     "SearchFilterConfig",
 ]
