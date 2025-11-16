@@ -140,6 +140,7 @@ class V1Project(BaseModel):
     documents: list[V1Document] = Field(default_factory=list)
     quarterly_updates: list[V1QuarterlyUpdate] = Field(default_factory=list)
     raw_data: V1RawData
+    validation_messages: list[str] = Field(default_factory=list)
 
 
 __all__ = [

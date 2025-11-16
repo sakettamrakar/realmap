@@ -37,6 +37,11 @@
 | P9.1 – CONTRIBUTING / PR template | ❌ | No contributing guide or PR template yet. |
 | P9.2 – Branch/PR guidance | ❌ | No automation around branch naming or templates. |
 
+## Data Quality & Normalization
+- Normalization layer trims whitespace, title-cases districts, standardizes project status/type labels, and cleans registration numbers before V1 JSON is written.
+- Validation currently flags missing district/status, malformed pincodes found in mapped project details, and non-positive area figures (land or total area) for basic data-quality checks.
+- Validation messages are stored alongside each V1 project payload and aggregated into `dq_warnings` counters during a run.
+
 ## Task T1–T7 Alignment
 | Task | Scope | Status | Notes |
 | --- | --- | --- | --- |
@@ -56,7 +61,7 @@
 - Comment for Jira: "Run modes (DRY_RUN, LISTINGS_ONLY, FULL) and global safety limits implemented and tested for orchestrator."
 
 ## Testing Status
-- ✅ `pytest` (20 tests) exercises config loader, storage, listing parser, raw extractor, mapper, Jira sync parser, and orchestrator wiring with fakes (including run-mode/limit coverage).
+- ✅ `pytest` (24 tests) exercises config loader, storage, listing parser, raw extractor, mapper, data-quality layer, Jira sync parser, and orchestrator wiring with fakes (including run-mode/limit coverage).
 - ✅ `python tools/self_check.py` runs an offline smoke-test suite (imports, config load, listing parse, raw extraction, mapper, orchestrator dry-run using fixtures).
 - Manual CLI / Playwright runs are still required for real CG RERA scraping because CAPTCHA and browser interactions cannot be automated in CI.
 
@@ -70,7 +75,7 @@
 ## Manual Test Checklist
 ### Quick offline checks (no network/browser needed)
 1. `pytest`
-   - Expect all 17 tests to pass (see per-test progress and summary `17 passed`).
+   - Expect all 24 tests to pass (see per-test progress and summary `24 passed`).
 2. `python tools/self_check.py`
    - Should print six PASS lines (imports, config, listing, raw extractor, mapper, orchestrator) and a summary `6/6 checks passed`.
 3. `python -c "from cg_rera_extractor.config.loader import load_config; print(load_config('config.example.yaml').model_dump())"`

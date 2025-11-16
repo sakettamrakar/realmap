@@ -4,7 +4,13 @@ from pathlib import Path
 
 from cg_rera_extractor.config.models import AppConfig, BrowserConfig, RunConfig, RunMode, SearchFilterConfig
 from cg_rera_extractor.listing.models import ListingRecord
-from cg_rera_extractor.parsing.schema import RawExtractedProject
+from cg_rera_extractor.parsing.schema import (
+    RawExtractedProject,
+    V1Metadata,
+    V1Project,
+    V1ProjectDetails,
+    V1RawData,
+)
 from cg_rera_extractor.runs import orchestrator
 
 
@@ -106,17 +112,6 @@ def test_run_crawl_honors_total_listing_limit(monkeypatch, tmp_path: Path):
     )
     app_config = AppConfig(run=run_config, browser=BrowserConfig())
 
-    class DummyV1Project:
-        def __init__(self, run_id: str) -> None:
-            self._payload = {
-                "metadata": {"run_id": run_id},
-                "project_details": {"registration_number": run_id},
-                "raw_data": {},
-            }
-
-        def model_dump(self, *_, **__) -> dict:
-            return self._payload
-
     class FakeSession:
         def __init__(self) -> None:
             self._counter = 0
@@ -173,7 +168,15 @@ def test_run_crawl_honors_total_listing_limit(monkeypatch, tmp_path: Path):
         )
 
     def fake_map_raw_to_v1(raw: RawExtractedProject, state_code: str):  # type: ignore[override]
-        return DummyV1Project(run_id=f"{state_code}-{raw.registration_number}")
+        return V1Project(
+            metadata=V1Metadata(state_code=state_code),
+            project_details=V1ProjectDetails(
+                registration_number=raw.registration_number,
+                project_status="Registered",
+                district="Raipur",
+            ),
+            raw_data=V1RawData(),
+        )
 
     monkeypatch.setattr(orchestrator, "PlaywrightBrowserSession", lambda _cfg: FakeSession())
     monkeypatch.setattr(orchestrator, "wait_for_captcha_solved", lambda: None)

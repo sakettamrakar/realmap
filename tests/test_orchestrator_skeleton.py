@@ -11,20 +11,14 @@ from cg_rera_extractor.config.models import (
     SearchFilterConfig,
 )
 from cg_rera_extractor.listing.models import ListingRecord
-from cg_rera_extractor.parsing.schema import RawExtractedProject
+from cg_rera_extractor.parsing.schema import (
+    RawExtractedProject,
+    V1Metadata,
+    V1Project,
+    V1ProjectDetails,
+    V1RawData,
+)
 from cg_rera_extractor.runs import orchestrator
-
-
-class DummyV1Project:
-    def __init__(self, run_id: str) -> None:
-        self._payload = {
-            "metadata": {"run_id": run_id},
-            "project_details": {"registration_number": "CG-REG-001"},
-            "raw_data": {},
-        }
-
-    def model_dump(self, *_, **__) -> dict:
-        return self._payload
 
 
 def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> None:
@@ -97,7 +91,23 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
         )
 
     def fake_map_raw_to_v1(raw: RawExtractedProject, state_code: str):  # type: ignore[override]
-        return DummyV1Project(run_id=state_code + "-" + (raw.registration_number or ""))
+        return V1Project(
+            metadata=V1Metadata(state_code=state_code),
+            project_details=V1ProjectDetails(
+                registration_number=raw.registration_number,
+                project_name=raw.project_name,
+                project_status="Registered",
+                district="Raipur",
+            ),
+            promoter_details=[],
+            land_details=[],
+            building_details=[],
+            unit_types=[],
+            bank_details=[],
+            documents=[],
+            quarterly_updates=[],
+            raw_data=V1RawData(),
+        )
 
     monkeypatch.setattr(orchestrator, "PlaywrightBrowserSession", FakeSession)
     monkeypatch.setattr(orchestrator, "wait_for_captcha_solved", lambda: None)
@@ -129,4 +139,4 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
 
     with v1_files[0].open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
-    assert payload["metadata"]["run_id"].startswith("CG-")
+    assert payload["project_details"]["registration_number"] == "CG-REG-001"

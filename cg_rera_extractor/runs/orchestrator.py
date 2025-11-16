@@ -23,6 +23,7 @@ from cg_rera_extractor.listing.models import ListingRecord
 from cg_rera_extractor.listing.scraper import parse_listing_html
 from cg_rera_extractor.parsing.mapper import map_raw_to_v1
 from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
+from cg_rera_extractor.quality import normalize_v1_project, validate_v1_project
 from cg_rera_extractor.runs.status import RunStatus
 
 LOGGER = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
         "listings_scraped": 0,
         "details_fetched": 0,
         "projects_parsed": 0,
+        "dq_warnings": 0,
     }
     status = RunStatus(
         run_id=run_id,
@@ -278,6 +280,13 @@ def _process_saved_html(
             _write_json(raw_path, raw.model_dump(mode="json"))
 
             v1_project = map_raw_to_v1(raw, state_code=state_code)
+            v1_project = normalize_v1_project(v1_project)
+            validation_messages = validate_v1_project(v1_project)
+            if validation_messages:
+                counts["dq_warnings"] += len(validation_messages)
+                v1_project = v1_project.model_copy(
+                    update={"validation_messages": validation_messages}
+                )
             v1_path = dirs["scraped_json"] / f"{html_file.stem}_v1.json"
             _write_json(
                 v1_path,
