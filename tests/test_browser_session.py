@@ -28,6 +28,9 @@ class FakeBrowserSession:
     def fill(self, selector: str, value: str) -> None:
         self.actions.append(f"fill:{selector}={value}")
 
+    def select_option(self, selector: str, value: str | list[str]) -> None:
+        self.actions.append(f"select:{selector}={value}")
+
     def click(self, selector: str) -> None:
         self.actions.append(f"click:{selector}")
 

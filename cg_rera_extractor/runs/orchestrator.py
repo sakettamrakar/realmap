@@ -120,10 +120,10 @@ def _execute_search(
     project_types: Iterable[str] | None,
 ) -> None:
     session.goto(CG_RERA_SEARCH_URL)
-    session.fill("select[name='district']", district)
-    session.fill("select[name='status']", project_status)
+    session.select_option("select[name='district']", district)
+    session.select_option("select[name='status']", project_status)
     if project_types:
-        session.fill("select[name='project_type']", ",".join(project_types))
+        session.select_option("select[name='project_type']", list(project_types))
     session.click("button[type='submit']")
 
 
@@ -158,11 +158,14 @@ def _process_saved_html(
             html = html_file.read_text(encoding="utf-8")
             raw = extract_raw_from_html(html, source_file=str(html_file))
             raw_path = dirs["raw_extracted"] / f"{html_file.stem}.json"
-            _write_json(raw_path, raw.model_dump())
+            _write_json(raw_path, raw.model_dump(mode="json"))
 
             v1_project = map_raw_to_v1(raw, state_code=state_code)
             v1_path = dirs["scraped_json"] / f"{html_file.stem}_v1.json"
-            _write_json(v1_path, v1_project.model_dump(exclude_none=True))
+            _write_json(
+                v1_path,
+                v1_project.model_dump(mode="json", exclude_none=True),
+            )
             counts["projects_parsed"] += 1
         except Exception as exc:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to process %s", html_file)

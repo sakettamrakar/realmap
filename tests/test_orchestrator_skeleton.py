@@ -57,6 +57,9 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
         def fill(self, *_args, **_kwargs) -> None:  # pragma: no cover - no-op
             return None
 
+        def select_option(self, *_args, **_kwargs) -> None:  # pragma: no cover - no-op
+            return None
+
         def click(self, *_args, **_kwargs) -> None:  # pragma: no cover - no-op
             return None
 

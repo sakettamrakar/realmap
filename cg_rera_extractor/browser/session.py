@@ -22,6 +22,9 @@ class BrowserSession(Protocol):
     def fill(self, selector: str, value: str) -> None:
         """Fill a form field identified by ``selector`` with ``value``."""
 
+    def select_option(self, selector: str, value: str | list[str]) -> None:
+        """Select one or more options for a ``<select>`` element."""
+
     def click(self, selector: str) -> None:
         """Click an element matching ``selector``."""
 
@@ -75,6 +78,10 @@ class PlaywrightBrowserSession:
     def fill(self, selector: str, value: str) -> None:
         page = self._require_page()
         page.fill(selector, value)
+
+    def select_option(self, selector: str, value: str | list[str]) -> None:
+        page = self._require_page()
+        page.select_option(selector, value=value)
 
     def click(self, selector: str) -> None:
         page = self._require_page()
