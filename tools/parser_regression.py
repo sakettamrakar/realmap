@@ -51,9 +51,27 @@ def iter_fixture_paths(inputs: list[str] | None, fixtures_dir: Path) -> list[Pat
     return paths
 
 
+def normalize_fixture_path(fixture_path: Path) -> str:
+    """Return a repository-relative fixture path when possible.
+
+    Absolute fixture paths in goldens are brittle because they vary per clone
+    location. By stripping the repository prefix we keep goldens portable while
+    still retaining enough context to identify the source fixture. If a fixture
+    is outside the repository, fall back to just the filename to avoid encoding
+    host-specific absolute paths.
+    """
+
+    resolved = fixture_path.resolve()
+    try:
+        return resolved.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return resolved.name
+
+
 def run_parsers(html: str, fixture_path: Path, base_url: str) -> RegressionResult:
     listing_records = parse_listing_html(html, base_url=base_url)
-    raw = extract_raw_from_html(html, source_file=str(fixture_path))
+    normalized_fixture = normalize_fixture_path(fixture_path)
+    raw = extract_raw_from_html(html, source_file=normalized_fixture)
     return RegressionResult(fixture=fixture_path, listing=listing_records, raw=raw)
 
 
