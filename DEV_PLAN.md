@@ -133,6 +133,14 @@ Mock BrowserSession for tests.
 
 ---
 
+### P3-T3 – Geocoding interface & DB fields
+
+- Add nullable latitude/longitude columns and geocoding status/source fields to `projects`.
+- Define a pluggable geocoder protocol so different providers or manual importers can be injected later.
+- Provide a batch service/CLI to process projects missing coordinates without calling external APIs in tests.
+
+---
+
 ## 4. Phase 4 – Listing Page Scraper
 
 ### P4.1: Listing models
