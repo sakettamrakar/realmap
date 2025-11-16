@@ -1,10 +1,11 @@
 """Configuration models for the CG RERA extraction framework."""
 from __future__ import annotations
 
+import os
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class RunMode(str, Enum):
@@ -34,6 +35,23 @@ class RunConfig(BaseModel):
     max_total_listings: int | None = 200
 
 
+class DatabaseConfig(BaseModel):
+    """Database connectivity settings."""
+
+    url: str
+
+    @model_validator(mode="before")
+    def populate_from_env(cls, values: dict[str, str]) -> dict[str, str]:
+        """Populate the database URL from ``DATABASE_URL`` if missing."""
+
+        url = values.get("url") if isinstance(values, dict) else None
+        if not url:
+            env_url = os.getenv("DATABASE_URL")
+            if env_url:
+                values = {**(values or {}), "url": env_url}
+        return values
+
+
 class BrowserConfig(BaseModel):
     """Browser/session level configuration."""
 
@@ -46,6 +64,7 @@ class BrowserConfig(BaseModel):
 class AppConfig(BaseModel):
     """Top-level application configuration."""
 
+    db: DatabaseConfig
     run: RunConfig
     browser: BrowserConfig
 
@@ -56,4 +75,5 @@ __all__ = [
     "RunMode",
     "RunConfig",
     "SearchFilterConfig",
+    "DatabaseConfig",
 ]

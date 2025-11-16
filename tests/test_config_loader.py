@@ -4,7 +4,14 @@ from pathlib import Path
 import pytest
 
 from cg_rera_extractor.config.loader import load_config
-from cg_rera_extractor.config.models import AppConfig, BrowserConfig, RunConfig, RunMode, SearchFilterConfig
+from cg_rera_extractor.config.models import (
+    AppConfig,
+    BrowserConfig,
+    DatabaseConfig,
+    RunConfig,
+    RunMode,
+    SearchFilterConfig,
+)
 
 
 def test_load_config_from_example_file() -> None:
@@ -15,6 +22,7 @@ def test_load_config_from_example_file() -> None:
 
     assert isinstance(config, AppConfig)
     assert isinstance(config.browser, BrowserConfig)
+    assert isinstance(config.db, DatabaseConfig)
     assert isinstance(config.run, RunConfig)
     assert isinstance(config.run.search_filters, SearchFilterConfig)
     assert config.run.mode is RunMode.FULL
@@ -28,6 +36,7 @@ def test_load_config_from_example_file() -> None:
     assert config.browser.headless is False
     assert config.browser.slow_mo_ms == 250
     assert config.browser.default_timeout_ms == 20000
+    assert config.db.url.startswith("postgresql+psycopg2://")
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:

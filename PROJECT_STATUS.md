@@ -3,8 +3,9 @@
 ## Overview
 - The repository follows the architecture described in `DEV_PLAN.md`: config, browser, listing, detail, parsing, and run orchestration layers are all in place with accompanying fixtures and unit tests.
 - Run orchestrator now supports DRY_RUN / LISTINGS_ONLY / FULL modes plus per-run caps for search combinations and total listings to keep live runs safe.
-- Core parsing, mapping, and orchestration flows can be exercised offline via the new `tools/self_check.py` script and the existing pytest suite (17 tests).
+- Core parsing, mapping, and orchestration flows can be exercised offline via the new `tools/self_check.py` script and the existing pytest suite (28 tests including DB wiring).
 - Jira integration tooling (`tools/jira_client.py`, `tools/sync_dev_plan_to_jira.py`, `.github/workflows/jira-sync.yml`) is wired up and ready to sync plan tasks to Jira once credentials are provided.
+- Postgres-ready database layer added with SQLAlchemy models, config-driven engine helper, and a `tools/init_db.py` initializer script.
 
 ## Implementation Status vs DEV_PLAN
 | DEV_PLAN task | Status | Notes |
@@ -17,6 +18,7 @@
 | P3.1 – BrowserSession abstraction | ⚠️ | Playwright session implemented but only protocol-level tests exist; no live Playwright smoke test yet. |
 | P3.2 – Manual CAPTCHA helper | ⚠️ | Blocking `input()` helper exists; no ergonomics for CLI prompt customisation. |
 | P3.3 – Browser tests | ⚠️ | Fake session tests cover protocol but not real browser lifecycle. |
+| P3-T1 – DB schema & connection layer | ✅ | SQLAlchemy models for projects/promoters/buildings/etc., config-driven engine helper, and schema init script. |
 | P4.1 – Listing models | ✅ | `ListingRecord` dataclass mirrors schema. |
 | P4.2 – Listing parser | ✅ | Robust header matching + fixture tests. |
 | P4.3 – Listing tests | ✅ | Fixture-driven tests in `tests/test_listing_scraper.py`. |
@@ -36,6 +38,11 @@
 | P8.4 – Orchestrator tests | ⚠️ | `test_orchestrator_skeleton.py` covers a happy path with fakes only. |
 | P9.1 – CONTRIBUTING / PR template | ❌ | No contributing guide or PR template yet. |
 | P9.2 – Branch/PR guidance | ❌ | No automation around branch naming or templates. |
+
+## Phase 3 – DB Layer
+- Schema includes `projects`, `promoters`, `buildings`, `unit_types`, `project_documents`, and `quarterly_updates` with `state_code + rera_registration_number` as the natural key on projects.
+- Connection details come from `config.db.url` or the `DATABASE_URL` environment variable; no DSNs are hard-coded.
+- Initialize the schema locally with `python tools/init_db.py --config config.example.yaml` (or rely on `DATABASE_URL` without a config flag).
 
 ## Data Quality & Normalization
 - Normalization layer trims whitespace, title-cases districts, standardizes project status/type labels, and cleans registration numbers before V1 JSON is written.
@@ -61,7 +68,7 @@
 - Comment for Jira: "Run modes (DRY_RUN, LISTINGS_ONLY, FULL) and global safety limits implemented and tested for orchestrator."
 
 ## Testing Status
-- ✅ `pytest` (24 tests) exercises config loader, storage, listing parser, raw extractor, mapper, data-quality layer, Jira sync parser, and orchestrator wiring with fakes (including run-mode/limit coverage).
+- ✅ `pytest` (28 tests) exercises config loader, storage, listing parser, raw extractor, mapper, data-quality layer, Jira sync parser, DB models, and orchestrator wiring with fakes (including run-mode/limit coverage).
 - ✅ `python tools/self_check.py` runs an offline smoke-test suite (imports, config load, listing parse, raw extraction, mapper, orchestrator dry-run using fixtures).
 - ✅ `python tools/parser_regression.py record` / `check` records and validates golden JSON outputs for HTML fixtures to catch upstream CG RERA UI changes.
 - Manual CLI / Playwright runs are still required for real CG RERA scraping because CAPTCHA and browser interactions cannot be automated in CI.
@@ -95,7 +102,7 @@
 ## Manual Test Checklist
 ### Quick offline checks (no network/browser needed)
 1. `pytest`
-   - Expect all 24 tests to pass (see per-test progress and summary `24 passed`).
+   - Expect all 28 tests to pass (see per-test progress and summary `28 passed`).
 2. `python tools/self_check.py`
    - Should print six PASS lines (imports, config, listing, raw extractor, mapper, orchestrator) and a summary `6/6 checks passed`.
 3. `python -c "from cg_rera_extractor.config.loader import load_config; print(load_config('config.example.yaml').model_dump())"`

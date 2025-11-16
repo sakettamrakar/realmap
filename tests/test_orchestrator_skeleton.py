@@ -6,6 +6,7 @@ from pathlib import Path
 from cg_rera_extractor.config.models import (
     AppConfig,
     BrowserConfig,
+    DatabaseConfig,
     RunConfig,
     RunMode,
     SearchFilterConfig,
@@ -30,7 +31,11 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
         state_code="CG",
     )
     browser_config = BrowserConfig(driver="playwright", headless=True)
-    app_config = AppConfig(run=run_config, browser=browser_config)
+    app_config = AppConfig(
+        run=run_config,
+        browser=browser_config,
+        db=DatabaseConfig(url="sqlite+pysqlite:///:memory:"),
+    )
 
     fake_listing = ListingRecord(
         reg_no="CG-REG-001",
