@@ -25,6 +25,7 @@ def test_load_config_from_example_file() -> None:
     assert config.browser.driver == "playwright"
     assert config.browser.headless is True
     assert config.browser.slow_mo_ms == 250
+    assert config.browser.default_timeout_ms == 20000
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:
