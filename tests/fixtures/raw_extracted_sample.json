@@ -1,0 +1,95 @@
+{
+  "registration_number": "CG-REG-2024-001",
+  "project_name": "Emerald Residency",
+  "source_url": "https://rera.cgstate.gov.in/project/CG-REG-2024-001",
+  "sections": [
+    {
+      "section_title_raw": "Project Details",
+      "fields": [
+        {"label": "Project Name", "value": "Emerald Residency"},
+        {"label": "Registration No", "value": "CG-REG-2024-001"},
+        {"label": "Project Type", "value": "Residential"},
+        {"label": "Project Status", "value": "Registered"},
+        {"label": "District", "value": "Raipur"},
+        {"label": "Tehsil", "value": "Raipur"},
+        {"label": "Project Address", "value": "Khasra 12/3, VIP Road, Raipur"},
+        {"label": "Total Units", "value": "180"},
+        {"label": "Total Area (sq m)", "value": "8650"},
+        {"label": "Launch Date", "value": "2023-01-15"},
+        {"label": "Expected Completion", "value": "2027-06-30"}
+      ]
+    },
+    {
+      "section_title_raw": "Promoter Information",
+      "fields": [
+        {"label": "Promoter Name", "value": "Green Estates Pvt Ltd"},
+        {"label": "Promoter Type", "value": "Company"},
+        {"label": "Promoter Address", "value": "Plot 12, MG Road, Raipur"},
+        {"label": "Promoter Email", "value": "contact@greenestates.in"},
+        {"label": "Promoter Phone", "value": "+91-771-5557788"},
+        {"label": "Promoter CIN", "value": "U12345CT2010PTC000123"}
+      ]
+    },
+    {
+      "section_title_raw": "Land Particulars",
+      "fields": [
+        {"label": "Land Area (sq m)", "value": "8650"},
+        {"label": "Land Status", "value": "Owned"},
+        {"label": "Land Address", "value": "Village Naya Raipur"},
+        {"label": "Khasra Numbers", "value": "12/3, 12/4"}
+      ]
+    },
+    {
+      "section_title_raw": "Building Details",
+      "fields": [
+        {"label": "Building Name", "value": "Tower A"},
+        {"label": "Number of Floors", "value": "12"},
+        {"label": "Number of Units", "value": "90"},
+        {"label": "Carpet Area (sq m)", "value": "4500"}
+      ]
+    },
+    {
+      "section_title_raw": "Unit Type Details",
+      "fields": [
+        {"label": "Unit Type", "value": "2BHK"},
+        {"label": "Carpet Area (sq m)", "value": "65"},
+        {"label": "Built-up Area (sq m)", "value": "85"},
+        {"label": "Unit Price (INR)", "value": "5200000"}
+      ]
+    },
+    {
+      "section_title_raw": "Bank / Escrow Details",
+      "fields": [
+        {"label": "Bank Name", "value": "State Bank of India"},
+        {"label": "Branch", "value": "Raipur Main"},
+        {"label": "Account Number", "value": "123456789012"},
+        {"label": "IFSC Code", "value": "SBIN0000123"}
+      ]
+    },
+    {
+      "section_title_raw": "Documents",
+      "fields": [
+        {"label": "Document Name", "value": "Registration Certificate"},
+        {"label": "Document Type", "value": "Certificate"},
+        {"label": "Document URL", "value": "https://rera.cgstate.gov.in/documents/emerald/certificate.pdf"},
+        {"label": "Uploaded On", "value": "2023-02-01"}
+      ]
+    },
+    {
+      "section_title_raw": "Quarterly Updates",
+      "fields": [
+        {"label": "Quarter", "value": "Q4"},
+        {"label": "Year", "value": "2023"},
+        {"label": "Status", "value": "On track"},
+        {"label": "Completion (%)", "value": "35"},
+        {"label": "Remarks", "value": "Plinth work completed"}
+      ]
+    },
+    {
+      "section_title_raw": "Special Approvals",
+      "fields": [
+        {"label": "Airport Clearance", "value": "Pending"}
+      ]
+    }
+  ]
+}
