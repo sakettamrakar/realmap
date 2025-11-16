@@ -118,24 +118,32 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
 
     status = orchestrator.run_crawl(app_config)
 
-    assert status.counts["listings_scraped"] == 1
+    assert status.counts["search_combinations_attempted"] == 1
+    assert status.counts["listings_parsed"] == 1
     assert status.counts["details_fetched"] == 1
-    assert status.counts["projects_parsed"] == 1
+    assert status.counts["projects_mapped"] == 1
     assert not status.errors
 
-    run_dir = Path(run_config.output_base_dir) / f"run_{status.run_id}"
+    run_dir = Path(run_config.output_base_dir) / "runs" / f"run_{status.run_id}"
     raw_html_dir = run_dir / "raw_html"
     raw_extracted_dir = run_dir / "raw_extracted"
     scraped_json_dir = run_dir / "scraped_json"
+    listings_dir = run_dir / "listings"
+    run_report = run_dir / "run_report.json"
 
     assert raw_html_dir.exists()
     assert raw_extracted_dir.exists()
     assert scraped_json_dir.exists()
+    assert listings_dir.exists()
+    assert run_report.exists()
 
     raw_files = list(raw_extracted_dir.glob("*.json"))
     v1_files = list(scraped_json_dir.glob("*.json"))
     assert raw_files, "Expected raw extracted JSON files to be written"
     assert v1_files, "Expected V1 JSON files to be written"
+    assert any(path.name.endswith(".v1.json") for path in v1_files)
+    listing_files = list(listings_dir.glob("*.json"))
+    assert listing_files, "Expected listing snapshots to be written"
 
     with v1_files[0].open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
