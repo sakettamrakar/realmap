@@ -43,9 +43,10 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
     }
 
     counts = {
-        "listings_scraped": 0,
+        "search_combinations_attempted": 0,
+        "listings_parsed": 0,
         "details_fetched": 0,
-        "projects_parsed": 0,
+        "projects_mapped": 0,
     }
     status = RunStatus(
         run_id=run_id,
@@ -56,6 +57,12 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
     )
 
     dirs = _prepare_run_directories(Path(run_config.output_base_dir).expanduser(), run_id)
+    print(
+        f"Starting run {run_id} in {status.mode} mode. Output folder: {dirs['run_dir']}"
+    )
+    LOGGER.info(
+        "Starting run %s in %s mode. Output folder: %s", run_id, status.mode, dirs["run_dir"]
+    )
     session: PlaywrightBrowserSession | None = None
 
     try:
@@ -64,8 +71,13 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
 
         for district in filters.districts:
             for project_status in filters.statuses:
-                print(f"Running search for district={district} status={project_status}")
-                LOGGER.info("Running search for district=%s status=%s", district, project_status)
+                counts["search_combinations_attempted"] += 1
+                print(
+                    f"Running search for district={district} status={project_status}"
+                )
+                LOGGER.info(
+                    "Running search for district=%s status=%s", district, project_status
+                )
                 try:
                     _execute_search(
                         session,
@@ -89,6 +101,12 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                             len(listings),
                             MAX_LISTINGS_PER_SEARCH,
                         )
+                        print(
+                            f"Parsed {len(listings)} listings; truncating to {MAX_LISTINGS_PER_SEARCH}"
+                        )
+                        status.warnings.append(
+                            f"Truncated listings for {district}/{project_status} to {MAX_LISTINGS_PER_SEARCH}"
+                        )
                         listings = listings[:MAX_LISTINGS_PER_SEARCH]
 
                     for record in listings:
@@ -100,8 +118,9 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                         )
                         continue
 
-                    counts["listings_scraped"] += len(listings)
+                    counts["listings_parsed"] += len(listings)
                     LOGGER.info("Parsed %d listings for %s / %s", len(listings), district, project_status)
+                    print(f"Parsed {len(listings)} listings for {district} / {project_status}")
                     _save_listings_snapshot(
                         dirs["listings"], district, project_status, listings, listings_html
                     )
@@ -115,6 +134,7 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                     )
                 except Exception as exc:  # pragma: no cover - defensive logging
                     LOGGER.exception("Search failed for %s/%s", district, project_status)
+                    print(f"Error during search for {district}/{project_status}: {exc}")
                     status.errors.append(str(exc))
     finally:
         if session is not None:
@@ -122,6 +142,9 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
 
     _process_saved_html(dirs, run_config.state_code, counts, status)
     status.finished_at = datetime.now(timezone.utc)
+    _write_json(dirs["run_dir"] / "run_report.json", status.to_serializable())
+    print(f"Run {run_id} finished. Counts: {json.dumps(counts)}")
+    LOGGER.info("Run %s finished. Counts: %s", run_id, counts)
     return status
 
 
@@ -132,7 +155,8 @@ def _generate_run_id() -> str:
 
 
 def _prepare_run_directories(base_dir: Path, run_id: str) -> dict[str, Path]:
-    run_dir = (base_dir / f"run_{run_id}").resolve()
+    run_root = base_dir / "runs"
+    run_dir = (run_root / f"run_{run_id}").resolve()
     raw_html_dir = run_dir / "raw_html"
     raw_extracted_dir = run_dir / "raw_extracted"
     scraped_json_dir = run_dir / "scraped_json"
@@ -200,12 +224,12 @@ def _process_saved_html(
             _write_json(raw_path, raw.model_dump(mode="json"))
 
             v1_project = map_raw_to_v1(raw, state_code=state_code)
-            v1_path = dirs["scraped_json"] / f"{html_file.stem}_v1.json"
+            v1_path = dirs["scraped_json"] / f"{html_file.stem}.v1.json"
             _write_json(
                 v1_path,
                 v1_project.model_dump(mode="json", exclude_none=True),
             )
-            counts["projects_parsed"] += 1
+            counts["projects_mapped"] += 1
         except Exception as exc:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to process %s", html_file)
             status.errors.append(str(exc))

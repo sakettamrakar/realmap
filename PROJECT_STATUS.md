@@ -28,7 +28,7 @@
 | P7.2 – Logical section mapping | ⚠️ | Static mapping JSON loaded at import; needs documentation and expansion for edge cases. |
 | P7.3 – Mapper | ⚠️ | Works for basic flows; limited fixture coverage (single happy-path sample). |
 | P7.4 – Mapper tests | ⚠️ | Only one sample verified; no negative-case coverage. |
-| P8.1 – Run metadata | ✅ | `RunStatus` dataclass implemented. |
+| P8.1 – Run metadata | ✅ | `RunStatus` dataclass implemented; serialized to `run_report.json` for each run. |
 | P8.2 – Orchestrator | ⚠️ | Full pipeline implemented; relies on Playwright + manual CAPTCHA so real runs remain brittle. |
 | P8.3 – CLI | ⚠️ | `cg_rera_extractor.cli` exists but lacks automated tests and documentation/examples beyond config file. |
 | P8.4 – Orchestrator tests | ⚠️ | `test_orchestrator_skeleton.py` covers a happy path with fakes only. |
@@ -63,6 +63,25 @@
 - Browser layer lacks integration smoke tests; verifying Playwright launch/headless behaviour currently requires manual testing.
 - CLI ergonomics (help text, examples, dry-run support) could be improved; currently only barebones instructions exist.
 - Jira sync lacks a native dry-run mode; consider adding `JIRA_DRY_RUN=1` support to avoid accidental writes during local experiments.
+
+## Run Output & Reports
+- Each run now writes outputs under `<output_base_dir>/runs/run_<run_id>/` with standardized subfolders:
+
+  ```
+  runs/
+    run_<run_id>/
+      listings/
+        listings_<district>_<status>.json
+      raw_html/
+        project_<reg_no>.html
+      raw_extracted/
+        project_<reg_no>.json
+      scraped_json/
+        project_<reg_no>.v1.json
+      run_report.json
+  ```
+
+- `run_report.json` serializes the `RunStatus` for the run (mode, filters used, counts for search combinations/listings/details/projects mapped, warnings, and errors) to aid debugging and machine-readable tracking.
 
 ## Manual Test Checklist
 ### Quick offline checks (no network/browser needed)

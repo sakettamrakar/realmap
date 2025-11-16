@@ -83,6 +83,14 @@ Add unit tests.
 
 ---
 
+### P2-T3 – Logging, run reports & output structure
+
+- Standardize run outputs under `<output_base_dir>/runs/run_<run_id>/` with dedicated subfolders for listings, raw HTML, raw extracted JSON, and mapped scraper JSON.
+- Emit a machine-readable `run_report.json` per run containing run metadata, filters used, counts, warnings, and errors.
+- Improve console/log output for start/end of runs, per-filter combinations, listing counts, truncation notices, and summarized exceptions.
+
+---
+
 ## 3. Phase 3 – Browser Session & Manual CAPTCHA
 
 ### P3.1: BrowserSession abstraction
