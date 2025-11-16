@@ -124,6 +124,15 @@ Mock BrowserSession for tests.
 
 ---
 
+### P3-T1 – DB schema & connection layer (Postgres)
+
+- Add `DatabaseConfig` wired to `DATABASE_URL`/`config.db.url`.
+- Introduce SQLAlchemy engine helper + `SessionLocal` factory.
+- Create normalized models for projects, promoters, buildings, unit types, documents, and quarterly updates with a natural key on `state_code + rera_registration_number`.
+- Provide a lightweight schema initializer (e.g., `tools/init_db.py`) for local setups.
+
+---
+
 ## 4. Phase 4 – Listing Page Scraper
 
 ### P4.1: Listing models

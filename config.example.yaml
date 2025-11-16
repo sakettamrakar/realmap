@@ -19,3 +19,6 @@ browser:
   driver: playwright
   headless: false  # Set to false for easier manual CAPTCHA solving
   slow_mo_ms: 250
+db:
+  # Prefer setting this via the DATABASE_URL environment variable; this is a sample DSN for local development.
+  url: postgresql+psycopg2://user:password@localhost:5432/cg_rera

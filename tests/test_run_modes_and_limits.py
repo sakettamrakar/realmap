@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cg_rera_extractor.config.models import AppConfig, BrowserConfig, RunConfig, RunMode, SearchFilterConfig
+from cg_rera_extractor.config.models import (
+    AppConfig,
+    BrowserConfig,
+    DatabaseConfig,
+    RunConfig,
+    RunMode,
+    SearchFilterConfig,
+)
 from cg_rera_extractor.listing.models import ListingRecord
 from cg_rera_extractor.parsing.schema import (
     RawExtractedProject,
@@ -24,7 +31,11 @@ def test_run_crawl_dry_run_reports_pairs(monkeypatch, capsys):
         max_search_combinations=1,
         max_total_listings=5,
     )
-    app_config = AppConfig(run=run_config, browser=BrowserConfig())
+    app_config = AppConfig(
+        run=run_config,
+        browser=BrowserConfig(),
+        db=DatabaseConfig(url="sqlite+pysqlite:///:memory:"),
+    )
 
     def fail_session(_config):  # pragma: no cover - defensive stub
         raise AssertionError("Browser session should not start in DRY_RUN mode")
@@ -55,7 +66,11 @@ def test_run_crawl_stops_after_combination_cap(monkeypatch, tmp_path: Path):
         max_search_combinations=2,
         max_total_listings=None,
     )
-    app_config = AppConfig(run=run_config, browser=BrowserConfig())
+    app_config = AppConfig(
+        run=run_config,
+        browser=BrowserConfig(),
+        db=DatabaseConfig(url="sqlite+pysqlite:///:memory:"),
+    )
 
     executed: list[tuple[str, str]] = []
 
@@ -110,7 +125,11 @@ def test_run_crawl_honors_total_listing_limit(monkeypatch, tmp_path: Path):
         max_search_combinations=None,
         max_total_listings=3,
     )
-    app_config = AppConfig(run=run_config, browser=BrowserConfig())
+    app_config = AppConfig(
+        run=run_config,
+        browser=BrowserConfig(),
+        db=DatabaseConfig(url="sqlite+pysqlite:///:memory:"),
+    )
 
     class FakeSession:
         def __init__(self) -> None:
@@ -192,6 +211,6 @@ def test_run_crawl_honors_total_listing_limit(monkeypatch, tmp_path: Path):
     assert status.counts["projects_parsed"] == 3
     assert status.counts["search_combinations_processed"] == 1
 
-    run_dir = Path(run_config.output_base_dir) / f"run_{status.run_id}"
+    run_dir = Path(run_config.output_base_dir) / "runs" / f"run_{status.run_id}"
     raw_html_files = list((run_dir / "raw_html").glob("*.html"))
     assert len(raw_html_files) == 3
