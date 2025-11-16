@@ -43,6 +43,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     status = run_crawl(config)
     logging.info("Run %s finished with counts: %s", status.run_id, status.counts)
 
+    if status.warnings:
+        logging.warning("Run completed with %d warnings", len(status.warnings))
+        for warning in status.warnings:
+            logging.warning(" - %s", warning)
+
     if status.errors:
         logging.error("Run completed with %d errors", len(status.errors))
         for error in status.errors:

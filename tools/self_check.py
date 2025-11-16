@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+from datetime import datetime, timezone
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List
@@ -20,6 +22,7 @@ from cg_rera_extractor.parsing.mapper import map_raw_to_v1
 from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
 from cg_rera_extractor.parsing.schema import RawExtractedProject
 from cg_rera_extractor.runs import orchestrator
+from cg_rera_extractor.runs.status import RunStatus
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures"
 
 
@@ -93,6 +96,31 @@ def check_mapper() -> list[str]:
     return [f"Mapped raw sample to V1 schema: {name} ({reg_no})."]
 
 
+def check_run_status_schema() -> list[str]:
+    status = RunStatus(
+        run_id="demo",
+        mode="TEST",
+        started_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(timezone.utc),
+        filters_used={"districts": ["all"], "statuses": ["all"], "project_types": []},
+        counts={
+            "search_combinations_attempted": 0,
+            "listings_parsed": 0,
+            "details_fetched": 0,
+            "projects_mapped": 0,
+        },
+        errors=[],
+        warnings=["demo warning"],
+    )
+    payload = status.to_serializable()
+    json_payload = json.dumps(payload)
+    return [
+        "RunStatus serializable to JSON",
+        f"Keys: {', '.join(sorted(payload.keys()))}",
+        f"Sample payload length={len(json_payload)}",
+    ]
+
+
 def check_orchestrator_dry_run() -> list[str]:
     filters = SearchFilterConfig(districts=["Raipur", "Bilaspur"], statuses=["Registered"])
     run_config = RunConfig(
@@ -125,6 +153,7 @@ def main() -> int:
         ("Listing parser", check_listing_parser),
         ("Raw extractor", check_raw_extractor),
         ("Mapper", check_mapper),
+        ("RunStatus schema", check_run_status_schema),
         ("Orchestrator dry run", check_orchestrator_dry_run),
     ]
 
