@@ -9,8 +9,8 @@ import yaml
 from .models import AppConfig
 
 
-def load_config(path: str | Path) -> AppConfig:
-    """Load an :class:`AppConfig` instance from a YAML configuration file."""
+def load_config(path: str) -> AppConfig:
+    """Load YAML configuration data into an :class:`AppConfig`."""
 
     config_path = Path(path).expanduser().resolve()
     if not config_path.exists():
