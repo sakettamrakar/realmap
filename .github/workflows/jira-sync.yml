@@ -53,4 +53,4 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          python tools/sync_dev_plan_to_jira.py
+          python -c "from tools.sync_dev_plan_to_jira import sync_dev_plan; sync_dev_plan()"
