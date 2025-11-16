@@ -18,12 +18,12 @@ def test_load_config_from_example_file() -> None:
     assert isinstance(config.run, RunConfig)
     assert isinstance(config.run.search_filters, SearchFilterConfig)
     assert config.run.mode is CrawlMode.FULL
-    assert config.run.search_filters.districts == ["Raipur", "Durg"]
-    assert config.run.search_filters.statuses == ["Registered", "Completed"]
-    assert config.run.search_filters.project_types == ["Residential", "Commercial"]
+    assert config.run.search_filters.districts == ["Raipur"]
+    assert config.run.search_filters.statuses == ["Ongoing"]
+    assert config.run.search_filters.project_types == []
     assert config.run.output_base_dir == "./outputs/demo-run"
     assert config.browser.driver == "playwright"
-    assert config.browser.headless is True
+    assert config.browser.headless is False
     assert config.browser.slow_mo_ms == 250
     assert config.browser.default_timeout_ms == 20000
 

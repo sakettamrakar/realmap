@@ -1,19 +1,19 @@
 # Example configuration for the CG RERA extraction orchestrator.
+
+# Phase 2: Minimal, manual-test-friendly settings.
+# Keep the number of filters very small to avoid large crawls while we validate
+# the real CG RERA search flow with human CAPTCHA solving.
 run:
   mode: FULL
   search_filters:
     districts:
       - Raipur
-      - Durg
     statuses:
-      - Registered
-      - Completed
-    project_types:
-      - Residential
-      - Commercial
+      - Ongoing
+    project_types: []  # Optional; keep empty for simplest first runs
   output_base_dir: ./outputs/demo-run
   state_code: CG
 browser:
   driver: playwright
-  headless: true
+  headless: false  # Set to false for easier manual CAPTCHA solving
   slow_mo_ms: 250

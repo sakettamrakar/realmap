@@ -75,6 +75,14 @@ Add unit tests.
 
 ---
 
+### P2-T1 – Wire orchestrator to real CG RERA search page
+
+- Connect the orchestrator Playwright flow to the live CG RERA project search page.
+- Centralize search URLs and selectors for district/status/project type fields.
+- Implement manual CAPTCHA pause, listing HTML capture, and max-results guard for safe, low-volume runs.
+
+---
+
 ## 3. Phase 3 – Browser Session & Manual CAPTCHA
 
 ### P3.1: BrowserSession abstraction
