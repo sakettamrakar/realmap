@@ -15,14 +15,16 @@ def _load_run_dir(path_or_id: str, base_dir: Path) -> Path:
     if candidate.exists():
         return candidate
 
-    run_dir = base_dir / "runs" / f"run_{path_or_id}"
-    if run_dir.exists():
-        return run_dir
+    candidates: list[Path] = [base_dir / "runs" / path_or_id]
+    if not path_or_id.startswith("run_"):
+        candidates.append(base_dir / "runs" / f"run_{path_or_id}")
 
-    message = (
-        f"Could not find run directory for '{path_or_id}'. "
-        f"Tried {candidate} and {run_dir}."
-    )
+    for run_dir in candidates:
+        if run_dir.exists():
+            return run_dir
+
+    tried = ", ".join(str(path) for path in [candidate, *candidates])
+    message = f"Could not find run directory for '{path_or_id}'. Tried {tried}."
     raise FileNotFoundError(message)
 
 
