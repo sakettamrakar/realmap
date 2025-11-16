@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
+from importlib import resources
 from typing import Dict, Tuple
 
 from .schema import (
@@ -21,9 +21,7 @@ from .schema import (
     V1UnitType,
 )
 
-_REPO_ROOT = Path(__file__).resolve().parents[1].parent
-_OUTPUTS_DIR = _REPO_ROOT / "outputs"
-_LOGICAL_SECTIONS_FILE = _OUTPUTS_DIR / "logical_sections_and_keys.json"
+_LOGICAL_SECTIONS_RESOURCE = "logical_sections_and_keys.json"
 
 
 def _normalize(value: str | None) -> str:
@@ -33,8 +31,10 @@ def _normalize(value: str | None) -> str:
 
 
 def _load_logical_section_mapping() -> Tuple[Dict[str, str], Dict[str, Dict[str, str]]]:
-    with _LOGICAL_SECTIONS_FILE.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
+    resource = resources.files("cg_rera_extractor.parsing.data").joinpath(
+        _LOGICAL_SECTIONS_RESOURCE
+    )
+    data = json.loads(resource.read_text("utf-8"))
 
     title_lookup: Dict[str, str] = {}
     key_lookup: Dict[str, Dict[str, str]] = {}
