@@ -17,7 +17,7 @@ from cg_rera_extractor.browser.cg_rera_selectors import (
     SearchPageSelectors,
 )
 from cg_rera_extractor.browser.session import PlaywrightBrowserSession
-from cg_rera_extractor.config.models import AppConfig
+from cg_rera_extractor.config.models import AppConfig, RunMode
 from cg_rera_extractor.detail.fetcher import fetch_and_save_details
 from cg_rera_extractor.listing.models import ListingRecord
 from cg_rera_extractor.listing.scraper import parse_listing_html
@@ -34,6 +34,9 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
 
     run_config = app_config.run
     filters = run_config.search_filters
+    search_pairs = _compute_search_pairs(
+        filters.districts, filters.statuses, run_config.max_search_combinations
+    )
     run_id = _generate_run_id()
     started_at = datetime.now(timezone.utc)
     filters_used = {
@@ -56,6 +59,11 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
         counts=counts,
     )
 
+    if run_config.mode == RunMode.DRY_RUN:
+        _report_dry_run(search_pairs, run_config)
+        status.finished_at = datetime.now(timezone.utc)
+        return status
+
     dirs = _prepare_run_directories(Path(run_config.output_base_dir).expanduser(), run_id)
     print(
         f"Starting run {run_id} in {status.mode} mode. Output folder: {dirs['run_dir']}"
@@ -64,6 +72,7 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
         "Starting run %s in %s mode. Output folder: %s", run_id, status.mode, dirs["run_dir"]
     )
     session: PlaywrightBrowserSession | None = None
+    listings_limit = run_config.max_total_listings
 
     try:
         session = PlaywrightBrowserSession(app_config.browser)
@@ -86,10 +95,14 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                         filters.project_types,
                         SEARCH_PAGE_SELECTORS,
                     )
-                    print("Waiting for manual CAPTCHA solve and search submission...")
-                    wait_for_captcha_solved()
+                    listings = listings[:MAX_LISTINGS_PER_SEARCH]
+
+                allowed = _remaining_listings(listings_limit, counts["listings_scraped"])
+                if allowed is not None and allowed < len(listings):
                     LOGGER.info(
-                        "Waiting for results using selector %s", SEARCH_PAGE_SELECTORS.results_table
+                        "Global listing cap %s reached; trimming to %s entries",
+                        listings_limit,
+                        allowed,
                     )
                     session.wait_for_selector(SEARCH_PAGE_SELECTORS.results_table, timeout_ms=20_000)
                     listings_html = session.get_page_html()
@@ -140,7 +153,8 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
         if session is not None:
             session.close()
 
-    _process_saved_html(dirs, run_config.state_code, counts, status)
+    if run_config.mode == RunMode.FULL:
+        _process_saved_html(dirs, run_config.state_code, counts, status)
     status.finished_at = datetime.now(timezone.utc)
     _write_json(dirs["run_dir"] / "run_report.json", status.to_serializable())
     print(f"Run {run_id} finished. Counts: {json.dumps(counts)}")
@@ -172,6 +186,52 @@ def _prepare_run_directories(base_dir: Path, run_id: str) -> dict[str, Path]:
         "scraped_json": scraped_json_dir,
         "listings": listings_dir,
     }
+
+
+def _compute_search_pairs(
+    districts: Iterable[str],
+    statuses: Iterable[str],
+    max_pairs: int | None,
+) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for district in districts:
+        for status in statuses:
+            pairs.append((district, status))
+            if max_pairs is not None and len(pairs) >= max_pairs:
+                return pairs
+    return pairs
+
+
+def _report_dry_run(
+    search_pairs: list[tuple[str, str]],
+    run_config,
+) -> None:
+    print("DRY RUN: no browser or network calls will be performed.")
+    if run_config.max_search_combinations is not None:
+        print(
+            f"Search combinations capped at {run_config.max_search_combinations}; "
+            f"planned {len(search_pairs)} pairs."
+        )
+    else:
+        print(f"Planned {len(search_pairs)} search combinations (no cap).")
+
+    for idx, (district, status_value) in enumerate(search_pairs, start=1):
+        print(f" {idx}. district={district}, status={status_value}")
+
+    if run_config.max_total_listings is not None:
+        print(f"Global listing cap: {run_config.max_total_listings} (across all searches)")
+    else:
+        print("Global listing cap: none (unbounded)")
+
+
+def _remaining_listings(limit: int | None, processed: int) -> int | None:
+    if limit is None:
+        return None
+    return max(limit - processed, 0)
+
+
+def _listing_limit_reached(limit: int | None, processed: int) -> bool:
+    return limit is not None and processed >= limit
 
 
 def _execute_search(

@@ -2,6 +2,7 @@
 
 ## Overview
 - The repository follows the architecture described in `DEV_PLAN.md`: config, browser, listing, detail, parsing, and run orchestration layers are all in place with accompanying fixtures and unit tests.
+- Run orchestrator now supports DRY_RUN / LISTINGS_ONLY / FULL modes plus per-run caps for search combinations and total listings to keep live runs safe.
 - Core parsing, mapping, and orchestration flows can be exercised offline via the new `tools/self_check.py` script and the existing pytest suite (17 tests).
 - Jira integration tooling (`tools/jira_client.py`, `tools/sync_dev_plan_to_jira.py`, `.github/workflows/jira-sync.yml`) is wired up and ready to sync plan tasks to Jira once credentials are provided.
 
@@ -12,6 +13,7 @@
 | P1.2 – Package layout | ✅ | Module tree matches plan; tests ensure imports work. |
 | P2.1 – Config models | ✅ | `cg_rera_extractor.config.models` implements all models; defaults hardened (e.g., browser timeout). |
 | P2.2 – Config loader | ✅ | `load_config` reads YAML and validates via Pydantic; sample config + tests exist. |
+| P2-T2 – Run modes and safety limits | ✅ | DRY_RUN / LISTINGS_ONLY / FULL modes plus search/listing caps implemented with tests and CLI override. |
 | P3.1 – BrowserSession abstraction | ⚠️ | Playwright session implemented but only protocol-level tests exist; no live Playwright smoke test yet. |
 | P3.2 – Manual CAPTCHA helper | ⚠️ | Blocking `input()` helper exists; no ergonomics for CLI prompt customisation. |
 | P3.3 – Browser tests | ⚠️ | Fake session tests cover protocol but not real browser lifecycle. |
@@ -51,10 +53,12 @@
 - `tools/sync_dev_plan_to_jira.py` parses `DEV_PLAN.md`, maintains `tools/jira_mapping.json`, and uses the Jira client to create/update issues; tests validate parsing and dry-run logic via monkeypatching.
 - `.github/workflows/jira-sync.yml` (unchanged) invokes the sync script; ensure secrets are configured in GitHub Actions before enabling.
 - There is **no built-in `JIRA_DRY_RUN` flag**; to avoid Jira writes run the sync script only when the required env vars are unset (it will error) or mock the client as in tests.
+- Comment for Jira: "Run modes (DRY_RUN, LISTINGS_ONLY, FULL) and global safety limits implemented and tested for orchestrator."
 
 ## Testing Status
-- ✅ `pytest` (17 tests) exercises config loader, storage, listing parser, raw extractor, mapper, Jira sync parser, and orchestrator wiring with fakes.
+- ✅ `pytest` (20 tests) exercises config loader, storage, listing parser, raw extractor, mapper, Jira sync parser, and orchestrator wiring with fakes (including run-mode/limit coverage).
 - ✅ `python tools/self_check.py` runs an offline smoke-test suite (imports, config load, listing parse, raw extraction, mapper, orchestrator dry-run using fixtures).
+- ✅ `python tools/parser_regression.py record` / `check` records and validates golden JSON outputs for HTML fixtures to catch upstream CG RERA UI changes.
 - Manual CLI / Playwright runs are still required for real CG RERA scraping because CAPTCHA and browser interactions cannot be automated in CI.
 
 ## Known Gaps / TODOs
@@ -91,6 +95,10 @@
    - Should print six PASS lines (imports, config, listing, raw extractor, mapper, orchestrator) and a summary `6/6 checks passed`.
 3. `python -c "from cg_rera_extractor.config.loader import load_config; print(load_config('config.example.yaml').model_dump())"`
    - Confirms config loading and prints the parsed AppConfig dictionary.
+4. Parser regression harness
+   - Record/update a golden for a new HTML file: `python tools/parser_regression.py record path/to/file.html --fixtures-dir tests/parser_regression/fixtures --golden-dir tests/parser_regression/golden`
+   - Compare parser output to existing goldens: `python tools/parser_regression.py check --fixtures-dir tests/parser_regression/fixtures --golden-dir tests/parser_regression/golden`
+   - Run the `check` command before and after parser changes to confirm whether CG RERA HTML or parsing logic has shifted.
 
 ### Optional integration checks
 1. CLI orchestrator dry-run against local config (requires Playwright + manual CAPTCHA):
