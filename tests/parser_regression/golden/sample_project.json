@@ -1,0 +1,85 @@
+{
+  "fixture": "sample_project.html",
+  "listing": [
+    {
+      "reg_no": "CG-REG-001",
+      "project_name": "Garden Villas",
+      "promoter_name": "Acme Builders",
+      "district": null,
+      "tehsil": null,
+      "status": null,
+      "detail_url": "https://rera.cg.gov/details/CG-REG-001",
+      "run_id": null
+    }
+  ],
+  "raw": {
+    "registration_number": null,
+    "project_name": null,
+    "source_url": null,
+    "scraped_at": null,
+    "source_file": "/workspace/realmap/tests/parser_regression/fixtures/sample_project.html",
+    "sections": [
+      {
+        "section_title_raw": "Project Details",
+        "fields": [
+          {
+            "label": "Registration Number",
+            "value": "CG-REG-001",
+            "value_type": "TEXT",
+            "links": []
+          },
+          {
+            "label": "Project Name",
+            "value": "Garden Villas",
+            "value_type": "TEXT",
+            "links": []
+          },
+          {
+            "label": "District",
+            "value": "Raipur",
+            "value_type": "TEXT",
+            "links": []
+          }
+        ]
+      }
+    ]
+  },
+  "v1": {
+    "metadata": {
+      "schema_version": "1.0",
+      "state_code": "CG",
+      "source_url": null,
+      "scraped_at": null
+    },
+    "project_details": {
+      "registration_number": "CG-REG-001",
+      "project_name": "Garden Villas",
+      "project_type": null,
+      "project_status": null,
+      "district": "Raipur",
+      "tehsil": null,
+      "project_address": null,
+      "total_units": null,
+      "total_area_sq_m": null,
+      "launch_date": null,
+      "expected_completion_date": null
+    },
+    "promoter_details": [],
+    "land_details": [],
+    "building_details": [],
+    "unit_types": [],
+    "bank_details": [],
+    "documents": [],
+    "quarterly_updates": [],
+    "raw_data": {
+      "sections": {
+        "project_details": {
+          "registration_number": "CG-REG-001",
+          "project_name": "Garden Villas",
+          "district": "Raipur"
+        }
+      },
+      "unmapped_sections": {}
+    }
+  }
+}

@@ -58,6 +58,7 @@
 ## Testing Status
 - ✅ `pytest` (20 tests) exercises config loader, storage, listing parser, raw extractor, mapper, Jira sync parser, and orchestrator wiring with fakes (including run-mode/limit coverage).
 - ✅ `python tools/self_check.py` runs an offline smoke-test suite (imports, config load, listing parse, raw extraction, mapper, orchestrator dry-run using fixtures).
+- ✅ `python tools/parser_regression.py record` / `check` records and validates golden JSON outputs for HTML fixtures to catch upstream CG RERA UI changes.
 - Manual CLI / Playwright runs are still required for real CG RERA scraping because CAPTCHA and browser interactions cannot be automated in CI.
 
 ## Known Gaps / TODOs
@@ -75,6 +76,10 @@
    - Should print six PASS lines (imports, config, listing, raw extractor, mapper, orchestrator) and a summary `6/6 checks passed`.
 3. `python -c "from cg_rera_extractor.config.loader import load_config; print(load_config('config.example.yaml').model_dump())"`
    - Confirms config loading and prints the parsed AppConfig dictionary.
+4. Parser regression harness
+   - Record/update a golden for a new HTML file: `python tools/parser_regression.py record path/to/file.html --fixtures-dir tests/parser_regression/fixtures --golden-dir tests/parser_regression/golden`
+   - Compare parser output to existing goldens: `python tools/parser_regression.py check --fixtures-dir tests/parser_regression/fixtures --golden-dir tests/parser_regression/golden`
+   - Run the `check` command before and after parser changes to confirm whether CG RERA HTML or parsing logic has shifted.
 
 ### Optional integration checks
 1. CLI orchestrator dry-run against local config (requires Playwright + manual CAPTCHA):
