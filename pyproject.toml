@@ -26,3 +26,10 @@ dev = [
 minversion = "7.0"
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cg_rera_extractor*"]
+
+[tool.setuptools.package-data]
+"cg_rera_extractor.parsing" = ["data/*.json"]

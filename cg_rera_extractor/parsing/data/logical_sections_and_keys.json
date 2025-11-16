@@ -1,0 +1,120 @@
+{
+  "sections": [
+    {
+      "logical_section": "project_details",
+      "section_title_variants": [
+        "project details",
+        "project information",
+        "details of project"
+      ],
+      "keys": {
+        "registration_number": ["registration number", "registration no", "project registration no"],
+        "project_name": ["project name", "name of project"],
+        "project_type": ["project type", "type of project"],
+        "project_status": ["project status", "current status"],
+        "district": ["district"],
+        "tehsil": ["tehsil"],
+        "project_address": ["project address", "address of project"],
+        "total_units": ["total units", "total number of units"],
+        "total_area_sq_m": ["total area (sq m)", "project area"],
+        "launch_date": ["launch date"],
+        "expected_completion_date": ["expected completion", "expected completion date"]
+      }
+    },
+    {
+      "logical_section": "promoter_details",
+      "section_title_variants": [
+        "promoter information",
+        "promoter details"
+      ],
+      "keys": {
+        "promoter_name": ["promoter name"],
+        "promoter_type": ["promoter type"],
+        "promoter_address": ["promoter address", "address"],
+        "promoter_email": ["promoter email", "email"],
+        "promoter_phone": ["promoter phone", "contact number"],
+        "promoter_pan": ["promoter pan", "pan"],
+        "promoter_cin": ["promoter cin", "cin"]
+      }
+    },
+    {
+      "logical_section": "land_details",
+      "section_title_variants": [
+        "land particulars",
+        "land details"
+      ],
+      "keys": {
+        "land_area_sq_m": ["land area (sq m)", "land area"],
+        "land_status": ["land status", "status of land"],
+        "land_address": ["land address", "location of land"],
+        "khasra_numbers": ["khasra numbers", "survey numbers"]
+      }
+    },
+    {
+      "logical_section": "building_details",
+      "section_title_variants": [
+        "building details",
+        "tower details"
+      ],
+      "keys": {
+        "building_name": ["building name", "tower name"],
+        "number_of_floors": ["number of floors", "floors"],
+        "number_of_units": ["number of units", "units"],
+        "carpet_area_sq_m": ["carpet area (sq m)", "carpet area"]
+      }
+    },
+    {
+      "logical_section": "unit_types",
+      "section_title_variants": [
+        "unit type details",
+        "unit details"
+      ],
+      "keys": {
+        "unit_type_name": ["unit type"],
+        "unit_carpet_area_sq_m": ["carpet area (sq m)", "carpet area"],
+        "unit_built_up_area_sq_m": ["built-up area (sq m)", "built up area"],
+        "unit_price_in_inr": ["unit price (inr)", "unit price"]
+      }
+    },
+    {
+      "logical_section": "bank_details",
+      "section_title_variants": [
+        "bank / escrow details",
+        "bank details"
+      ],
+      "keys": {
+        "bank_name": ["bank name"],
+        "branch_name": ["branch", "branch name"],
+        "account_number": ["account number", "account no"],
+        "ifsc_code": ["ifsc code"]
+      }
+    },
+    {
+      "logical_section": "documents",
+      "section_title_variants": [
+        "documents",
+        "uploaded documents"
+      ],
+      "keys": {
+        "document_name": ["document name"],
+        "document_type": ["document type"],
+        "document_url": ["document url", "url"],
+        "document_uploaded_on": ["uploaded on", "upload date"]
+      }
+    },
+    {
+      "logical_section": "quarterly_updates",
+      "section_title_variants": [
+        "quarterly updates",
+        "progress updates"
+      ],
+      "keys": {
+        "quarter": ["quarter"],
+        "year": ["year"],
+        "status": ["status"],
+        "completion_percent": ["completion (%)", "completion percent"],
+        "remarks": ["remarks", "comment"]
+      }
+    }
+  ]
+}
