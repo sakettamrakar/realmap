@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.build/
+.pytest_cache/
+.playwright/
+.env
+.venv/
+.eggs/
+*.log
+outputs/
