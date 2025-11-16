@@ -6,8 +6,8 @@ from pathlib import Path
 from cg_rera_extractor.config.models import (
     AppConfig,
     BrowserConfig,
-    CrawlMode,
     RunConfig,
+    RunMode,
     SearchFilterConfig,
 )
 from cg_rera_extractor.listing.models import ListingRecord
@@ -30,7 +30,7 @@ class DummyV1Project:
 def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> None:
     filters = SearchFilterConfig(districts=["Raipur"], statuses=["Registered"])
     run_config = RunConfig(
-        mode=CrawlMode.FULL,
+        mode=RunMode.FULL,
         search_filters=filters,
         output_base_dir=str(tmp_path),
         state_code="CG",

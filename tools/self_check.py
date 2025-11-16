@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 import tempfile
-from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List
@@ -16,8 +14,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from cg_rera_extractor.config.loader import load_config
-from cg_rera_extractor.config.models import AppConfig, BrowserConfig, CrawlMode, RunConfig, SearchFilterConfig
-from cg_rera_extractor.listing.models import ListingRecord
+from cg_rera_extractor.config.models import AppConfig, BrowserConfig, RunConfig, RunMode, SearchFilterConfig
 from cg_rera_extractor.listing.scraper import parse_listing_html
 from cg_rera_extractor.parsing.mapper import map_raw_to_v1
 from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
@@ -97,79 +94,22 @@ def check_mapper() -> list[str]:
 
 
 def check_orchestrator_dry_run() -> list[str]:
-    filters = SearchFilterConfig(districts=["Raipur"], statuses=["Registered"])
+    filters = SearchFilterConfig(districts=["Raipur", "Bilaspur"], statuses=["Registered"])
     run_config = RunConfig(
-        mode=CrawlMode.FULL,
+        mode=RunMode.DRY_RUN,
         search_filters=filters,
         output_base_dir=tempfile.mkdtemp(prefix="self_check_run_"),
         state_code="CG",
+        max_search_combinations=2,
+        max_total_listings=25,
     )
-    browser_config = BrowserConfig()
-    app_config = AppConfig(run=run_config, browser=browser_config)
+    app_config = AppConfig(run=run_config, browser=BrowserConfig())
 
-    listing = ListingRecord(
-        reg_no="CG-TEST-001",
-        project_name="Self Check Project",
-        detail_url="https://example.com/detail/1",
-    )
-    detail_fixture = FIXTURES_DIR / "project_detail_sample.html"
-    detail_html = detail_fixture.read_text(encoding="utf-8")
-
-    class FakeSession:
-        def __init__(self, *_args, **_kwargs) -> None:
-            self.started = False
-
-        def start(self) -> None:
-            self.started = True
-
-        def goto(self, _url: str) -> None:  # pragma: no cover - no-op
-            return None
-
-        def select_option(self, *_args, **_kwargs) -> None:  # pragma: no cover - no-op
-            return None
-
-        def click(self, *_args, **_kwargs) -> None:  # pragma: no cover - no-op
-            return None
-
-        def wait_for_selector(self, *_args, **_kwargs) -> None:  # pragma: no cover - no-op
-            return None
-
-        def get_page_html(self) -> str:
-            return "<html></html>"
-
-        def close(self) -> None:  # pragma: no cover - no-op
-            return None
-
-    fake_session = FakeSession()
-
-    def fake_parse_listing_html(_html: str, _base_url: str) -> list[ListingRecord]:
-        return [
-            ListingRecord(
-                reg_no=listing.reg_no,
-                project_name=listing.project_name,
-                detail_url=listing.detail_url,
-            )
-        ]
-
-    def fake_fetch_and_save_details(_session, listings: list[ListingRecord], output_base: str) -> None:
-        raw_dir = Path(output_base) / "raw_html"
-        raw_dir.mkdir(parents=True, exist_ok=True)
-        for item in listings:
-            path = raw_dir / f"project_{item.reg_no}.html"
-            path.write_text(detail_html, encoding="utf-8")
-
-    from unittest import mock
-
-    with ExitStack() as stack:
-        stack.callback(lambda: shutil.rmtree(run_config.output_base_dir, ignore_errors=True))
-        stack.enter_context(mock.patch.object(orchestrator, "PlaywrightBrowserSession", lambda _cfg: fake_session))
-        stack.enter_context(mock.patch.object(orchestrator, "wait_for_captcha_solved", lambda: None))
-        stack.enter_context(mock.patch.object(orchestrator, "parse_listing_html", fake_parse_listing_html))
-        stack.enter_context(mock.patch.object(orchestrator, "fetch_and_save_details", fake_fetch_and_save_details))
-        status = orchestrator.run_crawl(app_config)
+    status = orchestrator.run_crawl(app_config)
 
     return [
-        f"Orchestrator dry run completed (run_id={status.run_id})",
+        f"Planned {status.counts['search_combinations_planned']} search combinations (cap={run_config.max_search_combinations})",
+        f"Global listing cap: {run_config.max_total_listings}",
         f"Counts: {status.counts}",
     ]
 

@@ -59,7 +59,7 @@ Add minimal imports and sanity tests.
 
 Create:
 
-- `CrawlMode`
+- `RunMode` (DRY_RUN, LISTINGS_ONLY, FULL)
 - `SearchFilterConfig`
 - `RunConfig`
 - `BrowserConfig`
@@ -72,6 +72,14 @@ Create `load_config(path)`.
 Add sample `config.example.yaml`.
 
 Add unit tests.
+
+---
+
+### P2-T2 – Run modes and safety limits
+
+- Add runtime guardrails (DRY_RUN/LISTINGS_ONLY/FULL) to orchestrator and CLI.
+- Apply per-run caps for search combinations and listings processed.
+- Ensure run status captures counts for planned/processed combinations and capped listings.
 
 ---
 

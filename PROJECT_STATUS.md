@@ -2,6 +2,7 @@
 
 ## Overview
 - The repository follows the architecture described in `DEV_PLAN.md`: config, browser, listing, detail, parsing, and run orchestration layers are all in place with accompanying fixtures and unit tests.
+- Run orchestrator now supports DRY_RUN / LISTINGS_ONLY / FULL modes plus per-run caps for search combinations and total listings to keep live runs safe.
 - Core parsing, mapping, and orchestration flows can be exercised offline via the new `tools/self_check.py` script and the existing pytest suite (17 tests).
 - Jira integration tooling (`tools/jira_client.py`, `tools/sync_dev_plan_to_jira.py`, `.github/workflows/jira-sync.yml`) is wired up and ready to sync plan tasks to Jira once credentials are provided.
 
@@ -12,6 +13,7 @@
 | P1.2 – Package layout | ✅ | Module tree matches plan; tests ensure imports work. |
 | P2.1 – Config models | ✅ | `cg_rera_extractor.config.models` implements all models; defaults hardened (e.g., browser timeout). |
 | P2.2 – Config loader | ✅ | `load_config` reads YAML and validates via Pydantic; sample config + tests exist. |
+| P2-T2 – Run modes and safety limits | ✅ | DRY_RUN / LISTINGS_ONLY / FULL modes plus search/listing caps implemented with tests and CLI override. |
 | P3.1 – BrowserSession abstraction | ⚠️ | Playwright session implemented but only protocol-level tests exist; no live Playwright smoke test yet. |
 | P3.2 – Manual CAPTCHA helper | ⚠️ | Blocking `input()` helper exists; no ergonomics for CLI prompt customisation. |
 | P3.3 – Browser tests | ⚠️ | Fake session tests cover protocol but not real browser lifecycle. |
@@ -29,9 +31,9 @@
 | P7.3 – Mapper | ⚠️ | Works for basic flows; limited fixture coverage (single happy-path sample). |
 | P7.4 – Mapper tests | ⚠️ | Only one sample verified; no negative-case coverage. |
 | P8.1 – Run metadata | ✅ | `RunStatus` dataclass implemented. |
-| P8.2 – Orchestrator | ⚠️ | Full pipeline implemented; relies on Playwright + manual CAPTCHA so real runs remain brittle. |
-| P8.3 – CLI | ⚠️ | `cg_rera_extractor.cli` exists but lacks automated tests and documentation/examples beyond config file. |
-| P8.4 – Orchestrator tests | ⚠️ | `test_orchestrator_skeleton.py` covers a happy path with fakes only. |
+| P8.2 – Orchestrator | ⚠️ | Full pipeline implemented; relies on Playwright + manual CAPTCHA so real runs remain brittle (now with run-mode safety caps). |
+| P8.3 – CLI | ⚠️ | `cg_rera_extractor.cli` exists with mode override; still lacks automated tests and documentation/examples beyond config file. |
+| P8.4 – Orchestrator tests | ⚠️ | `test_orchestrator_skeleton.py` and new run-mode limit tests cover fakes only. |
 | P9.1 – CONTRIBUTING / PR template | ❌ | No contributing guide or PR template yet. |
 | P9.2 – Branch/PR guidance | ❌ | No automation around branch naming or templates. |
 
@@ -51,9 +53,10 @@
 - `tools/sync_dev_plan_to_jira.py` parses `DEV_PLAN.md`, maintains `tools/jira_mapping.json`, and uses the Jira client to create/update issues; tests validate parsing and dry-run logic via monkeypatching.
 - `.github/workflows/jira-sync.yml` (unchanged) invokes the sync script; ensure secrets are configured in GitHub Actions before enabling.
 - There is **no built-in `JIRA_DRY_RUN` flag**; to avoid Jira writes run the sync script only when the required env vars are unset (it will error) or mock the client as in tests.
+- Comment for Jira: "Run modes (DRY_RUN, LISTINGS_ONLY, FULL) and global safety limits implemented and tested for orchestrator."
 
 ## Testing Status
-- ✅ `pytest` (17 tests) exercises config loader, storage, listing parser, raw extractor, mapper, Jira sync parser, and orchestrator wiring with fakes.
+- ✅ `pytest` (20 tests) exercises config loader, storage, listing parser, raw extractor, mapper, Jira sync parser, and orchestrator wiring with fakes (including run-mode/limit coverage).
 - ✅ `python tools/self_check.py` runs an offline smoke-test suite (imports, config load, listing parse, raw extraction, mapper, orchestrator dry-run using fixtures).
 - Manual CLI / Playwright runs are still required for real CG RERA scraping because CAPTCHA and browser interactions cannot be automated in CI.
 

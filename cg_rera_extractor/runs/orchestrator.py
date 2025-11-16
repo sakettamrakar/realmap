@@ -17,7 +17,7 @@ from cg_rera_extractor.browser.cg_rera_selectors import (
     SearchPageSelectors,
 )
 from cg_rera_extractor.browser.session import PlaywrightBrowserSession
-from cg_rera_extractor.config.models import AppConfig
+from cg_rera_extractor.config.models import AppConfig, RunMode
 from cg_rera_extractor.detail.fetcher import fetch_and_save_details
 from cg_rera_extractor.listing.models import ListingRecord
 from cg_rera_extractor.listing.scraper import parse_listing_html
@@ -34,6 +34,9 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
 
     run_config = app_config.run
     filters = run_config.search_filters
+    search_pairs = _compute_search_pairs(
+        filters.districts, filters.statuses, run_config.max_search_combinations
+    )
     run_id = _generate_run_id()
     started_at = datetime.now(timezone.utc)
     filters_used = {
@@ -43,6 +46,8 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
     }
 
     counts = {
+        "search_combinations_planned": len(search_pairs),
+        "search_combinations_processed": 0,
         "listings_scraped": 0,
         "details_fetched": 0,
         "projects_parsed": 0,
@@ -55,72 +60,99 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
         counts=counts,
     )
 
+    if run_config.mode == RunMode.DRY_RUN:
+        _report_dry_run(search_pairs, run_config)
+        status.finished_at = datetime.now(timezone.utc)
+        return status
+
     dirs = _prepare_run_directories(Path(run_config.output_base_dir).expanduser(), run_id)
     session: PlaywrightBrowserSession | None = None
+    listings_limit = run_config.max_total_listings
 
     try:
         session = PlaywrightBrowserSession(app_config.browser)
         session.start()
 
-        for district in filters.districts:
-            for project_status in filters.statuses:
-                print(f"Running search for district={district} status={project_status}")
-                LOGGER.info("Running search for district=%s status=%s", district, project_status)
-                try:
-                    _execute_search(
-                        session,
-                        district,
-                        project_status,
-                        filters.project_types,
-                        SEARCH_PAGE_SELECTORS,
+        for district, project_status in search_pairs:
+            if _listing_limit_reached(listings_limit, counts["listings_scraped"]):
+                LOGGER.info(
+                    "Max total listings (%s) reached; stopping further searches",
+                    listings_limit,
+                )
+                break
+
+            counts["search_combinations_processed"] += 1
+            print(f"Running search for district={district} status={project_status}")
+            LOGGER.info("Running search for district=%s status=%s", district, project_status)
+            try:
+                _execute_search(
+                    session,
+                    district,
+                    project_status,
+                    filters.project_types,
+                    SEARCH_PAGE_SELECTORS,
+                )
+                print("Waiting for manual CAPTCHA solve and search submission...")
+                wait_for_captcha_solved()
+                LOGGER.info(
+                    "Waiting for results using selector %s", SEARCH_PAGE_SELECTORS.results_table
+                )
+                session.wait_for_selector(SEARCH_PAGE_SELECTORS.results_table, timeout_ms=20_000)
+                listings_html = session.get_page_html()
+                listings = parse_listing_html(listings_html, SEARCH_URL)
+
+                if len(listings) > MAX_LISTINGS_PER_SEARCH:
+                    LOGGER.warning(
+                        "Parsed %s listings; truncating to %s for safety",
+                        len(listings),
+                        MAX_LISTINGS_PER_SEARCH,
                     )
-                    print("Waiting for manual CAPTCHA solve and search submission...")
-                    wait_for_captcha_solved()
+                    listings = listings[:MAX_LISTINGS_PER_SEARCH]
+
+                allowed = _remaining_listings(listings_limit, counts["listings_scraped"])
+                if allowed is not None and allowed < len(listings):
                     LOGGER.info(
-                        "Waiting for results using selector %s", SEARCH_PAGE_SELECTORS.results_table
+                        "Global listing cap %s reached; trimming to %s entries",
+                        listings_limit,
+                        allowed,
                     )
-                    session.wait_for_selector(SEARCH_PAGE_SELECTORS.results_table, timeout_ms=20_000)
-                    listings_html = session.get_page_html()
-                    listings = parse_listing_html(listings_html, SEARCH_URL)
+                    listings = listings[:allowed]
 
-                    if len(listings) > MAX_LISTINGS_PER_SEARCH:
-                        LOGGER.warning(
-                            "Parsed %s listings; truncating to %s for safety",
-                            len(listings),
-                            MAX_LISTINGS_PER_SEARCH,
-                        )
-                        listings = listings[:MAX_LISTINGS_PER_SEARCH]
-
-                    for record in listings:
-                        record.run_id = run_id
-                    if not listings:
-                        LOGGER.info("No listings found for %s / %s", district, project_status)
-                        _save_listings_snapshot(
-                            dirs["listings"], district, project_status, listings, listings_html
-                        )
-                        continue
-
-                    counts["listings_scraped"] += len(listings)
-                    LOGGER.info("Parsed %d listings for %s / %s", len(listings), district, project_status)
+                for record in listings:
+                    record.run_id = run_id
+                if not listings:
+                    LOGGER.info("No listings found for %s / %s", district, project_status)
                     _save_listings_snapshot(
                         dirs["listings"], district, project_status, listings, listings_html
                     )
-                    fetch_and_save_details(session, listings, str(dirs["run_dir"]))
-                    counts["details_fetched"] += len(listings)
-                    LOGGER.info(
-                        "Fetched %d detail pages for %s / %s",
-                        len(listings),
-                        district,
-                        project_status,
-                    )
-                except Exception as exc:  # pragma: no cover - defensive logging
-                    LOGGER.exception("Search failed for %s/%s", district, project_status)
-                    status.errors.append(str(exc))
+                    continue
+
+                counts["listings_scraped"] += len(listings)
+                LOGGER.info("Parsed %d listings for %s / %s", len(listings), district, project_status)
+                _save_listings_snapshot(
+                    dirs["listings"], district, project_status, listings, listings_html
+                )
+
+                if run_config.mode == RunMode.LISTINGS_ONLY:
+                    continue
+
+                fetch_and_save_details(session, listings, str(dirs["run_dir"]))
+                counts["details_fetched"] += len(listings)
+                LOGGER.info(
+                    "Fetched %d detail pages for %s / %s",
+                    len(listings),
+                    district,
+                    project_status,
+                )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                LOGGER.exception("Search failed for %s/%s", district, project_status)
+                status.errors.append(str(exc))
     finally:
         if session is not None:
             session.close()
 
-    _process_saved_html(dirs, run_config.state_code, counts, status)
+    if run_config.mode == RunMode.FULL:
+        _process_saved_html(dirs, run_config.state_code, counts, status)
     status.finished_at = datetime.now(timezone.utc)
     return status
 
@@ -148,6 +180,52 @@ def _prepare_run_directories(base_dir: Path, run_id: str) -> dict[str, Path]:
         "scraped_json": scraped_json_dir,
         "listings": listings_dir,
     }
+
+
+def _compute_search_pairs(
+    districts: Iterable[str],
+    statuses: Iterable[str],
+    max_pairs: int | None,
+) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for district in districts:
+        for status in statuses:
+            pairs.append((district, status))
+            if max_pairs is not None and len(pairs) >= max_pairs:
+                return pairs
+    return pairs
+
+
+def _report_dry_run(
+    search_pairs: list[tuple[str, str]],
+    run_config,
+) -> None:
+    print("DRY RUN: no browser or network calls will be performed.")
+    if run_config.max_search_combinations is not None:
+        print(
+            f"Search combinations capped at {run_config.max_search_combinations}; "
+            f"planned {len(search_pairs)} pairs."
+        )
+    else:
+        print(f"Planned {len(search_pairs)} search combinations (no cap).")
+
+    for idx, (district, status_value) in enumerate(search_pairs, start=1):
+        print(f" {idx}. district={district}, status={status_value}")
+
+    if run_config.max_total_listings is not None:
+        print(f"Global listing cap: {run_config.max_total_listings} (across all searches)")
+    else:
+        print("Global listing cap: none (unbounded)")
+
+
+def _remaining_listings(limit: int | None, processed: int) -> int | None:
+    if limit is None:
+        return None
+    return max(limit - processed, 0)
+
+
+def _listing_limit_reached(limit: int | None, processed: int) -> bool:
+    return limit is not None and processed >= limit
 
 
 def _execute_search(

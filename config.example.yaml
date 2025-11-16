@@ -4,7 +4,7 @@
 # Keep the number of filters very small to avoid large crawls while we validate
 # the real CG RERA search flow with human CAPTCHA solving.
 run:
-  mode: FULL
+  mode: FULL  # Options: DRY_RUN, LISTINGS_ONLY, FULL
   search_filters:
     districts:
       - Raipur
@@ -13,6 +13,8 @@ run:
     project_types: []  # Optional; keep empty for simplest first runs
   output_base_dir: ./outputs/demo-run
   state_code: CG
+  max_search_combinations: 10  # Set to null to remove the safeguard
+  max_total_listings: 200      # Set to null to allow unlimited listing processing
 browser:
   driver: playwright
   headless: false  # Set to false for easier manual CAPTCHA solving
