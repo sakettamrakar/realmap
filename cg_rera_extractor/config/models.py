@@ -34,9 +34,10 @@ class RunConfig(BaseModel):
 class BrowserConfig(BaseModel):
     """Browser/session level configuration."""
 
-    driver: Literal["playwright", "selenium"]
+    driver: Literal["playwright", "selenium"] = "playwright"
     headless: bool = True
     slow_mo_ms: int | None = None
+    default_timeout_ms: int = 20_000
 
 
 class AppConfig(BaseModel):
