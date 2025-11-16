@@ -1,16 +1,19 @@
 # Example configuration for the CG RERA extraction orchestrator.
 run:
-  crawl_mode: full
-  max_projects: 25
-  output_dir: outputs/demo-run
+  mode: FULL
   search_filters:
-    - district: Raipur
-      status: Registered
-    - district: Durg
-      status: Completed
+    districts:
+      - Raipur
+      - Durg
+    statuses:
+      - Registered
+      - Completed
+    project_types:
+      - Residential
+      - Commercial
+  output_base_dir: ./outputs/demo-run
+  state_code: CG
 browser:
-  provider: playwright
+  driver: playwright
   headless: true
   slow_mo_ms: 250
-  manual_captcha: true
-data_dir: data

@@ -4,43 +4,30 @@ from pathlib import Path
 import pytest
 
 from cg_rera_extractor.config.loader import load_config
-from cg_rera_extractor.config.models import AppConfig, CrawlMode
+from cg_rera_extractor.config.models import AppConfig, BrowserConfig, CrawlMode, RunConfig, SearchFilterConfig
 
 
-@pytest.fixture()
-def config_file(tmp_path: Path) -> Path:
-    content = """
-run:
-  crawl_mode: incremental
-  max_projects: 5
-  output_dir: ~/cg-rera/outputs
-  search_filters:
-    - district: Bilaspur
-      tehsil: Kota
-      status: Registered
-browser:
-  provider: playwright
-  headless: false
-  default_timeout_ms: 20000
-"""
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(content.strip(), encoding="utf-8")
-    return config_path
+def test_load_config_from_example_file() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    config_path = repo_root / "config.example.yaml"
 
-
-def test_load_config_returns_app_config(config_file: Path) -> None:
-    config = load_config(config_file)
+    config = load_config(str(config_path))
 
     assert isinstance(config, AppConfig)
-    assert config.run.crawl_mode == CrawlMode.INCREMENTAL
-    assert config.run.max_projects == 5
-    assert config.run.output_dir.name == "outputs"
-    assert config.browser.headless is False
-    assert config.browser.default_timeout_ms == 20000
-    assert config.run.search_filters[0].summary() == "district=Bilaspur, tehsil=Kota, status=Registered"
+    assert isinstance(config.browser, BrowserConfig)
+    assert isinstance(config.run, RunConfig)
+    assert isinstance(config.run.search_filters, SearchFilterConfig)
+    assert config.run.mode is CrawlMode.FULL
+    assert config.run.search_filters.districts == ["Raipur", "Durg"]
+    assert config.run.search_filters.statuses == ["Registered", "Completed"]
+    assert config.run.search_filters.project_types == ["Residential", "Commercial"]
+    assert config.run.output_base_dir == "./outputs/demo-run"
+    assert config.browser.driver == "playwright"
+    assert config.browser.headless is True
+    assert config.browser.slow_mo_ms == 250
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:
     missing_file = tmp_path / "missing.yaml"
     with pytest.raises(FileNotFoundError):
-        load_config(missing_file)
+        load_config(str(missing_file))
