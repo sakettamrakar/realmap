@@ -114,3 +114,37 @@
    - Expect console lines such as `Created CGRE-XX for task ...` followed by a summary; run only when you intend to sync.
 3. Manual detail storage spot-check:
    - After running the orchestrator, inspect `outputs/<run>/raw_html` to ensure HTML files exist, and `raw_extracted` / `scraped_json` contain JSON payloads.
+
+## Phase 2 Manual Run Playbook (P2-T4)
+Follow this scripted manual flow to execute a very small live crawl end-to-end.
+
+1. Environment prep
+   - Ensure Python environment is active and dependencies installed (`pip install -e .[dev]` if needed).
+   - (Optional) Run `pytest` to confirm the local environment is healthy.
+2. Dry-run sanity check
+   - Command: `python -m cg_rera_extractor.cli --config config.phase2.sample.yaml --mode dry-run`
+   - Expect printed pairs such as `district=Raipur, status=Ongoing` and a note about the global listing cap.
+3. Configure for the first pass
+   - Open `config.phase2.sample.yaml` and ensure `run.mode` is set to `LISTINGS_ONLY`.
+   - Keep the provided limits (`max_search_combinations: 2`, `max_total_listings: 50`) and output path (`./outputs/phase2_runs`).
+4. Execute the constrained listings run
+   - Command: `python -m cg_rera_extractor.cli --config config.phase2.sample.yaml`
+   - In the launched browser: solve CAPTCHA when prompted, then click **Search** when ready.
+   - Expect console logs like `Parsed X listings for Raipur / Ongoing` and a capped count per search (max 50).
+5. Verify outputs
+   - A new folder should appear under `outputs/phase2_runs/runs/` named `run_<id>`.
+   - Inside the run directory:
+     - `listings/` should contain small JSON and HTML snapshots for each district/status.
+     - `run_report.json` should list the mode, filters, counts, and no errors; warnings should be empty unless listings were truncated.
+6. Optional tiny FULL run
+   - Edit `config.phase2.sample.yaml` to set `run.mode: FULL` while keeping the same safety limits.
+   - Re-run `python -m cg_rera_extractor.cli --config config.phase2.sample.yaml`.
+   - Expect additional outputs in `raw_html/`, `raw_extracted/`, and `scraped_json/` plus `projects_mapped`/`dq_warnings` counts in `run_report.json`.
+7. Light inspection
+   - Use `python tools/inspect_run.py run_<id> --base-dir ./outputs/phase2_runs` to summarize listing counts, V1 JSON count, and any reported errors.
+8. Jira note
+   - After a successful live run, add a Jira comment for P2-T4: “Executed a small live crawl end-to-end using the Phase 2 playbook; outputs captured under outputs/phase2_runs.”
+
+Expected observations
+- Log lines per search combination: `Running search for district=<name> status=<status>` followed by `Parsed X listings for <district> / <status>`.
+- `run_report.json` should show low counts that align with the caps (search_combinations_attempted ≤ 2, listings_parsed ≤ 50) and `errors: []`.
