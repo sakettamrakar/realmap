@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "state_code": "CG",
+    "source_url": "https://rera.cgstate.gov.in/project/CG-12345",
+    "scraped_at": "2024-01-15T08:30:00+05:30"
+  },
+  "project_details": {
+    "registration_number": "CG-12345",
+    "project_name": "Sunrise Heights",
+    "project_type": "Residential",
+    "project_status": "Registered",
+    "district": "Raipur",
+    "tehsil": "Raipur",
+    "project_address": "Plot 12, VIP Road, Raipur",
+    "total_units": 120,
+    "total_area_sq_m": 10234.5,
+    "launch_date": "2022-04-01",
+    "expected_completion_date": "2026-03-31"
+  },
+  "promoter_details": [
+    {
+      "name": "ABC Developers Pvt Ltd",
+      "organisation_type": "Company",
+      "address": "Plot 10, MG Road, Raipur",
+      "email": "info@abcdevelopers.com",
+      "phone": "+91-771-1234567",
+      "cin": "U12345CT2014PTC000001"
+    }
+  ],
+  "land_details": [
+    {
+      "land_area_sq_m": 8000.0,
+      "land_status": "Owned",
+      "land_address": "Khasra 123/1, Raipur",
+      "khasra_numbers": "123/1, 123/2"
+    }
+  ],
+  "building_details": [
+    {
+      "name": "Tower A",
+      "number_of_floors": 12,
+      "number_of_units": 60,
+      "carpet_area_sq_m": 4500.0
+    }
+  ],
+  "unit_types": [
+    {
+      "name": "2BHK",
+      "carpet_area_sq_m": 65.0,
+      "built_up_area_sq_m": 85.0,
+      "price_in_inr": 5200000.0
+    }
+  ],
+  "bank_details": [
+    {
+      "bank_name": "State Bank of India",
+      "branch_name": "Raipur Main",
+      "account_number": "123456789012",
+      "ifsc_code": "SBIN0000123"
+    }
+  ],
+  "documents": [
+    {
+      "name": "Registration Certificate",
+      "document_type": "Certificate",
+      "url": "https://rera.cgstate.gov.in/documents/CG-12345/certificate.pdf",
+      "uploaded_on": "2022-04-15"
+    }
+  ],
+  "quarterly_updates": [
+    {
+      "quarter": "Q4",
+      "year": "2023",
+      "status": "On track",
+      "completion_percent": 45.0,
+      "remarks": "Super structure in progress"
+    }
+  ],
+  "raw_data": {
+    "sections": {},
+    "unmapped_sections": {}
+  }
+}
