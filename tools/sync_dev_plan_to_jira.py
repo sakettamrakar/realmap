@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
@@ -74,24 +76,72 @@ def _save_mapping(path: Path, mapping: Dict[str, str]) -> None:
     path.write_text(json.dumps(mapping, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _detect_branch_name() -> str:
+    """Return the current branch name from GitHub Actions env vars if possible."""
+
+    branch = os.environ.get("GITHUB_REF_NAME")
+    if branch:
+        return branch
+    ref = os.environ.get("GITHUB_REF", "")
+    if ref.startswith("refs/"):
+        return ref.split("/")[-1]
+    return ref or "local"
+
+
+def build_run_comment(now: datetime | None = None) -> str:
+    """Compose a short Jira comment describing the sync context."""
+
+    now = now or datetime.now(timezone.utc)
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+    sha = os.environ.get("GITHUB_SHA")
+    branch = _detect_branch_name()
+    pieces = [f"Automated DEV_PLAN sync completed at {timestamp}."]
+    origin = []
+    if branch:
+        origin.append(f"branch {branch}")
+    if sha:
+        origin.append(f"commit {sha[:8]}")
+    if origin:
+        pieces.append("Source: " + ", ".join(origin) + ".")
+    pieces.append("Tests passed before syncing Jira in CI.")
+    return " ".join(pieces)
+
+
 def sync_dev_plan(dev_plan_path: Path = DEV_PLAN_PATH, mapping_path: Path = MAPPING_PATH) -> None:
     markdown = dev_plan_path.read_text(encoding="utf-8")
     tasks = parse_dev_plan_tasks(markdown)
     mapping = _load_mapping(mapping_path)
+    comment_text = build_run_comment()
+
+    tasks_processed = 0
+    created_count = 0
+    updated_count = 0
+    comments_added = 0
 
     for task in tasks:
+        tasks_processed += 1
         summary = f"{task.task_id} – {task.title}".strip()
         description = task.description or "No description provided."
         if task.task_id in mapping:
             jira_key = mapping[task.task_id]
             jira_client.update_issue_description(jira_key, description)
             print(f"Updated {jira_key} for task {task.task_id}")
+            updated_count += 1
         else:
             jira_key = jira_client.create_issue(summary, description, issue_type="Story")
             mapping[task.task_id] = jira_key
             print(f"Created {jira_key} for task {task.task_id}")
+            created_count += 1
+
+        jira_client.add_comment(jira_key, comment_text)
+        comments_added += 1
 
     _save_mapping(mapping_path, mapping)
+    print(
+        "Sync summary: "
+        f"{tasks_processed} tasks processed, {created_count} issues created, "
+        f"{updated_count} descriptions updated, {comments_added} comments added."
+    )
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ def test_sync_dev_plan_creates_and_updates(tmp_path, monkeypatch):
 
     updated = {}
     created = {}
+    comments = []
 
     def fake_update(issue_key: str, description: str) -> None:
         updated[issue_key] = description
@@ -40,12 +41,18 @@ def test_sync_dev_plan_creates_and_updates(tmp_path, monkeypatch):
         created[summary] = description
         return "CGRE-2"
 
+    def fake_comment(issue_key: str, comment: str) -> None:
+        comments.append((issue_key, comment))
+
     monkeypatch.setattr(sync.jira_client, "update_issue_description", fake_update)
     monkeypatch.setattr(sync.jira_client, "create_issue", fake_create)
+    monkeypatch.setattr(sync.jira_client, "add_comment", fake_comment)
+    monkeypatch.setattr(sync, "build_run_comment", lambda: "Synced via tests")
 
     sync.sync_dev_plan(dev_plan_path=plan_path, mapping_path=mapping_path)
 
     assert updated == {"CGRE-1": "Old description"}
     assert created == {"T2 – New Task": "New description"}
+    assert comments == [("CGRE-1", "Synced via tests"), ("CGRE-2", "Synced via tests")]
     saved_mapping = mapping_path.read_text(encoding="utf-8")
     assert "CGRE-2" in saved_mapping
