@@ -54,8 +54,40 @@ def _request(method: str, path: str, payload: Optional[Dict] = None) -> requests
         auth=(config.email, config.api_token),
         timeout=30,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        # Print detailed error info for debugging
+        error_body = ""
+        try:
+            error_body = response.text
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"Jira API error {response.status_code}: {response.reason}\n"
+            f"URL: {url}\n"
+            f"Response: {error_body}"
+        ) from e
     return response
+
+
+def _format_description(text: str) -> Dict:
+    """Format description as Jira Cloud ADF (Atlassian Document Format)."""
+    return {
+        "type": "doc",
+        "version": 1,
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": text,
+                    }
+                ],
+            }
+        ],
+    }
 
 
 def create_issue(summary: str, description: str, issue_type: str = "Story") -> str:
@@ -66,7 +98,7 @@ def create_issue(summary: str, description: str, issue_type: str = "Story") -> s
         "fields": {
             "project": {"key": config.project_key},
             "summary": summary,
-            "description": description,
+            "description": _format_description(description),
             "issuetype": {"name": issue_type},
         }
     }
@@ -81,13 +113,13 @@ def create_issue(summary: str, description: str, issue_type: str = "Story") -> s
 def update_issue_description(issue_key: str, description: str) -> None:
     """Replace the description of a Jira issue."""
 
-    payload = {"fields": {"description": description}}
+    payload = {"fields": {"description": _format_description(description)}}
     _request("PUT", f"/issue/{issue_key}", payload)
 
 
 def add_comment(issue_key: str, comment: str) -> None:
     """Add a comment to a Jira issue."""
 
-    payload = {"body": comment}
+    payload = {"body": _format_description(comment)}
     _request("POST", f"/issue/{issue_key}/comment", payload)
 
