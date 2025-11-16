@@ -41,8 +41,7 @@ def parse_dev_plan_tasks(markdown: str) -> List[DevPlanTask]:
         if current_id is None:
             return
         description = "\n".join(line.rstrip() for line in current_body).strip()
-        if description:
-            tasks.append(DevPlanTask(task_id=current_id, title=current_title, description=description))
+        tasks.append(DevPlanTask(task_id=current_id, title=current_title, description=description))
         current_id = None
         current_title = ""
         current_body = []
