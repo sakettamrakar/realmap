@@ -262,26 +262,36 @@ def _run_search_and_get_listings(
     project_status: str,
     project_types: Iterable[str] | None,
 ) -> str:
+    LOGGER.info("Navigating to search page: %s", search_url)
     session.goto(search_url)
+    
     filters = SearchFilters(
         district=district,
         status=project_status,
         project_types=project_types,
     )
+    LOGGER.info("Applying filters: district=%s, status=%s, types=%s", district, project_status, list(project_types) if project_types else "[]")
     manual_wait_handled = apply_filters_or_fallback(session, selectors, filters, LOGGER)
 
     if not manual_wait_handled and selectors.submit_button:
         try:
+            LOGGER.info("Clicking search button automatically")
+            print("  Clicking search button...")
             session.click(selectors.submit_button)
         except Exception as exc:  # pragma: no cover - defensive logging
             LOGGER.warning("Automatic search click failed: %s", exc)
             manual_wait_handled = manual_filter_fallback(filters)
 
     if not manual_wait_handled:
+        LOGGER.info("Waiting for CAPTCHA to be solved manually")
+        print("  Waiting for manual CAPTCHA solving...")
         wait_for_captcha_solved()
 
     table_selector = selectors.listing_table or selectors.results_table or "table"
+    LOGGER.info("Waiting for results table to appear: %s", table_selector)
+    print("  Waiting for results table to load...")
     session.wait_for_selector(table_selector, timeout_ms=20_000)
+    LOGGER.info("Results table loaded successfully")
     return session.get_page_html()
 
 

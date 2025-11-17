@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Iterable
 from urllib.parse import urljoin
@@ -9,6 +10,8 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from .models import ListingRecord
+
+LOGGER = logging.getLogger(__name__)
 
 
 _HEADER_ALIASES: dict[str, set[str]] = {
@@ -109,18 +112,22 @@ def parse_listing_html(
 ) -> list[ListingRecord]:
     """Parse a CG RERA listing search HTML page into ListingRecord entries."""
 
+    LOGGER.debug("Parsing listing HTML (selector: %s)", listing_selector)
     soup = BeautifulSoup(html, "html.parser")
     target_table = _pick_listing_table(soup, listing_selector)
     if target_table is None:
+        LOGGER.warning("No listing table found in HTML")
         return []
 
     table, header_map = target_table
+    LOGGER.debug("Found table with headers: %s", list(header_map.keys()))
     records: list[ListingRecord] = []
     if row_selector:
         rows = table.select(row_selector)
     else:
         rows = table.find_all("tr")
 
+    LOGGER.info("Found %d rows in table, processing...", len(rows))
     for row_index, row in enumerate(rows, start=1):
         cells = row.find_all("td")
         if not cells:
@@ -143,4 +150,5 @@ def parse_listing_html(
             row_index=row_index,
         )
         records.append(record)
+    LOGGER.info("Parsed %d valid listings from table", len(records))
     return records
