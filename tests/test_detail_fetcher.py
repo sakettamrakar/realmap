@@ -22,11 +22,43 @@ class FakeBrowserSession:
     def click(self, _selector: str) -> None:  # pragma: no cover - unused in this test
         return None
 
+    def go_back(self) -> None:  # pragma: no cover - unused in this test
+        return None
+
     def wait_for_selector(self, _selector: str, *_args, **_kwargs) -> None:  # pragma: no cover - unused
         return None
 
     def get_page_html(self) -> str:
         assert self._current_url is not None
+        return self.html_by_url[self._current_url]
+
+
+@dataclass
+class JsDetailBrowserSession:
+    listing_url: str
+    html_by_url: dict[str, str]
+
+    def __post_init__(self) -> None:
+        self._current_url = self.listing_url
+        self.clicked_selectors: list[str] = []
+        self.go_back_calls: int = 0
+        self.waited_for: list[str] = []
+
+    def goto(self, url: str) -> None:  # pragma: no cover - not exercised in this test
+        self._current_url = url
+
+    def click(self, selector: str) -> None:
+        self.clicked_selectors.append(selector)
+        self._current_url = "detail"
+
+    def go_back(self) -> None:
+        self.go_back_calls += 1
+        self._current_url = self.listing_url
+
+    def wait_for_selector(self, selector: str, *_args, **_kwargs) -> None:
+        self.waited_for.append(selector)
+
+    def get_page_html(self) -> str:
         return self.html_by_url[self._current_url]
 
 
@@ -64,4 +96,33 @@ def test_fetch_and_save_details_persists_each_listing(tmp_path):
     assert expected_a.read_text(encoding="utf-8") == "<html>A</html>"
     assert expected_b.read_text(encoding="utf-8") == "<html>B</html>"
     assert session.visited == ["https://example.com/a", "https://example.com/b"]
+
+
+def test_fetch_and_save_details_uses_history_back_for_js_links(tmp_path):
+    listing_url = "https://example.com/listings"
+    html_by_url = {
+        listing_url: "<html>Listings</html>",
+        "detail": "<html>Detail</html>",
+    }
+    session = JsDetailBrowserSession(listing_url, html_by_url)
+    listing = make_listing("CG-03", "javascript:__doPostBack('view','')")
+    listing.row_index = 2
+
+    selectors = SearchPageSelectors()
+    fetch_and_save_details(
+        session,
+        selectors,
+        [listing],
+        str(tmp_path),
+        listing_url,
+    )
+
+    expected_detail = tmp_path / "raw_html" / "project_CG_03.html"
+    assert expected_detail.read_text(encoding="utf-8") == "<html>Detail</html>"
+    assert session.clicked_selectors == [
+        "#ContentPlaceHolder1_gvApprovedProject > tbody > tr:nth-of-type(2) "
+        "a[title='View Details'], a.view-details"
+    ]
+    assert session.go_back_calls == 1
+    assert selectors.listing_table in session.waited_for
 

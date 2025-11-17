@@ -28,7 +28,9 @@ def fetch_and_save_details(
         if not record.detail_url:
             continue
 
-        if record.detail_url.startswith("javascript") or "__doPostBack" in record.detail_url:
+        uses_js_detail = record.detail_url.startswith("javascript") or "__doPostBack" in record.detail_url
+
+        if uses_js_detail:
             if record.row_index is None:
                 LOGGER.warning(
                     "Skipping JS-only detail link for %s because row index is missing",
@@ -48,7 +50,7 @@ def fetch_and_save_details(
         save_project_html(path, html)
 
         # Navigate back to the listing page if we had to click within the grid.
-        if record.detail_url.startswith("javascript") or "__doPostBack" in record.detail_url:
-            session.goto(listing_page_url)
+        if uses_js_detail:
+            session.go_back()
             session.wait_for_selector(table_selector)
 
