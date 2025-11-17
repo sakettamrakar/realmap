@@ -271,9 +271,14 @@ def _run_search_and_get_listings(
         session.goto(search_url)
     else:
         LOGGER.info("Going back to search page to preserve session")
-        session.go_back()
-        import time
-        time.sleep(2)  # Wait for page to stabilize
+        try:
+            session.go_back()
+            import time
+            time.sleep(2)  # Wait for page to stabilize
+        except Exception as e:
+            # If go_back fails (e.g., after detail page fetching), fall back to fresh navigation
+            LOGGER.warning("go_back() failed: %s. Falling back to fresh navigation.", e)
+            session.goto(search_url)
 
     table_selector = selectors.listing_table or selectors.results_table or "table"
     table_visible = False

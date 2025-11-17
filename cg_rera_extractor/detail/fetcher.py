@@ -83,12 +83,17 @@ def fetch_and_save_details(
         # This preserves the filter selections without page refresh.
         if uses_js_detail:
             LOGGER.debug("Navigating back to listing page (JavaScript method preserves filters)")
-            session.go_back()
             try:
-                session.wait_for_selector(table_selector, timeout_ms=10_000)
+                session.go_back()
+                try:
+                    session.wait_for_selector(table_selector, timeout_ms=10_000)
+                except Exception as e:
+                    LOGGER.warning("Timeout waiting for listing table after go_back: %s", e)
             except Exception as e:
-                LOGGER.warning("Timeout waiting for listing table after go_back: %s", e)
-            LOGGER.debug("Listing page reloaded with filters preserved")
+                # go_back() can fail with ERR_CACHE_MISS or timeout after multiple detail fetches
+                LOGGER.warning("go_back() failed after fetching details: %s. Continuing to next listing.", e)
+                # The filter state is lost, but we can continue processing other listings
+            LOGGER.debug("Listing page navigation handled")
         
     LOGGER.info("Detail fetch complete for all %d listings", total)
 
