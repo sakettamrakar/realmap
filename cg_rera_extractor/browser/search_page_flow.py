@@ -70,7 +70,7 @@ def manual_filter_fallback(filters: SearchFilters) -> bool:
     print("Please:")
     print("  1) Manually select district/status/project type as desired.")
     print("  2) Solve the CAPTCHA.")
-    print("  3) Click the Search button.")
+    print("  3) Click the Search button if needed (the table may already be loaded).")
     print("  4) When the listing results are fully visible, come back here and press ENTER.")
     print(
         f"Active filters: district={filters.district!r}, status={filters.status!r}, "

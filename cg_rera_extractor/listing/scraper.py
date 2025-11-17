@@ -21,7 +21,7 @@ _HEADER_ALIASES: dict[str, set[str]] = {
         "registration number",
         "reg number",
     },
-    "project_name": {"project name", "project"},
+    "project_name": {"project name", "project", "projectname"},
     "promoter_name": {"promoter name", "promoter"},
     "district": {"district"},
     "tehsil": {"tehsil", "tahsil"},
