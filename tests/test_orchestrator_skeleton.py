@@ -82,7 +82,12 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
         ]
 
     def fake_fetch_and_save_details(
-        _session, _selectors, listings: list[ListingRecord], output_base: str, _listing_url: str
+        _session,
+        _selectors,
+        listings: list[ListingRecord],
+        output_base: str,
+        _listing_url: str,
+        _state_code: str,
     ) -> None:
         for listing in listings:
             html_path = Path(output_base) / "raw_html" / f"project_{listing.reg_no}.html"
