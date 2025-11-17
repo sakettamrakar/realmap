@@ -14,8 +14,8 @@ class RunQASummary(TypedDict):
     run_id: str
     total_projects: int
     total_fields: int
-    matches: int
-    mismatches: int
+    match: int
+    mismatch: int
     missing_in_html: int
     missing_in_json: int
     preview_unchecked: int
@@ -34,8 +34,8 @@ def _load_v1_project(path: Path) -> V1Project:
 def _summarize_diffs(diffs: List[dict]) -> Dict[str, int]:
     summary = {
         "total_fields": len(diffs),
-        "matches": 0,
-        "mismatches": 0,
+        "match": 0,
+        "mismatch": 0,
         "missing_in_html": 0,
         "missing_in_json": 0,
         "preview_unchecked": 0,
@@ -79,8 +79,8 @@ def run_field_by_field_qa(run_id: str, limit: int | None = None, project_key: st
         run_id=run_id,
         total_projects=0,
         total_fields=0,
-        matches=0,
-        mismatches=0,
+        match=0,
+        mismatch=0,
         missing_in_html=0,
         missing_in_json=0,
         preview_unchecked=0,
@@ -100,8 +100,8 @@ def run_field_by_field_qa(run_id: str, limit: int | None = None, project_key: st
         summary_counts = _summarize_diffs(diffs)
         overall_counts["total_projects"] += 1
         overall_counts["total_fields"] += summary_counts["total_fields"]
-        overall_counts["matches"] += summary_counts["matches"]
-        overall_counts["mismatches"] += summary_counts["mismatches"]
+        overall_counts["match"] += summary_counts["match"]
+        overall_counts["mismatch"] += summary_counts["mismatch"]
         overall_counts["missing_in_html"] += summary_counts["missing_in_html"]
         overall_counts["missing_in_json"] += summary_counts["missing_in_json"]
         overall_counts["preview_unchecked"] += summary_counts["preview_unchecked"]
@@ -122,7 +122,7 @@ def run_field_by_field_qa(run_id: str, limit: int | None = None, project_key: st
             "| "
             + project["project_key"]
             + " | "
-            + str(counts["mismatches"])
+            + str(counts["mismatch"])
             + " | "
             + str(counts["missing_in_html"])
             + " | "
