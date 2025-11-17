@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from cg_rera_extractor.config.env import DEFAULT_DATABASE_URL
 from cg_rera_extractor.config.loader import load_config
 from cg_rera_extractor.config.models import (
     AppConfig,
@@ -36,7 +37,7 @@ def test_load_config_from_example_file() -> None:
     assert config.browser.headless is False
     assert config.browser.slow_mo_ms == 250
     assert config.browser.default_timeout_ms == 20000
-    assert config.db.url.startswith("postgresql+psycopg2://")
+    assert config.db.url == DEFAULT_DATABASE_URL
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:

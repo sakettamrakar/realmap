@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 from pathlib import Path
 
+from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
 from cg_rera_extractor.config.loader import load_config
 from cg_rera_extractor.config.models import AppConfig, DatabaseConfig
 from cg_rera_extractor.db import get_engine, get_session_local
@@ -21,9 +21,7 @@ def load_db_config(config_path: str | None) -> DatabaseConfig:
         app_config: AppConfig = load_config(str(resolved_path))
         return app_config.db
 
-    env_url = os.getenv("DATABASE_URL")
-    if not env_url:
-        raise ValueError("DATABASE_URL must be set when no config file is provided.")
+    env_url = ensure_database_url()
     return DatabaseConfig(url=env_url)
 
 
@@ -47,6 +45,7 @@ def main() -> int:
     db_config = load_db_config(args.config)
     engine = get_engine(db_config)
     SessionLocal = get_session_local(engine)
+    logging.info("Connected to %s", describe_database_target(db_config.url))
 
     geocoder = NoopGeocoder()
 

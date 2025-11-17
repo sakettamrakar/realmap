@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 
-os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 
 from cg_rera_extractor.api.app import app  # noqa: E402  (import after env setup)
 from cg_rera_extractor.api.deps import get_db  # noqa: E402

@@ -30,6 +30,9 @@ Configuration lives in YAML files that follow the schema documented in
 a reference when creating your own configuration. Load the configuration within
 Python code using `cg_rera_extractor.config.load_config`.
 
+For local development copy `.env.example` to `.env` (or export the variable manually)
+so `DATABASE_URL` always points at the shared Postgres instance.
+
 ## Tests
 
 We use `pytest` for testing. All parsing logic and orchestrator components must
@@ -39,10 +42,10 @@ without hitting the live CG RERA portal.
 ## API service
 
 A lightweight FastAPI app exposes read-only endpoints for project summaries and
-details backed by the normalized Postgres database. To run it locally, set a
-`DATABASE_URL` and start uvicorn:
+details backed by the normalized Postgres database. To run it locally, export
+the unified connection string and start uvicorn:
 
 ```bash
-export DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/cg_rera
+export DATABASE_URL=postgresql://postgres:betsson@123@localhost:5432/realmapdb
 uvicorn cg_rera_extractor.api.app:app --reload
 ```

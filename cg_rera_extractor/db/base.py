@@ -1,12 +1,11 @@
 """Database base classes and connection helpers."""
 from __future__ import annotations
 
-import os
-
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from cg_rera_extractor.config.env import ensure_database_url
 from cg_rera_extractor.config.models import DatabaseConfig
 
 
@@ -28,9 +27,9 @@ def get_engine(
     3. ``DATABASE_URL`` environment variable
     """
 
-    database_url = url or (database_config.url if database_config else None) or os.getenv("DATABASE_URL")
+    database_url = url or (database_config.url if database_config else None)
     if not database_url:
-        raise ValueError("Database URL must be provided via DatabaseConfig, url argument, or DATABASE_URL env var.")
+        database_url = ensure_database_url()
 
     return create_engine(database_url, echo=echo, future=True)
 

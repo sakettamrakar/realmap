@@ -70,7 +70,7 @@ Quick checks:
 - Ideally, `run_report.json` shows non-zero counts and no fatal errors.
 
 ## 6. Loading Data into the Database (optional but important)
-Prerequisites: running Postgres instance (local or remote) and a DB URL such as `postgresql+psycopg2://user:pass@localhost:5432/realmap`. Set it in your config (`db.url`) or via `DATABASE_URL`.
+Prerequisites: running Postgres instance (use the shared `postgresql://postgres:betsson@123@localhost:5432/realmapdb` URL unless you have overrides). Set it in your config (`db.url`) or via `DATABASE_URL`.
 
 Steps:
 1. Initialize schema: `python tools/init_db.py` (uses config-provided URL or `DATABASE_URL`).

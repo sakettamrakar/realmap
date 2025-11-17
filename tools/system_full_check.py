@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
+from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
+
 CONFIG_PATH = "config.phase2.sample.yaml"
 ERROR_LOG_PATH = Path("logs/system_check_errors.log")
 
@@ -228,6 +230,9 @@ def main() -> int:
     # Start fresh each time
     if ERROR_LOG_PATH.exists():
         ERROR_LOG_PATH.unlink()
+
+    active_db_url = ensure_database_url()
+    print(f"Using database target: {describe_database_target(active_db_url)}")
 
     steps = build_steps(CONFIG_PATH)
     results: list[StepResult] = []

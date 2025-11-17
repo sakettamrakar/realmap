@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -18,8 +17,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
 from cg_rera_extractor.config.loader import load_config
-from cg_rera_extractor.config.models import AppConfig, BrowserConfig, RunConfig, RunMode, SearchFilterConfig
+from cg_rera_extractor.config.models import (
+    AppConfig,
+    BrowserConfig,
+    DatabaseConfig,
+    RunConfig,
+    RunMode,
+    SearchFilterConfig,
+)
 from cg_rera_extractor.db import Project, get_engine, get_session_local, load_run_into_db
 from cg_rera_extractor.db.init_db import init_db
 from cg_rera_extractor.listing.scraper import parse_listing_html
@@ -127,7 +134,7 @@ def check_run_status_schema() -> list[str]:
 
 
 def _resolve_db_url() -> str:
-    return os.getenv("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+    return ensure_database_url()
 
 
 def check_db_connection() -> list[str]:
@@ -140,10 +147,9 @@ def check_db_connection() -> list[str]:
     with SessionLocal() as session:
         session.execute(text("SELECT 1"))
 
-    return [
-        f"Engine created for {db_url}",
-        "Session opened and test query executed successfully.",
-    ]
+    target = describe_database_target(db_url)
+
+    return [f"Engine created for {target}", "Session opened and test query executed successfully."]
 
 
 def check_tiny_in_memory_load() -> list[str]:
@@ -184,7 +190,11 @@ def check_orchestrator_dry_run() -> list[str]:
         max_search_combinations=2,
         max_total_listings=25,
     )
-    app_config = AppConfig(run=run_config, browser=BrowserConfig())
+    app_config = AppConfig(
+        run=run_config,
+        browser=BrowserConfig(),
+        db=DatabaseConfig(url=_resolve_db_url()),
+    )
 
     status = orchestrator.run_crawl(app_config)
 
@@ -196,7 +206,7 @@ def check_orchestrator_dry_run() -> list[str]:
 
 
 def main() -> int:
-    print("Realmap / CG RERA Extraction – Self Check")
+    print("Realmap / CG RERA Extraction - Self Check")
     print("=" * 60)
     checks: List[CheckResult] = []
 

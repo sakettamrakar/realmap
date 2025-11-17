@@ -18,4 +18,4 @@ browser:
   headless: false  # Keep visible for CAPTCHA solving
   slow_mo_ms: 250
 db:
-  url: postgresql+psycopg2://user:password@localhost:5432/cg_rera
+  url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb

@@ -42,8 +42,8 @@
 
 ## Phase 3 – DB Layer
 - Schema includes `projects`, `promoters`, `buildings`, `unit_types`, `project_documents`, and `quarterly_updates` with `state_code + rera_registration_number` as the natural key on projects.
-- Connection details come from `config.db.url` or the `DATABASE_URL` environment variable; no DSNs are hard-coded.
-- Initialize the schema locally with `python tools/init_db.py --config config.example.yaml` (or rely on `DATABASE_URL` without a config flag).
+- Connection details come from `config.db.url` or the `DATABASE_URL` environment variable and default to the shared `postgresql://postgres:betsson@123@localhost:5432/realmapdb` DSN.
+- Initialize the schema locally with `python tools/init_db.py --config config.example.yaml` (or rely on `DATABASE_URL` without a config flag) to create all tables idempotently.
 - Projects now have nullable latitude/longitude plus geocoding status/source fields to support later map visualisation and provider-specific enrichers.
 - Batch geocoding plumbing is wired via `cg_rera_extractor.geo.geocode_missing_projects` and a stub CLI `python tools/geocode_projects.py --mode noop`.
 
@@ -117,7 +117,7 @@
    - Run the `check` command before and after parser changes to confirm whether CG RERA HTML or parsing logic has shifted.
 
 ### Phase 3 quick check (DB + API wiring)
-1. Initialize the schema (Postgres or SQLite URL available via `DATABASE_URL`):
+1. Initialize the schema (uses `postgresql://postgres:betsson@123@localhost:5432/realmapdb` from `DATABASE_URL` unless overridden):
    - `python tools/init_db.py`
 2. Load a single run of scraped V1 JSON into the database:
    - `python tools/load_runs_to_db.py --run-id <run_id>`

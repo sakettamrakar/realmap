@@ -1,11 +1,12 @@
 """Configuration models for the CG RERA extraction framework."""
 from __future__ import annotations
 
-import os
 from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, model_validator
+
+from cg_rera_extractor.config.env import ensure_database_url
 
 
 class RunMode(str, Enum):
@@ -46,9 +47,8 @@ class DatabaseConfig(BaseModel):
 
         url = values.get("url") if isinstance(values, dict) else None
         if not url:
-            env_url = os.getenv("DATABASE_URL")
-            if env_url:
-                values = {**(values or {}), "url": env_url}
+            env_url = ensure_database_url()
+            values = {**(values or {}), "url": env_url}
         return values
 
 

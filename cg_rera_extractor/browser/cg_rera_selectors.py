@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-SEARCH_URL = "https://rera.cgstate.gov.in/ProjectSearch"
+SEARCH_URL = "https://rera.cgstate.gov.in/Approved_project_List.aspx"
 
 
 @dataclass(frozen=True)

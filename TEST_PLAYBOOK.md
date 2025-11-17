@@ -3,7 +3,7 @@
 ## Phase 3 Quick Check
 Use this short script to validate the Phase 3 pieces (DB wiring, loader, API) before running longer crawls.
 
-1. Initialize the schema (uses `DATABASE_URL` or the URL from a provided config):
+1. Initialize the schema (defaults to `postgresql://postgres:betsson@123@localhost:5432/realmapdb` via `DATABASE_URL` unless overridden):
    - `python tools/init_db.py`
 2. Load a single run of scraped V1 JSON into the database:
    - `python tools/load_runs_to_db.py --run-id <run_id>`
