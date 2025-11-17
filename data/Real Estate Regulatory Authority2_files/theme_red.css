@@ -1,0 +1,62 @@
+﻿@charset "utf-8";
+/* CSS Document */
+
+header .logo {
+    color: #7b7127;
+}
+/*         header .logo { color:#000000;  }     
+header .logo { color:#004950;  } change on 20-05-2017*/
+.flexy-menu > li.showhide {
+    background: #004950;
+}
+
+.heading {
+    border-bottom: 1px solid #004950;
+}
+
+    .heading span {
+        border-bottom: 2px solid #004950!important;
+    }
+
+.top_links_wrap {
+    border-top: 2px solid #004950;
+}
+
+.flexy-menu li:hover > a, .flexy-menu li.active a {
+    background: #004950;
+}
+
+.cont_box {
+    border-bottom: 2px solid #004950;
+}
+
+.cont_box_head {
+    background: #004950;
+}
+
+.h_about h2:after {
+    border-bottom: 2px solid #004950!important;
+}
+
+.h_about .heading {
+    border-bottom: 1px solid #004950;
+}
+
+    .h_about .heading span {
+        border-bottom: 2px solid #004950!important;
+    }
+
+/*.breakingNews {
+    background: #B21919;
+}*/
+
+.btn-default {
+    background: #871414;
+}
+
+    .btn-default:hover, .btn-default:active, .btn-default:focus, .btn-default:active:focus,
+    .btn-default.active:hover {
+        background: #871414;
+        outline: none;
+        color: #fff;
+    }
