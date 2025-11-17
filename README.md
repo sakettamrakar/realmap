@@ -35,3 +35,14 @@ Python code using `cg_rera_extractor.config.load_config`.
 We use `pytest` for testing. All parsing logic and orchestrator components must
 be covered by unit tests using saved HTML fixtures, allowing test execution
 without hitting the live CG RERA portal.
+
+## API service
+
+A lightweight FastAPI app exposes read-only endpoints for project summaries and
+details backed by the normalized Postgres database. To run it locally, set a
+`DATABASE_URL` and start uvicorn:
+
+```bash
+export DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/cg_rera
+uvicorn cg_rera_extractor.api.app:app --reload
+```
