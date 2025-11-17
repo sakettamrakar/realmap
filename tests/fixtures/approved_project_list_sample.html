@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CG RERA Approved Project List</title>
+</head>
+<body>
+  <form id="form1">
+    <div class="filters">
+      <label for="ContentPlaceHolder1_ddlDistrict">District</label>
+      <select id="ContentPlaceHolder1_ddlDistrict" name="ctl00$ContentPlaceHolder1$ddlDistrict">
+        <option value="0">--Select--</option>
+        <option value="Raipur" selected>Raipur</option>
+        <option value="Durg">Durg</option>
+      </select>
+      <label for="ContentPlaceHolder1_ddlProjectStatus">Status</label>
+      <select id="ContentPlaceHolder1_ddlProjectStatus" name="ctl00$ContentPlaceHolder1$ddlProjectStatus">
+        <option value="All" selected>All</option>
+        <option value="Registered">Registered</option>
+      </select>
+      <label for="ContentPlaceHolder1_ddlProjectType">Project Type</label>
+      <select id="ContentPlaceHolder1_ddlProjectType" name="ctl00$ContentPlaceHolder1$ddlProjectType">
+        <option value="All" selected>All</option>
+        <option value="Residential">Residential</option>
+      </select>
+      <input type="submit" id="ContentPlaceHolder1_btnSearch" value="Search" />
+    </div>
+    <table id="ContentPlaceHolder1_gvApprovedProject" class="table table-striped">
+      <thead>
+        <tr>
+          <th>S.No</th>
+          <th>Registration No.</th>
+          <th>Project Name</th>
+          <th>Promoter Name</th>
+          <th>District</th>
+          <th>Tehsil</th>
+          <th>Project Type</th>
+          <th>Status</th>
+          <th>Google Location</th>
+          <th>Certificate</th>
+          <th>View Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>CG-RERA-PRJ-12345</td>
+          <td>Sunshine Residency</td>
+          <td>Sun Builders</td>
+          <td>Raipur</td>
+          <td>Tilda</td>
+          <td>Residential</td>
+          <td>Registered</td>
+          <td><a href="https://maps.example.com/sunshine">Map</a></td>
+          <td><a href="/Certificate/PRJ-12345.pdf">Certificate</a></td>
+          <td><a id="ContentPlaceHolder1_gvApprovedProject_lnkView_0" title="View Details" href="Approved_project_info.aspx?Reg_No=CG-RERA-PRJ-12345">View Details</a></td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>CG-RERA-PRJ-67890</td>
+          <td>Lake View Heights</td>
+          <td>Skyline Infra</td>
+          <td>Durg</td>
+          <td>Patan</td>
+          <td>Commercial</td>
+          <td>Registered</td>
+          <td><a href="https://maps.example.com/lakeview">Map</a></td>
+          <td><a href="/Certificate/PRJ-67890.pdf">Certificate</a></td>
+          <td><a id="ContentPlaceHolder1_gvApprovedProject_lnkView_1" title="View Details" href="Approved_project_info.aspx?Reg_No=CG-RERA-PRJ-67890">View Details</a></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>CG-RERA-PRJ-13579</td>
+          <td>Metro Greens</td>
+          <td>Urban Developers</td>
+          <td>Bilaspur</td>
+          <td>Takhatpur</td>
+          <td>Township</td>
+          <td>Completed</td>
+          <td><a href="https://maps.example.com/metrogreens">Map</a></td>
+          <td><a href="/Certificate/PRJ-13579.pdf">Certificate</a></td>
+          <td><a id="ContentPlaceHolder1_gvApprovedProject_lnkView_2" title="View Details" href="Approved_project_info.aspx?Reg_No=CG-RERA-PRJ-13579">View Details</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </form>
+</body>
+</html>

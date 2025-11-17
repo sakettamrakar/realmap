@@ -28,6 +28,9 @@ class SearchFilterConfig(BaseModel):
 class SearchPageSelectorsConfig(BaseModel):
     """Override selectors for the CG RERA search page."""
 
+    listing_table: str | None = None
+    row_selector: str | None = None
+    view_details_link: str | None = None
     district: str | None = None
     status: str | None = None
     project_type: str | None = None

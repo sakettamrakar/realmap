@@ -19,6 +19,7 @@ from cg_rera_extractor.browser.search_page_config import (
 from cg_rera_extractor.browser.search_page_flow import (
     SearchFilters,
     apply_filters_or_fallback,
+    manual_filter_fallback,
 )
 from cg_rera_extractor.browser.session import PlaywrightBrowserSession
 from cg_rera_extractor.config.models import AppConfig, RunMode
@@ -99,28 +100,21 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                 "Running search for district=%s status=%s", district, project_status
             )
             try:
-                _execute_search(
+                listings_html = _run_search_and_get_listings(
                     session,
-                    district,
-                    project_status,
-                    filters.project_types,
                     search_page_config.url,
                     search_page_config.selectors,
-                )
-                manual_wait_handled = _maybe_apply_filters(
-                    session,
-                    search_page_config.selectors,
                     district,
                     project_status,
                     filters.project_types,
                 )
-                if not manual_wait_handled:
-                    wait_for_captcha_solved()
-                session.wait_for_selector(
-                    search_page_config.selectors.results_table, timeout_ms=20_000
+                listings = parse_listing_html(
+                    listings_html,
+                    search_page_config.url,
+                    listing_selector=search_page_config.selectors.listing_table,
+                    row_selector=search_page_config.selectors.row_selector,
+                    view_details_selector=search_page_config.selectors.view_details_link,
                 )
-                listings_html = session.get_page_html()
-                listings = parse_listing_html(listings_html, search_page_config.url)
 
                 if len(listings) > MAX_LISTINGS_PER_SEARCH:
                     LOGGER.warning(
@@ -161,7 +155,13 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                 counts["listings_scraped"] += len(listings)
 
                 if run_config.mode != RunMode.LISTINGS_ONLY and listings:
-                    fetch_and_save_details(session, listings, str(dirs["run_dir"]))
+                    fetch_and_save_details(
+                        session,
+                        search_page_config.selectors,
+                        listings,
+                        str(dirs["run_dir"]),
+                        search_page_config.url,
+                    )
                     counts["details_fetched"] += len(listings)
             except Exception as exc:  # pragma: no cover - defensive logging
                 LOGGER.exception("Search failed for %s/%s", district, project_status)
@@ -254,30 +254,35 @@ def _listing_limit_reached(limit: int | None, processed: int) -> bool:
     return limit is not None and processed >= limit
 
 
-def _execute_search(
+def _run_search_and_get_listings(
     session: PlaywrightBrowserSession,
-    district: str,
-    project_status: str,
-    project_types: Iterable[str] | None,
     search_url: str,
     selectors: SearchPageSelectors,
-) -> None:
-    session.goto(search_url)
-
-
-def _maybe_apply_filters(
-    session: PlaywrightBrowserSession,
-    selectors: SearchPageSelectors,
     district: str,
     project_status: str,
     project_types: Iterable[str] | None,
-) -> bool:
+) -> str:
+    session.goto(search_url)
     filters = SearchFilters(
         district=district,
         status=project_status,
         project_types=project_types,
     )
-    return apply_filters_or_fallback(session, selectors, filters, LOGGER)
+    manual_wait_handled = apply_filters_or_fallback(session, selectors, filters, LOGGER)
+
+    if not manual_wait_handled and selectors.submit_button:
+        try:
+            session.click(selectors.submit_button)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            LOGGER.warning("Automatic search click failed: %s", exc)
+            manual_wait_handled = manual_filter_fallback(filters)
+
+    if not manual_wait_handled:
+        wait_for_captcha_solved()
+
+    table_selector = selectors.listing_table or selectors.results_table or "table"
+    session.wait_for_selector(table_selector, timeout_ms=20_000)
+    return session.get_page_html()
 
 
 def _save_listings_snapshot(

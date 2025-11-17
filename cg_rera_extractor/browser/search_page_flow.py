@@ -53,7 +53,7 @@ def apply_filters_or_fallback(
         return False
     except Exception as exc:  # pragma: no cover - defensive safety net
         active_logger.warning("Automatic filter selection failed: %s", exc)
-        return _manual_fallback(filters)
+        return manual_filter_fallback(filters)
 
 
 def _apply_select(
@@ -64,7 +64,7 @@ def _apply_select(
     session.select_option(selector, value)
 
 
-def _manual_fallback(filters: SearchFilters) -> bool:
+def manual_filter_fallback(filters: SearchFilters) -> bool:
     print("\n=== MANUAL FILTER MODE ===")
     print("Could not apply filters automatically (selectors not found or page changed).")
     print("Please:")
@@ -80,4 +80,4 @@ def _manual_fallback(filters: SearchFilters) -> bool:
     return True
 
 
-__all__ = ["SearchFilters", "apply_filters_or_fallback"]
+__all__ = ["SearchFilters", "apply_filters_or_fallback", "manual_filter_fallback"]

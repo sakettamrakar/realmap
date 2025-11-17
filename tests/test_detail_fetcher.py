@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from cg_rera_extractor.browser.search_page_config import SearchPageSelectors
 from cg_rera_extractor.detail.fetcher import fetch_and_save_details
 from cg_rera_extractor.listing.models import ListingRecord
 
@@ -17,6 +18,12 @@ class FakeBrowserSession:
     def goto(self, url: str) -> None:
         self.visited.append(url)
         self._current_url = url
+
+    def click(self, _selector: str) -> None:  # pragma: no cover - unused in this test
+        return None
+
+    def wait_for_selector(self, _selector: str, *_args, **_kwargs) -> None:  # pragma: no cover - unused
+        return None
 
     def get_page_html(self) -> str:
         assert self._current_url is not None
@@ -47,7 +54,10 @@ def test_fetch_and_save_details_persists_each_listing(tmp_path):
         make_listing("CG-02", "https://example.com/b"),
     ]
 
-    fetch_and_save_details(session, listings, str(tmp_path))
+    selectors = SearchPageSelectors()
+    fetch_and_save_details(
+        session, selectors, listings, str(tmp_path), "https://example.com/listings"
+    )
 
     expected_a = tmp_path / "raw_html" / "project_CG_01.html"
     expected_b = tmp_path / "raw_html" / "project_CG_02.html"
