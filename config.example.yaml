@@ -22,14 +22,14 @@ browser:
 search_page:
   url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override when the portal moves
   # selectors:  # Optional overrides; defaults match the current CG RERA site
-  #   listing_table: "#ContentPlaceHolder1_gvApprovedProject"
-  #   row_selector: "#ContentPlaceHolder1_gvApprovedProject > tbody > tr"
-  #   view_details_link: "a[title='View Details']"
-  #   district: null
-  #   status: null
-  #   project_type: null
-  #   submit_button: null
-  #   results_table: null
+  #   listing_table: "#ContentPlaceHolder1_gv_ProjectList"
+  #   row_selector: "#ContentPlaceHolder1_gv_ProjectList > tbody > tr"
+  #   view_details_link: "a[id*='gv_ProjectList_lnk_View']"
+  #   district: "#ContentPlaceHolder1_District_Name"
+  #   status: "#ContentPlaceHolder1_ApplicantType"
+  #   project_type: "#ContentPlaceHolder1_DropDownList2"
+  #   submit_button: "#ContentPlaceHolder1_Button1"
+  #   results_table: "#ContentPlaceHolder1_gv_ProjectList"
 db:
   # Prefer overriding this via DATABASE_URL, but this default points to the unified Postgres instance.
   url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb

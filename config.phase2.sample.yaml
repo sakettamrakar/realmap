@@ -20,13 +20,13 @@ browser:
 search_page:
   url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override if the portal URL changes
   selectors:
-    listing_table: "#ContentPlaceHolder1_gvApprovedProject"
-    row_selector: "#ContentPlaceHolder1_gvApprovedProject > tbody > tr"
-    view_details_link: "a[title='View Details'], a.view-details"
-    district: "#ContentPlaceHolder1_ddlDistrict"
-    status: "#ContentPlaceHolder1_ddlProjectStatus"
-    project_type: "#ContentPlaceHolder1_ddlProjectType"
-    submit_button: "#ContentPlaceHolder1_btnSearch"
-    results_table: "#ContentPlaceHolder1_gvApprovedProject"
+    listing_table: "#ContentPlaceHolder1_gv_ProjectList"
+    row_selector: "#ContentPlaceHolder1_gv_ProjectList > tbody > tr"
+    view_details_link: "a[id*='gv_ProjectList_lnk_View']"
+    district: "#ContentPlaceHolder1_District_Name"
+    status: "#ContentPlaceHolder1_ApplicantType"
+    project_type: "#ContentPlaceHolder1_DropDownList2"
+    submit_button: "#ContentPlaceHolder1_Button1"
+    results_table: "#ContentPlaceHolder1_gv_ProjectList"
 db:
   url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb

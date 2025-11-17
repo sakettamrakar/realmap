@@ -264,7 +264,16 @@ def _run_search_and_get_listings(
 ) -> str:
     LOGGER.info("Navigating to search page: %s", search_url)
     session.goto(search_url)
-    
+
+    table_selector = selectors.listing_table or selectors.results_table or "table"
+    table_visible = False
+    try:
+        session.wait_for_selector(table_selector, timeout_ms=5_000)
+        table_visible = True
+        LOGGER.info("Listing container detected on initial load: %s", table_selector)
+    except Exception:
+        LOGGER.debug("Listing container not immediately visible; proceeding to apply filters")
+
     filters = SearchFilters(
         district=district,
         status=project_status,
@@ -287,10 +296,11 @@ def _run_search_and_get_listings(
         print("  Waiting for manual CAPTCHA solving...")
         wait_for_captcha_solved()
 
-    table_selector = selectors.listing_table or selectors.results_table or "table"
     LOGGER.info("Waiting for results table to appear: %s", table_selector)
     print("  Waiting for results table to load...")
     session.wait_for_selector(table_selector, timeout_ms=20_000)
+    if not table_visible:
+        LOGGER.info("Results table now visible after filter/captcha flow")
     LOGGER.info("Results table loaded successfully")
     return session.get_page_html()
 

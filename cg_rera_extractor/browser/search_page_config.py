@@ -14,14 +14,14 @@ DEFAULT_SEARCH_URL = "https://rera.cgstate.gov.in/Approved_project_List.aspx"
 class SearchPageSelectors:
     """Selectors used on the CG RERA project search page."""
 
-    listing_table: str | None = "#ContentPlaceHolder1_gvApprovedProject"
-    row_selector: str | None = "#ContentPlaceHolder1_gvApprovedProject > tbody > tr"
-    view_details_link: str | None = "a[title='View Details'], a.view-details"
-    district: str | None = "#ContentPlaceHolder1_ddlDistrict"
-    status: str | None = "#ContentPlaceHolder1_ddlProjectStatus"
-    project_type: str | None = "#ContentPlaceHolder1_ddlProjectType"
-    submit_button: str | None = "#ContentPlaceHolder1_btnSearch"
-    results_table: str | None = "#ContentPlaceHolder1_gvApprovedProject"
+    listing_table: str | None = "#ContentPlaceHolder1_gv_ProjectList"
+    row_selector: str | None = "#ContentPlaceHolder1_gv_ProjectList > tbody > tr"
+    view_details_link: str | None = "a[id*='gv_ProjectList_lnk_View']"
+    district: str | None = "#ContentPlaceHolder1_District_Name"
+    status: str | None = "#ContentPlaceHolder1_ApplicantType"
+    project_type: str | None = "#ContentPlaceHolder1_DropDownList2"
+    submit_button: str | None = "#ContentPlaceHolder1_Button1"
+    results_table: str | None = "#ContentPlaceHolder1_gv_ProjectList"
 
 
 @dataclass(frozen=True)

@@ -120,8 +120,8 @@ def test_fetch_and_save_details_uses_history_back_for_js_links(tmp_path):
     expected_detail = tmp_path / "raw_html" / "project_CG_03.html"
     assert expected_detail.read_text(encoding="utf-8") == "<html>Detail</html>"
     assert session.clicked_selectors == [
-        "#ContentPlaceHolder1_gvApprovedProject > tbody > tr:nth-of-type(2) "
-        "a[title='View Details'], a.view-details"
+        "#ContentPlaceHolder1_gv_ProjectList > tbody > tr:nth-of-type(2) "
+        "a[id*='gv_ProjectList_lnk_View']"
     ]
     assert session.go_back_calls == 1
     assert selectors.listing_table in session.waited_for

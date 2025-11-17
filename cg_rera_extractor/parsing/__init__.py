@@ -1,6 +1,7 @@
 """Parsing utilities and schema definitions for the CG RERA extractor."""
 
 from .mapper import map_raw_to_v1
+from .mhtml_utils import extract_html_from_mhtml
 from .schema import (
     FieldRecord,
     RawExtractedProject,
@@ -22,6 +23,7 @@ __all__ = [
     "FieldRecord",
     "RawExtractedProject",
     "SectionRecord",
+    "extract_html_from_mhtml",
     "V1BankDetails",
     "V1BuildingDetails",
     "V1Document",
