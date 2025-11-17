@@ -72,7 +72,7 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
         def close(self) -> None:  # pragma: no cover - no-op
             return None
 
-    def fake_parse_listing_html(_html: str, _base_url: str) -> list[ListingRecord]:
+    def fake_parse_listing_html(_html: str, _base_url: str, **_kwargs) -> list[ListingRecord]:
         return [
             ListingRecord(
                 reg_no=fake_listing.reg_no,
@@ -81,7 +81,9 @@ def test_run_crawl_creates_outputs_and_counts(monkeypatch, tmp_path: Path) -> No
             )
         ]
 
-    def fake_fetch_and_save_details(_session, listings: list[ListingRecord], output_base: str) -> None:
+    def fake_fetch_and_save_details(
+        _session, _selectors, listings: list[ListingRecord], output_base: str, _listing_url: str
+    ) -> None:
         for listing in listings:
             html_path = Path(output_base) / "raw_html" / f"project_{listing.reg_no}.html"
             html_path.parent.mkdir(parents=True, exist_ok=True)

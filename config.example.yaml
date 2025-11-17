@@ -22,6 +22,9 @@ browser:
 search_page:
   url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override when the portal moves
   # selectors:  # Optional overrides; defaults match the current CG RERA site
+  #   listing_table: "#ContentPlaceHolder1_gvApprovedProject"
+  #   row_selector: "#ContentPlaceHolder1_gvApprovedProject > tbody > tr"
+  #   view_details_link: "a[title='View Details']"
   #   district: null
   #   status: null
   #   project_type: null

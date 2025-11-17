@@ -96,13 +96,23 @@ def test_run_crawl_stops_after_combination_cap(monkeypatch, tmp_path: Path):
         def close(self):  # pragma: no cover - no-op
             return None
 
-    def record_search(_session, district: str, project_status: str, *_args, **_kwargs):
+    def record_search(
+        _session,
+        _search_url: str,
+        _selectors,
+        district: str,
+        project_status: str,
+        _project_types,
+    ):
         executed.append((district, project_status))
+        return "<html></html>"
 
     monkeypatch.setattr(orchestrator, "PlaywrightBrowserSession", lambda _cfg: FakeSession())
     monkeypatch.setattr(orchestrator, "wait_for_captcha_solved", lambda: None)
-    monkeypatch.setattr(orchestrator, "_execute_search", record_search)
-    monkeypatch.setattr(orchestrator, "parse_listing_html", lambda _html, _url: [])
+    monkeypatch.setattr(orchestrator, "_run_search_and_get_listings", record_search)
+    monkeypatch.setattr(
+        orchestrator, "parse_listing_html", lambda _html, _url, **_kwargs: []
+    )
 
     status = orchestrator.run_crawl(app_config)
 
@@ -159,7 +169,7 @@ def test_run_crawl_honors_total_listing_limit(monkeypatch, tmp_path: Path):
 
     listing_counter = 0
 
-    def fake_parse_listing_html(_html: str, _url: str):
+    def fake_parse_listing_html(_html: str, _url: str, **_kwargs):
         nonlocal listing_counter
         listing_counter += 1
         return [
@@ -171,7 +181,13 @@ def test_run_crawl_honors_total_listing_limit(monkeypatch, tmp_path: Path):
             for idx in range(5)
         ]
 
-    def fake_fetch_and_save_details(_session, listings: list[ListingRecord], output_base: str) -> None:
+    def fake_fetch_and_save_details(
+        _session,
+        _selectors,
+        listings: list[ListingRecord],
+        output_base: str,
+        _listing_url: str,
+    ) -> None:
         raw_dir = Path(output_base) / "raw_html"
         raw_dir.mkdir(parents=True, exist_ok=True)
         for listing in listings:

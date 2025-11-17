@@ -19,6 +19,9 @@ class BrowserSession(Protocol):
     def goto(self, url: str) -> None:
         """Navigate to the supplied URL."""
 
+    def go_back(self) -> None:
+        """Navigate back in the browser history."""
+
     def fill(self, selector: str, value: str) -> None:
         """Fill a form field identified by ``selector`` with ``value``."""
 
@@ -74,6 +77,10 @@ class PlaywrightBrowserSession:
     def goto(self, url: str) -> None:
         page = self._require_page()
         page.goto(url)
+
+    def go_back(self) -> None:
+        page = self._require_page()
+        page.go_back()
 
     def fill(self, selector: str, value: str) -> None:
         page = self._require_page()

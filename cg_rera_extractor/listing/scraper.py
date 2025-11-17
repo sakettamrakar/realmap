@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from typing import Iterable
 from urllib.parse import urljoin
-import re
 
 from bs4 import BeautifulSoup
 
@@ -49,30 +49,46 @@ def _get_cell_text(cells, index: int | None) -> str | None:
     return text or None
 
 
-def _extract_detail_url(cells, index: int | None, base_url: str) -> str | None:
+def _extract_detail_url(
+    cells, index: int | None, base_url: str, link_selector: str | None
+) -> str | None:
     candidates = []
     if index is not None and index < len(cells):
         candidates.append(cells[index])
     if not candidates:
         candidates = cells
+
+    fallback_href: str | None = None
     for cell in candidates:
-        link = cell.find("a")
-        if link and link.get("href"):
-            return urljoin(base_url, link["href"].strip())
+        if link_selector:
+            links = cell.select(link_selector)
+        else:
+            links = cell.find_all("a")
+        for link in links:
+            href = (link.get("href") or "").strip()
+            text = link.get_text(" ", strip=True).lower()
+            if not href:
+                continue
+            if link_selector is None and "detail" not in text and "view" not in text:
+                if fallback_href is None:
+                    fallback_href = href
+                continue
+            return urljoin(base_url, href)
+    if fallback_href:
+        return urljoin(base_url, fallback_href)
     return None
 
 
-def parse_listing_html(html: str, base_url: str) -> list[ListingRecord]:
-    """Parse a CG RERA listing search HTML page into ListingRecord entries."""
-
-    soup = BeautifulSoup(html, "html.parser")
-    tables = soup.find_all("table")
-    if not tables:
-        return []
+def _pick_listing_table(soup: BeautifulSoup, listing_selector: str | None):
+    if listing_selector:
+        table = soup.select_one(listing_selector)
+        if table:
+            headers = [th.get_text(" ", strip=True) for th in table.find_all("th")]
+            return table, _match_headers(headers)
 
     target_table = None
     best_score = -1
-    for table in tables:
+    for table in soup.find_all("table"):
         headers = [th.get_text(" ", strip=True) for th in table.find_all("th")]
         if not headers:
             continue
@@ -81,19 +97,39 @@ def parse_listing_html(html: str, base_url: str) -> list[ListingRecord]:
         if score > best_score:
             best_score = score
             target_table = (table, header_map)
+    return target_table
 
+
+def parse_listing_html(
+    html: str,
+    base_url: str,
+    listing_selector: str | None = None,
+    row_selector: str | None = None,
+    view_details_selector: str | None = None,
+) -> list[ListingRecord]:
+    """Parse a CG RERA listing search HTML page into ListingRecord entries."""
+
+    soup = BeautifulSoup(html, "html.parser")
+    target_table = _pick_listing_table(soup, listing_selector)
     if target_table is None:
         return []
 
     table, header_map = target_table
     records: list[ListingRecord] = []
-    for row in table.find_all("tr"):
+    if row_selector:
+        rows = table.select(row_selector)
+    else:
+        rows = table.find_all("tr")
+
+    for row_index, row in enumerate(rows, start=1):
         cells = row.find_all("td")
         if not cells:
             continue
         reg_no = _get_cell_text(cells, header_map.get("reg_no"))
         project_name = _get_cell_text(cells, header_map.get("project_name"))
-        detail_url = _extract_detail_url(cells, header_map.get("detail_url"), base_url)
+        detail_url = _extract_detail_url(
+            cells, header_map.get("detail_url"), base_url, view_details_selector
+        )
         if not (reg_no and project_name and detail_url):
             continue
         record = ListingRecord(
@@ -104,6 +140,7 @@ def parse_listing_html(html: str, base_url: str) -> list[ListingRecord]:
             tehsil=_get_cell_text(cells, header_map.get("tehsil")),
             status=_get_cell_text(cells, header_map.get("status")),
             detail_url=detail_url,
+            row_index=row_index,
         )
         records.append(record)
     return records

@@ -14,11 +14,14 @@ DEFAULT_SEARCH_URL = "https://rera.cgstate.gov.in/Approved_project_List.aspx"
 class SearchPageSelectors:
     """Selectors used on the CG RERA project search page."""
 
-    district: str | None = "select[name='district']"
-    status: str | None = "select[name='status']"
-    project_type: str | None = "select[name='project_type']"
-    submit_button: str | None = "button[type='submit']"
-    results_table: str | None = "table"
+    listing_table: str | None = "#ContentPlaceHolder1_gvApprovedProject"
+    row_selector: str | None = "#ContentPlaceHolder1_gvApprovedProject > tbody > tr"
+    view_details_link: str | None = "a[title='View Details'], a.view-details"
+    district: str | None = "#ContentPlaceHolder1_ddlDistrict"
+    status: str | None = "#ContentPlaceHolder1_ddlProjectStatus"
+    project_type: str | None = "#ContentPlaceHolder1_ddlProjectType"
+    submit_button: str | None = "#ContentPlaceHolder1_btnSearch"
+    results_table: str | None = "#ContentPlaceHolder1_gvApprovedProject"
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,10 @@ def _merge_selectors(
         return defaults
 
     return SearchPageSelectors(
+        listing_table=config_selectors.listing_table or defaults.listing_table,
+        row_selector=config_selectors.row_selector or defaults.row_selector,
+        view_details_link=
+            config_selectors.view_details_link or defaults.view_details_link,
         district=config_selectors.district or defaults.district,
         status=config_selectors.status or defaults.status,
         project_type=config_selectors.project_type or defaults.project_type,

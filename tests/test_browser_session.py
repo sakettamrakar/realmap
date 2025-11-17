@@ -25,6 +25,9 @@ class FakeBrowserSession:
     def goto(self, url: str) -> None:
         self.actions.append(f"goto:{url}")
 
+    def go_back(self) -> None:
+        self.actions.append("go_back")
+
     def fill(self, selector: str, value: str) -> None:
         self.actions.append(f"fill:{selector}={value}")
 

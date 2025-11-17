@@ -17,3 +17,4 @@ class ListingRecord:
     status: str | None = None
     detail_url: str = ""
     run_id: str | None = None
+    row_index: int | None = None
