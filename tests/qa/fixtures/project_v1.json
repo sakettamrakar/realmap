@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "state_code": "CG",
+    "source_url": "https://example.com"
+  },
+  "project_details": {
+    "registration_number": "CG-REG-001",
+    "project_name": "Garden Villas",
+    "project_type": "Residential",
+    "project_status": "Ongoing",
+    "district": "Raipur",
+    "tehsil": "Abhanpur",
+    "project_address": "Near City Center",
+    "total_units": 120,
+    "total_area_sq_m": 4500.0,
+    "launch_date": null,
+    "expected_completion_date": "2024-12-31"
+  },
+  "promoter_details": [
+    {
+      "name": "Acme Builders",
+      "organisation_type": "Company",
+      "address": "Promoter Address"
+    }
+  ],
+  "land_details": [
+    {
+      "land_area_sq_m": 4500.0,
+      "land_status": "Owned"
+    }
+  ],
+  "building_details": [],
+  "unit_types": [],
+  "bank_details": [],
+  "documents": [],
+  "quarterly_updates": [],
+  "raw_data": {
+    "sections": {},
+    "unmapped_sections": {}
+  },
+  "validation_messages": []
+}
