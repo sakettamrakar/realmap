@@ -17,5 +17,13 @@ browser:
   driver: playwright
   headless: false  # Keep visible for CAPTCHA solving
   slow_mo_ms: 250
+search_page:
+  url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override if the portal URL changes
+  selectors:
+    district: "CSS_OR_XPATH_FOR_DISTRICT"
+    status: "CSS_OR_XPATH_FOR_STATUS"
+    project_type: "CSS_OR_XPATH_FOR_PROJECT_TYPE"
+    submit_button: "CSS_OR_XPATH_FOR_SEARCH_BUTTON"
+    results_table: "CSS_OR_XPATH_FOR_RESULTS_TABLE"
 db:
   url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb

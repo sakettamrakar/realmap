@@ -25,6 +25,7 @@ Steps:
   - Safety caps: `max_search_combinations`, `max_total_listings`.
   - `browser.headless`: set to `false` for easier manual CAPTCHA solving.
   - `db.url`: Postgres URL (optional for DB/API workflows).
+  - `search_page.url` and `search_page.selectors.*`: override the listing page URL and selectors when the portal layout changes.
 - **Environment variables**:
   - `DATABASE_URL` can override `db.url` for DB tools/API.
   - Jira-related env vars exist but are **not required** for extraction/DB/API flows.
@@ -50,6 +51,11 @@ Run from the repo root with a chosen config file.
 
 **Manual CAPTCHA step**
 - A browser window opens. Solve the CAPTCHA, click **Search**, then press ENTER in the terminal when prompted. The run resumes after you confirm.
+
+**Manual fallback for search filters**
+- If the configured selectors do not match the live search page, the crawler will print a **MANUAL FILTER MODE** banner.
+- Follow the printed instructions to set district/status/project type yourself, solve the CAPTCHA, click **Search**, and press ENTER in the terminal so scraping can continue.
+- Selector values live under `search_page.selectors` in the YAML config; update them when the page markup changes.
 
 **Where outputs go**
 - Each run is stored under `<output_base_dir>/runs/run_<timestamp>_<id>/`.
