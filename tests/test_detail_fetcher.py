@@ -88,11 +88,16 @@ def test_fetch_and_save_details_persists_each_listing(tmp_path):
 
     selectors = SearchPageSelectors()
     fetch_and_save_details(
-        session, selectors, listings, str(tmp_path), "https://example.com/listings"
+        session,
+        selectors,
+        listings,
+        str(tmp_path),
+        "https://example.com/listings",
+        "CG",
     )
 
-    expected_a = tmp_path / "raw_html" / "project_CG_01.html"
-    expected_b = tmp_path / "raw_html" / "project_CG_02.html"
+    expected_a = tmp_path / "raw_html" / "project_CG_CG_01.html"
+    expected_b = tmp_path / "raw_html" / "project_CG_CG_02.html"
     assert expected_a.read_text(encoding="utf-8") == "<html>A</html>"
     assert expected_b.read_text(encoding="utf-8") == "<html>B</html>"
     assert session.visited == ["https://example.com/a", "https://example.com/b"]
@@ -115,9 +120,10 @@ def test_fetch_and_save_details_uses_history_back_for_js_links(tmp_path):
         [listing],
         str(tmp_path),
         listing_url,
+        "CG",
     )
 
-    expected_detail = tmp_path / "raw_html" / "project_CG_03.html"
+    expected_detail = tmp_path / "raw_html" / "project_CG_CG_03.html"
     assert expected_detail.read_text(encoding="utf-8") == "<html>Detail</html>"
     assert session.clicked_selectors == [
         "#ContentPlaceHolder1_gv_ProjectList > tbody > tr:nth-of-type(2) "

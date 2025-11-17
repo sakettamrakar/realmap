@@ -4,11 +4,21 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 from urllib.parse import urljoin
 
 from cg_rera_extractor.browser.search_page_config import SearchPageSelectors
 from cg_rera_extractor.browser.session import BrowserSession
-from cg_rera_extractor.detail.storage import make_project_html_path, save_project_html
+from cg_rera_extractor.detail.preview_capture import (
+    build_preview_placeholders,
+    capture_previews,
+    save_preview_metadata,
+)
+from cg_rera_extractor.detail.storage import (
+    make_project_html_path,
+    make_project_key,
+    save_project_html,
+)
 from cg_rera_extractor.listing.models import ListingRecord
 
 
@@ -20,6 +30,7 @@ def fetch_and_save_details(
     listings: list[ListingRecord],
     output_base: str,
     listing_page_url: str,
+    state_code: str,
 ) -> None:
     """Fetch detail pages for each listing and persist the HTML files."""
 
@@ -75,9 +86,33 @@ def fetch_and_save_details(
             session.goto(urljoin(listing_page_url, record.detail_url))
             html = session.get_page_html()
 
-        path = make_project_html_path(output_base, record.reg_no)
+        project_key = make_project_key(state_code, record.reg_no)
+        path = make_project_html_path(output_base, project_key)
         save_project_html(path, html)
         LOGGER.info("Saved detail page for %s to %s", record.reg_no, path)
+
+        try:
+            preview_placeholders = build_preview_placeholders(
+                html,
+                source_file=path,
+                state_code=state_code,
+                registration_number=record.reg_no,
+                project_name=record.project_name,
+            )
+            if preview_placeholders and hasattr(session, "current_page"):
+                page = session.current_page()  # type: ignore[attr-defined]
+                context = session.current_context()  # type: ignore[attr-defined]
+                captured = capture_previews(
+                    page=page,
+                    context=context,
+                    project_key=project_key,
+                    output_base=Path(output_base),
+                    preview_placeholders=preview_placeholders,
+                )
+                if captured:
+                    save_preview_metadata(Path(output_base), project_key, captured)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            LOGGER.warning("Preview capture failed for %s: %s", record.reg_no, exc)
 
         # Navigate back to the listing page if we had to click within the grid.
         # This preserves the filter selections without page refresh.
