@@ -48,12 +48,24 @@ def _summarize_diffs(diffs: List[dict]) -> Dict[str, int]:
 
 
 def run_field_by_field_qa(run_id: str, limit: int | None = None, project_key: str | None = None) -> dict:
-    run_dir = Path("runs") / f"run_{run_id}"
+    # Try multiple possible run locations
+    possible_paths = [
+        Path("runs") / f"run_{run_id}",  # Current directory
+        Path("outputs/phase2_runs/runs") / f"run_{run_id}",  # Phase2 runs
+        Path("outputs/debug_runs/runs") / f"run_{run_id}",  # Debug runs
+    ]
+    
+    run_dir = None
+    for path in possible_paths:
+        if path.exists():
+            run_dir = path
+            break
+    
+    if run_dir is None:
+        raise FileNotFoundError(f"Run directory not found for: {run_id}. Checked: {possible_paths}")
+
     html_dir = run_dir / "raw_html"
     json_dir = run_dir / "scraped_json"
-
-    if not run_dir.exists():
-        raise FileNotFoundError(f"Run directory not found: {run_dir}")
 
     if not html_dir.exists() or not json_dir.exists():
         missing = []
