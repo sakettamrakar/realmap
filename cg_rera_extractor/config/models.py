@@ -25,6 +25,23 @@ class SearchFilterConfig(BaseModel):
     project_types: list[str] | None = None
 
 
+class SearchPageSelectorsConfig(BaseModel):
+    """Override selectors for the CG RERA search page."""
+
+    district: str | None = None
+    status: str | None = None
+    project_type: str | None = None
+    submit_button: str | None = None
+    results_table: str | None = None
+
+
+class SearchPageConfig(BaseModel):
+    """Search page URL and selector overrides."""
+
+    url: str | None = None
+    selectors: SearchPageSelectorsConfig | None = None
+
+
 class RunConfig(BaseModel):
     """Options controlling a full extraction run."""
 
@@ -67,6 +84,7 @@ class AppConfig(BaseModel):
     db: DatabaseConfig
     run: RunConfig
     browser: BrowserConfig
+    search_page: SearchPageConfig = SearchPageConfig()
 
 
 __all__ = [
@@ -75,5 +93,7 @@ __all__ = [
     "RunMode",
     "RunConfig",
     "SearchFilterConfig",
+    "SearchPageConfig",
+    "SearchPageSelectorsConfig",
     "DatabaseConfig",
 ]

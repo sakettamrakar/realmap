@@ -19,6 +19,14 @@ browser:
   driver: playwright
   headless: false  # Set to false for easier manual CAPTCHA solving
   slow_mo_ms: 250
+search_page:
+  url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override when the portal moves
+  # selectors:  # Optional overrides; defaults match the current CG RERA site
+  #   district: null
+  #   status: null
+  #   project_type: null
+  #   submit_button: null
+  #   results_table: null
 db:
   # Prefer overriding this via DATABASE_URL, but this default points to the unified Postgres instance.
   url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb

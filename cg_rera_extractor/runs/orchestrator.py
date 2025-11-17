@@ -11,10 +11,14 @@ from pathlib import Path
 from typing import Iterable
 
 from cg_rera_extractor.browser.captcha_flow import wait_for_captcha_solved
-from cg_rera_extractor.browser.cg_rera_selectors import (
-    SEARCH_PAGE_SELECTORS,
-    SEARCH_URL,
+from cg_rera_extractor.browser.search_page_config import (
+    SearchPageConfigData,
     SearchPageSelectors,
+    get_search_page_config,
+)
+from cg_rera_extractor.browser.search_page_flow import (
+    SearchFilters,
+    apply_filters_or_fallback,
 )
 from cg_rera_extractor.browser.session import PlaywrightBrowserSession
 from cg_rera_extractor.config.models import AppConfig, RunMode
@@ -35,6 +39,7 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
 
     run_config = app_config.run
     filters = run_config.search_filters
+    search_page_config: SearchPageConfigData = get_search_page_config(app_config)
     search_pairs = _compute_search_pairs(
         filters.districts, filters.statuses, run_config.max_search_combinations
     )
@@ -99,14 +104,23 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                     district,
                     project_status,
                     filters.project_types,
-                    SEARCH_PAGE_SELECTORS,
+                    search_page_config.url,
+                    search_page_config.selectors,
                 )
-                wait_for_captcha_solved()
+                manual_wait_handled = _maybe_apply_filters(
+                    session,
+                    search_page_config.selectors,
+                    district,
+                    project_status,
+                    filters.project_types,
+                )
+                if not manual_wait_handled:
+                    wait_for_captcha_solved()
                 session.wait_for_selector(
-                    SEARCH_PAGE_SELECTORS.results_table, timeout_ms=20_000
+                    search_page_config.selectors.results_table, timeout_ms=20_000
                 )
                 listings_html = session.get_page_html()
-                listings = parse_listing_html(listings_html, SEARCH_URL)
+                listings = parse_listing_html(listings_html, search_page_config.url)
 
                 if len(listings) > MAX_LISTINGS_PER_SEARCH:
                     LOGGER.warning(
@@ -245,13 +259,25 @@ def _execute_search(
     district: str,
     project_status: str,
     project_types: Iterable[str] | None,
+    search_url: str,
     selectors: SearchPageSelectors,
 ) -> None:
-    session.goto(SEARCH_URL)
-    session.select_option(selectors.district_select, district)
-    session.select_option(selectors.status_select, project_status)
-    if project_types:
-        session.select_option(selectors.project_type_select, list(project_types))
+    session.goto(search_url)
+
+
+def _maybe_apply_filters(
+    session: PlaywrightBrowserSession,
+    selectors: SearchPageSelectors,
+    district: str,
+    project_status: str,
+    project_types: Iterable[str] | None,
+) -> bool:
+    filters = SearchFilters(
+        district=district,
+        status=project_status,
+        project_types=project_types,
+    )
+    return apply_filters_or_fallback(session, selectors, filters, LOGGER)
 
 
 def _save_listings_snapshot(
