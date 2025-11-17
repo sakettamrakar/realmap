@@ -21,12 +21,12 @@ browser:
   slow_mo_ms: 250
 search_page:
   url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override when the portal moves
-  selectors:
-    district: "CSS_OR_XPATH_FOR_DISTRICT"
-    status: "CSS_OR_XPATH_FOR_STATUS"
-    project_type: "CSS_OR_XPATH_FOR_PROJECT_TYPE"
-    submit_button: "CSS_OR_XPATH_FOR_SEARCH_BUTTON"
-    results_table: "CSS_OR_XPATH_FOR_RESULTS_TABLE"
+  # selectors:  # Optional overrides; defaults match the current CG RERA site
+  #   district: null
+  #   status: null
+  #   project_type: null
+  #   submit_button: null
+  #   results_table: null
 db:
   # Prefer overriding this via DATABASE_URL, but this default points to the unified Postgres instance.
   url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb
