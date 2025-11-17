@@ -24,6 +24,8 @@ class FieldRecord(BaseModel):
     value: Optional[str] = None
     value_type: FieldValueType = Field(default=FieldValueType.TEXT)
     links: list[str] = Field(default_factory=list)
+    preview_present: bool = False
+    preview_hint: Optional[str] = None
 
 
 class SectionRecord(BaseModel):
@@ -124,6 +126,15 @@ class V1QuarterlyUpdate(BaseModel):
     remarks: Optional[str] = None
 
 
+class PreviewArtifact(BaseModel):
+    """Represents captured artifacts for a preview-enabled field."""
+
+    field_key: str
+    artifact_type: str = "unknown"
+    files: list[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+
+
 class V1RawData(BaseModel):
     sections: dict[str, dict[str, str]] = Field(default_factory=dict)
     unmapped_sections: dict[str, dict[str, str]] = Field(default_factory=dict)
@@ -141,6 +152,7 @@ class V1Project(BaseModel):
     quarterly_updates: list[V1QuarterlyUpdate] = Field(default_factory=list)
     raw_data: V1RawData
     validation_messages: list[str] = Field(default_factory=list)
+    previews: dict[str, PreviewArtifact] = Field(default_factory=dict)
 
 
 __all__ = [
@@ -159,4 +171,5 @@ __all__ = [
     "V1QuarterlyUpdate",
     "V1RawData",
     "V1Project",
+    "PreviewArtifact",
 ]

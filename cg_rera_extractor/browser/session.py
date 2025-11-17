@@ -40,6 +40,12 @@ class BrowserSession(Protocol):
     def close(self) -> None:
         """Tear down the browser session and free any allocated resources."""
 
+    def current_page(self) -> Page:
+        """Return the underlying Playwright page for advanced interactions."""
+
+    def current_context(self) -> BrowserContext:
+        """Return the browser context for resource downloads."""
+
 
 class PlaywrightBrowserSession:
     """Playwright-based implementation of :class:`BrowserSession`."""
@@ -101,6 +107,14 @@ class PlaywrightBrowserSession:
     def get_page_html(self) -> str:
         page = self._require_page()
         return page.content()
+
+    def current_page(self) -> Page:
+        return self._require_page()
+
+    def current_context(self) -> BrowserContext:
+        if self._context is None:
+            raise RuntimeError("Browser session not started. Call start() first.")
+        return self._context
 
     def close(self) -> None:
         if self._page is not None:

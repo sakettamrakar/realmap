@@ -21,6 +21,7 @@ from cg_rera_extractor.browser.search_page_flow import (
     apply_filters_or_fallback,
     manual_filter_fallback,
 )
+from cg_rera_extractor.detail.preview_capture import load_preview_metadata
 from cg_rera_extractor.browser.session import PlaywrightBrowserSession
 from cg_rera_extractor.config.models import AppConfig, RunMode
 from cg_rera_extractor.detail.fetcher import fetch_and_save_details
@@ -28,6 +29,7 @@ from cg_rera_extractor.listing.models import ListingRecord
 from cg_rera_extractor.listing.scraper import parse_listing_html
 from cg_rera_extractor.parsing.mapper import map_raw_to_v1
 from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
+from cg_rera_extractor.parsing.schema import PreviewArtifact
 from cg_rera_extractor.quality import normalize_v1_project, validate_v1_project
 from cg_rera_extractor.runs.status import RunStatus
 
@@ -163,6 +165,7 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                         listings,
                         str(dirs["run_dir"]),
                         search_page_config.url,
+                        run_config.state_code,
                     )
                     counts["details_fetched"] += len(listings)
             except Exception as exc:  # pragma: no cover - defensive logging
@@ -197,8 +200,9 @@ def _prepare_run_directories(base_dir: Path, run_id: str) -> dict[str, Path]:
     raw_extracted_dir = run_dir / "raw_extracted"
     scraped_json_dir = run_dir / "scraped_json"
     listings_dir = run_dir / "listings"
+    previews_dir = run_dir / "previews"
 
-    for path in (raw_html_dir, raw_extracted_dir, scraped_json_dir, listings_dir):
+    for path in (raw_html_dir, raw_extracted_dir, scraped_json_dir, listings_dir, previews_dir):
         path.mkdir(parents=True, exist_ok=True)
 
     return {
@@ -207,6 +211,7 @@ def _prepare_run_directories(base_dir: Path, run_id: str) -> dict[str, Path]:
         "raw_extracted": raw_extracted_dir,
         "scraped_json": scraped_json_dir,
         "listings": listings_dir,
+        "previews": previews_dir,
     }
 
 
@@ -363,6 +368,21 @@ def _process_saved_html(
                 v1_project = v1_project.model_copy(
                     update={"validation_messages": validation_messages}
                 )
+            project_key = html_file.stem.replace("project_", "", 1)
+            preview_dir = dirs.get("previews", dirs["run_dir"]) / project_key
+            preview_metadata = load_preview_metadata(preview_dir)
+            if preview_metadata:
+                merged_previews: dict[str, PreviewArtifact] = dict(v1_project.previews)
+                for key, artifact in preview_metadata.items():
+                    if key in merged_previews:
+                        base = PreviewArtifact(**merged_previews[key].model_dump())
+                        base.artifact_type = artifact.artifact_type or base.artifact_type
+                        base.files = artifact.files or base.files
+                        base.notes = base.notes or artifact.notes
+                        merged_previews[key] = base
+                    else:
+                        merged_previews[key] = artifact
+                v1_project = v1_project.model_copy(update={"previews": merged_previews})
             v1_path = dirs["scraped_json"] / f"{html_file.stem}.v1.json"
             _write_json(
                 v1_path,

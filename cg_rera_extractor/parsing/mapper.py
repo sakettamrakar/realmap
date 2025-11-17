@@ -7,6 +7,7 @@ from importlib import resources
 from typing import Dict, Tuple
 
 from .schema import (
+    PreviewArtifact,
     RawExtractedProject,
     V1BankDetails,
     V1BuildingDetails,
@@ -88,6 +89,7 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
 
     section_data: Dict[str, Dict[str, str]] = {}
     unmapped_sections: Dict[str, Dict[str, str]] = {}
+    previews: Dict[str, PreviewArtifact] = {}
 
     for section in raw.sections:
         normalized_title = _normalize(section.section_title_raw)
@@ -97,6 +99,16 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
             for field in section.fields:
                 if field.label:
                     target[field.label] = field.value or ""
+                    # Capture preview placeholders for unmapped section fields
+                    if field.preview_present:
+                        field_key = _normalize(field.label)
+                        if field_key not in previews:
+                            previews[field_key] = PreviewArtifact(
+                                field_key=field_key,
+                                artifact_type="unknown",
+                                files=[],
+                                notes=field.preview_hint,
+                            )
             continue
 
         canonical_map = _KEY_LOOKUP.get(logical_section, {})
@@ -106,10 +118,27 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
             canonical_key = canonical_map.get(normalized_label)
             if canonical_key:
                 logical_section_data[canonical_key] = field.value or ""
+                if field.preview_present and canonical_key not in previews:
+                    previews[canonical_key] = PreviewArtifact(
+                        field_key=canonical_key,
+                        artifact_type="unknown",
+                        files=[],
+                        notes=field.preview_hint,
+                    )
             else:
                 target = unmapped_sections.setdefault(section.section_title_raw, {})
                 if field.label:
                     target[field.label] = field.value or ""
+                    # Capture preview placeholders for unmapped fields
+                    if field.preview_present:
+                        field_key = _normalize(field.label)
+                        if field_key not in previews:
+                            previews[field_key] = PreviewArtifact(
+                                field_key=field_key,
+                                artifact_type="unknown",
+                                files=[],
+                                notes=field.preview_hint,
+                            )
 
     metadata = V1Metadata(
         state_code=state_code,
@@ -233,6 +262,7 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
         documents=documents,
         quarterly_updates=quarterly_updates,
         raw_data=raw_data,
+        previews=previews,
     )
 
 

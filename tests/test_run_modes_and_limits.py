@@ -188,6 +188,7 @@ def test_run_crawl_honors_total_listing_limit(monkeypatch, tmp_path: Path):
         listings: list[ListingRecord],
         output_base: str,
         _listing_url: str,
+        _state_code: str,
     ) -> None:
         raw_dir = Path(output_base) / "raw_html"
         raw_dir.mkdir(parents=True, exist_ok=True)

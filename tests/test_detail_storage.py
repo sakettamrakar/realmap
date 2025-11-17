@@ -1,11 +1,16 @@
 """Tests for detail HTML storage helpers."""
 
-from cg_rera_extractor.detail.storage import make_project_html_path, save_project_html
+from cg_rera_extractor.detail.storage import (
+    make_project_html_path,
+    make_project_key,
+    save_project_html,
+)
 
 
 def test_make_project_html_path_sanitizes_reg_no(tmp_path):
-    path = make_project_html_path(str(tmp_path), "CG/123 45-A")
-    expected = tmp_path / "raw_html" / "project_CG_123_45_A.html"
+    project_key = make_project_key("CG", "CG/123 45-A")
+    path = make_project_html_path(str(tmp_path), project_key)
+    expected = tmp_path / "raw_html" / "project_CG_CG_123_45_A.html"
     assert path == str(expected)
 
 
