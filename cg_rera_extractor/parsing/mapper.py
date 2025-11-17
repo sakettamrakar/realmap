@@ -99,6 +99,16 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
             for field in section.fields:
                 if field.label:
                     target[field.label] = field.value or ""
+                    # Capture preview placeholders for unmapped section fields
+                    if field.preview_present:
+                        field_key = _normalize(field.label)
+                        if field_key not in previews:
+                            previews[field_key] = PreviewArtifact(
+                                field_key=field_key,
+                                artifact_type="unknown",
+                                files=[],
+                                notes=field.preview_hint,
+                            )
             continue
 
         canonical_map = _KEY_LOOKUP.get(logical_section, {})
@@ -119,6 +129,16 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
                 target = unmapped_sections.setdefault(section.section_title_raw, {})
                 if field.label:
                     target[field.label] = field.value or ""
+                    # Capture preview placeholders for unmapped fields
+                    if field.preview_present:
+                        field_key = _normalize(field.label)
+                        if field_key not in previews:
+                            previews[field_key] = PreviewArtifact(
+                                field_key=field_key,
+                                artifact_type="unknown",
+                                files=[],
+                                notes=field.preview_hint,
+                            )
 
     metadata = V1Metadata(
         state_code=state_code,
