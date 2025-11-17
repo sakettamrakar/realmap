@@ -1,0 +1,27 @@
+# Debug configuration for FULL mode testing
+# Focus: Single city, single listing to isolate detail fetching issues
+
+run:
+  mode: full  # Test full mode (listing + detail fetching)
+  state_code: CG
+  
+  search_filters:
+    districts:
+      - Raipur  # Single district only
+    statuses:
+      - Ongoing
+    project_types: []
+  
+  max_search_combinations: 1  # Only 1 search
+  max_total_listings: 1  # Only 1 listing to fetch details for
+
+browser:
+  headless: false  # See what's happening
+  default_timeout_ms: 20000
+  slow_mo_ms: 500  # Slow down to see transitions
+
+jira:
+  enabled: false
+
+email:
+  enabled: false

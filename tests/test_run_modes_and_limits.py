@@ -103,6 +103,7 @@ def test_run_crawl_stops_after_combination_cap(monkeypatch, tmp_path: Path):
         district: str,
         project_status: str,
         _project_types,
+        is_first_search: bool = True,
     ):
         executed.append((district, project_status))
         return "<html></html>"

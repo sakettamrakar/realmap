@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from urllib.parse import urljoin
 
 from cg_rera_extractor.browser.search_page_config import SearchPageSelectors
@@ -45,13 +46,35 @@ def fetch_and_save_details(
             target_selector = f"{row_locator}:nth-of-type({record.row_index}) {view_locator}"
             LOGGER.info("[%d/%d] Fetching details for %s (JS click method)", idx, total, record.reg_no)
             print(f"[{idx}/{total}] Fetching details for {record.reg_no} (JavaScript click)...")
+            
+            # Click the link - this triggers an ASP.NET postback
             session.click(target_selector)
+            
+            # After click, wait for the DOM to settle and page content to change
+            # The postback navigation can take significant time on this server
+            LOGGER.debug("Waiting for postback navigation to complete")
+            time.sleep(8)  # Give postback more time to trigger and settle
+            
+            # Try to get content with multiple retries
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    html = session.get_page_html()
+                    if html and len(html) > 100:  # Sanity check that we got real content
+                        LOGGER.debug("Successfully retrieved detail page content on attempt %d", attempt + 1)
+                        break
+                except Exception as e:
+                    LOGGER.warning("Attempt %d to get page content failed: %s", attempt + 1, e)
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                    else:
+                        raise
         else:
             LOGGER.info("[%d/%d] Fetching details for %s (direct URL)", idx, total, record.reg_no)
             print(f"[{idx}/{total}] Fetching details for {record.reg_no} (direct navigation)...")
             session.goto(urljoin(listing_page_url, record.detail_url))
+            html = session.get_page_html()
 
-        html = session.get_page_html()
         path = make_project_html_path(output_base, record.reg_no)
         save_project_html(path, html)
         LOGGER.info("Saved detail page for %s to %s", record.reg_no, path)
@@ -61,7 +84,10 @@ def fetch_and_save_details(
         if uses_js_detail:
             LOGGER.debug("Navigating back to listing page (JavaScript method preserves filters)")
             session.go_back()
-            session.wait_for_selector(table_selector)
+            try:
+                session.wait_for_selector(table_selector, timeout_ms=10_000)
+            except Exception as e:
+                LOGGER.warning("Timeout waiting for listing table after go_back: %s", e)
             LOGGER.debug("Listing page reloaded with filters preserved")
         
     LOGGER.info("Detail fetch complete for all %d listings", total)

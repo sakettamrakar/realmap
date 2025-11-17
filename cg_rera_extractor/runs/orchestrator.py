@@ -90,11 +90,12 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
         session = PlaywrightBrowserSession(app_config.browser)
         session.start()
 
-        for district, project_status in search_pairs:
+        for search_idx, (district, project_status) in enumerate(search_pairs):
             if _listing_limit_reached(listings_limit, counts["listings_scraped"]):
                 break
 
             counts["search_combinations_attempted"] += 1
+            is_first_search = (search_idx == 0)
             print(f"Running search for district={district} status={project_status}")
             LOGGER.info(
                 "Running search for district=%s status=%s", district, project_status
@@ -107,6 +108,7 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                     district,
                     project_status,
                     filters.project_types,
+                    is_first_search=is_first_search,
                 )
                 listings = parse_listing_html(
                     listings_html,
@@ -261,9 +263,17 @@ def _run_search_and_get_listings(
     district: str,
     project_status: str,
     project_types: Iterable[str] | None,
+    is_first_search: bool = True,
 ) -> str:
-    LOGGER.info("Navigating to search page: %s", search_url)
-    session.goto(search_url)
+    # For first search, navigate to URL. For subsequent searches, go back to preserve session
+    if is_first_search:
+        LOGGER.info("Navigating to search page: %s", search_url)
+        session.goto(search_url)
+    else:
+        LOGGER.info("Going back to search page to preserve session")
+        session.go_back()
+        import time
+        time.sleep(2)  # Wait for page to stabilize
 
     table_selector = selectors.listing_table or selectors.results_table or "table"
     table_visible = False
