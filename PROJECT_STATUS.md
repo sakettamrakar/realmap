@@ -108,13 +108,23 @@
 1. `pytest`
    - Expect all 29 tests to pass (see per-test progress and summary `29 passed`).
 2. `python tools/self_check.py`
-   - Should print six PASS lines (imports, config, listing, raw extractor, mapper, orchestrator) and a summary `6/6 checks passed`.
+   - Should print PASS lines for imports, config, listing parser, raw extractor, mapper, RunStatus schema, DB connection, tiny loader, and orchestrator dry-run with a summary `8/8 checks passed`.
 3. `python -c "from cg_rera_extractor.config.loader import load_config; print(load_config('config.example.yaml').model_dump())"`
    - Confirms config loading and prints the parsed AppConfig dictionary.
 4. Parser regression harness
    - Record/update a golden for a new HTML file: `python tools/parser_regression.py record path/to/file.html --fixtures-dir tests/parser_regression/fixtures --golden-dir tests/parser_regression/golden`
    - Compare parser output to existing goldens: `python tools/parser_regression.py check --fixtures-dir tests/parser_regression/fixtures --golden-dir tests/parser_regression/golden`
    - Run the `check` command before and after parser changes to confirm whether CG RERA HTML or parsing logic has shifted.
+
+### Phase 3 quick check (DB + API wiring)
+1. Initialize the schema (Postgres or SQLite URL available via `DATABASE_URL`):
+   - `python tools/init_db.py`
+2. Load a single run of scraped V1 JSON into the database:
+   - `python tools/load_runs_to_db.py --run-id <run_id>`
+3. Start the API locally:
+   - `uvicorn cg_rera_extractor.api.app:app --reload`
+4. Verify the API is reachable (expects projects in the DB from step 2):
+   - `curl http://localhost:8000/projects`
 
 ### Optional integration checks
 1. CLI orchestrator dry-run against local config (requires Playwright + manual CAPTCHA):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -11,12 +12,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List
 
+from sqlalchemy import select, text
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from cg_rera_extractor.config.loader import load_config
 from cg_rera_extractor.config.models import AppConfig, BrowserConfig, RunConfig, RunMode, SearchFilterConfig
+from cg_rera_extractor.db import Project, get_engine, get_session_local, load_run_into_db
+from cg_rera_extractor.db.init_db import init_db
 from cg_rera_extractor.listing.scraper import parse_listing_html
 from cg_rera_extractor.parsing.mapper import map_raw_to_v1
 from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
@@ -121,6 +126,54 @@ def check_run_status_schema() -> list[str]:
     ]
 
 
+def _resolve_db_url() -> str:
+    return os.getenv("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+
+
+def check_db_connection() -> list[str]:
+    db_url = _resolve_db_url()
+    engine = get_engine(url=db_url)
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+
+    SessionLocal = get_session_local(engine)
+    with SessionLocal() as session:
+        session.execute(text("SELECT 1"))
+
+    return [
+        f"Engine created for {db_url}",
+        "Session opened and test query executed successfully.",
+    ]
+
+
+def check_tiny_in_memory_load() -> list[str]:
+    fixture = FIXTURES_DIR / "raw_extracted_sample.json"
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    raw = RawExtractedProject.model_validate(payload)
+    v1_project = map_raw_to_v1(raw, state_code="CG")
+
+    engine = get_engine(url="sqlite+pysqlite:///:memory:")
+    init_db(engine)
+    SessionLocal = get_session_local(engine)
+
+    with ExitStack() as stack:
+        run_dir = Path(stack.enter_context(tempfile.TemporaryDirectory())) / "run_demo"
+        json_dir = run_dir / "scraped_json"
+        json_dir.mkdir(parents=True)
+        project_path = json_dir / "project_demo.v1.json"
+        project_path.write_text(v1_project.model_dump_json(indent=2), encoding="utf-8")
+
+        session = stack.enter_context(SessionLocal())
+        stats = load_run_into_db(str(run_dir), session=session)
+        project_count = len(session.execute(select(Project)).scalars().all())
+
+    return [
+        "Initialized temporary in-memory DB and schema.",
+        f"Loaded demo project into DB (projects_upserted={stats.get('projects_upserted')}).",
+        f"Projects currently in DB: {project_count}",
+    ]
+
+
 def check_orchestrator_dry_run() -> list[str]:
     filters = SearchFilterConfig(districts=["Raipur", "Bilaspur"], statuses=["Registered"])
     run_config = RunConfig(
@@ -154,6 +207,8 @@ def main() -> int:
         ("Raw extractor", check_raw_extractor),
         ("Mapper", check_mapper),
         ("RunStatus schema", check_run_status_schema),
+        ("DB connection", check_db_connection),
+        ("Tiny loader", check_tiny_in_memory_load),
         ("Orchestrator dry run", check_orchestrator_dry_run),
     ]
 
