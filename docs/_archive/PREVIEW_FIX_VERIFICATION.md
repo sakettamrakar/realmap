@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # Preview Extraction Feature - Test Report & Fix Verification
 
 **Date**: November 17, 2025  
@@ -219,4 +221,5 @@ The mapper bug has been fixed. All preview buttons detected in the raw extractio
 **Files Modified**: 1 (`cg_rera_extractor/parsing/mapper.py`)  
 **Tests Affected**: 0 (all tests still passing)  
 **Backward Compatibility**: ✅ Maintained (no breaking changes)
+
 

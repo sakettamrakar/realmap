@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # Test Playbook
 
 ## Phase 3 Quick Check
@@ -13,3 +15,4 @@ Use this short script to validate the Phase 3 pieces (DB wiring, loader, API) be
    - `curl http://localhost:8000/projects`
 
 > Tip: For a fast sanity check without touching a real database, run `python tools/self_check.py` which now spins up an in-memory SQLite database, loads one V1 project, and verifies the API dependencies import correctly.
+

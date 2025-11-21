@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from sqlalchemy import inspect
+
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
 from cg_rera_extractor.config.loader import load_config
 from cg_rera_extractor.config.models import AppConfig, DatabaseConfig
@@ -33,8 +35,23 @@ def main() -> None:
 
     db_config = load_db_config(args.config)
     engine = get_engine(db_config)
+    
+    print(f"Initializing database schema...")
+    print(f"Database target: {describe_database_target(db_config.url)}")
+    
     init_db(engine)
-    print(f"Initialized database schema using {describe_database_target(db_config.url)}")
+    
+    # Verify tables were created
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    print(f"\n✓ Schema initialized successfully!")
+    print(f"\nTables created ({len(tables)} total):")
+    for table_name in sorted(tables):
+        print(f"  • {table_name}")
+    
+    if not tables:
+        print("  ⚠ WARNING: No tables found! Check database connectivity.")
 
 
 if __name__ == "__main__":

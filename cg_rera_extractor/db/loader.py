@@ -1,6 +1,7 @@
 """Utilities for loading V1 scraper outputs into the database."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -21,6 +22,8 @@ from cg_rera_extractor.db import (
     get_session_local,
 )
 from cg_rera_extractor.parsing.schema import V1Project
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -80,6 +83,7 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
     details = v1_project.project_details
 
     if not details.registration_number:
+        logger.debug(f"Skipping project: empty registration_number (name='{details.project_name}')")
         return stats
 
     stmt = select(Project).where(
@@ -199,18 +203,29 @@ def load_run_into_db(run_dir: str, session: Session | None = None) -> dict:
         json_dir = run_path / "scraped_json"
         v1_files = sorted(json_dir.glob("*.v1.json"))
 
+        logger.info(f"Loading {len(v1_files)} projects from {run_path.name}")
+
         for path in v1_files:
-            v1_project = V1Project.model_validate_json(path.read_text())
-            project_stats = _load_project(working_session, v1_project)
-            stats.projects_upserted += project_stats.projects_upserted
-            stats.promoters += project_stats.promoters
-            stats.buildings += project_stats.buildings
-            stats.unit_types += project_stats.unit_types
-            stats.documents += project_stats.documents
-            stats.quarterly_updates += project_stats.quarterly_updates
+            try:
+                v1_project = V1Project.model_validate_json(path.read_text())
+                project_stats = _load_project(working_session, v1_project)
+                stats.projects_upserted += project_stats.projects_upserted
+                stats.promoters += project_stats.promoters
+                stats.buildings += project_stats.buildings
+                stats.unit_types += project_stats.unit_types
+                stats.documents += project_stats.documents
+                stats.quarterly_updates += project_stats.quarterly_updates
+            except Exception as exc:
+                logger.error(f"Failed to load {path.name}: {exc}")
+                raise
 
         working_session.commit()
+        logger.info(f"Successfully loaded run {run_path.name}: {stats.to_dict()}")
         return stats.to_dict()
+    except Exception as exc:
+        logger.error(f"Error loading run {run_dir}: {exc}")
+        working_session.rollback()
+        raise
     finally:
         cleanup()
 
@@ -222,17 +237,30 @@ def load_all_runs(base_runs_dir: str, session: Session | None = None) -> dict:
     stats = LoadStats()
     try:
         base_path = Path(base_runs_dir)
-        for run_path in sorted(p for p in base_path.glob("run_*") if p.is_dir()):
-            run_stats = load_run_into_db(str(run_path), session=working_session)
-            stats.projects_upserted += int(run_stats.get("projects_upserted", 0))
-            stats.promoters += int(run_stats.get("promoters", 0))
-            stats.buildings += int(run_stats.get("buildings", 0))
-            stats.unit_types += int(run_stats.get("unit_types", 0))
-            stats.documents += int(run_stats.get("documents", 0))
-            stats.quarterly_updates += int(run_stats.get("quarterly_updates", 0))
-            stats.runs_processed.append(run_path.name)
+        run_dirs = sorted(p for p in base_path.glob("run_*") if p.is_dir())
+        logger.info(f"Loading {len(run_dirs)} runs from {base_path}")
+
+        for run_path in run_dirs:
+            try:
+                run_stats = load_run_into_db(str(run_path), session=working_session)
+                stats.projects_upserted += int(run_stats.get("projects_upserted", 0))
+                stats.promoters += int(run_stats.get("promoters", 0))
+                stats.buildings += int(run_stats.get("buildings", 0))
+                stats.unit_types += int(run_stats.get("unit_types", 0))
+                stats.documents += int(run_stats.get("documents", 0))
+                stats.quarterly_updates += int(run_stats.get("quarterly_updates", 0))
+                stats.runs_processed.append(run_path.name)
+            except Exception as exc:
+                logger.error(f"Failed to load run {run_path.name}: {exc}")
+                # Continue with other runs instead of stopping entirely
+                continue
 
         working_session.commit()
+        logger.info(f"Successfully loaded all runs: {stats.to_dict()}")
         return stats.to_dict()
+    except Exception as exc:
+        logger.error(f"Error loading runs from {base_runs_dir}: {exc}")
+        working_session.rollback()
+        raise
     finally:
         cleanup()

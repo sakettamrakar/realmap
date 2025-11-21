@@ -36,15 +36,24 @@ def apply_filters_or_fallback(
     active_logger = logger or LOGGER
 
     try:
+        active_logger.debug(f"Attempting to apply district filter with selector: {selectors.district}")
         _apply_select(session, selectors.district, filters.district, "district")
+        active_logger.debug("District filter applied successfully")
+        
+        active_logger.debug(f"Attempting to apply status filter with selector: {selectors.status}")
         _apply_select(session, selectors.status, filters.status, "status")
+        active_logger.debug("Status filter applied successfully")
+        
         if filters.project_types:
+            active_logger.debug(f"Attempting to apply project type filter with selector: {selectors.project_type}")
             _apply_select(
                 session,
                 selectors.project_type,
                 list(filters.project_types),
                 "project_type",
             )
+            active_logger.debug("Project type filter applied successfully")
+        
         active_logger.info(
             "Applied filters automatically for district=%s status=%s",
             filters.district,
@@ -52,7 +61,8 @@ def apply_filters_or_fallback(
         )
         return False
     except Exception as exc:  # pragma: no cover - defensive safety net
-        active_logger.warning("Automatic filter selection failed: %s", exc)
+        active_logger.exception("Automatic filter selection failed: %s", exc)
+        print(f"\nAutomatic filters failed: {exc}")
         return manual_filter_fallback(filters)
 
 

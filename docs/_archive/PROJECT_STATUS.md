@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # Project Status
 
 ## Overview
@@ -169,3 +171,4 @@ Follow this scripted manual flow to execute a very small live crawl end-to-end.
 Expected observations
 - Log lines per search combination: `Running search for district=<name> status=<status>` followed by `Parsed X listings for <district> / <status>`.
 - `run_report.json` should show low counts that align with the caps (search_combinations_attempted ≤ 2, listings_parsed ≤ 50) and `errors: []`.
+

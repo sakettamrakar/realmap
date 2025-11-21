@@ -159,18 +159,27 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                 counts["listings_scraped"] += len(listings)
 
                 if run_config.mode != RunMode.LISTINGS_ONLY and listings:
-                    fetch_and_save_details(
-                        session,
-                        search_page_config.selectors,
-                        listings,
-                        str(dirs["run_dir"]),
-                        search_page_config.url,
-                        run_config.state_code,
-                    )
-                    counts["details_fetched"] += len(listings)
+                    try:
+                        fetch_and_save_details(
+                            session,
+                            search_page_config.selectors,
+                            listings,
+                            str(dirs["run_dir"]),
+                            search_page_config.url,
+                            run_config.state_code,
+                        )
+                        counts["details_fetched"] += len(listings)
+                    except Exception as exc:
+                        LOGGER.exception("Detail fetching failed for %s/%s: %s", district, project_status, exc)
+                        print(f"Warning: Detail fetching failed: {exc}")
+                        status.errors.append(f"Detail fetch failed for {district}/{project_status}: {str(exc)}")
+                        # Continue processing even if detail fetch fails
             except Exception as exc:  # pragma: no cover - defensive logging
                 LOGGER.exception("Search failed for %s/%s", district, project_status)
-                print(f"Error during search for {district}/{project_status}: {exc}")
+                print(f"\nError during search for {district}/{project_status}: {exc}")
+                print("Browser is still open. Check the browser window for error details.")
+                import time
+                time.sleep(5)  # Give user time to see what's in the browser
                 status.errors.append(str(exc))
             else:
                 counts["search_combinations_processed"] += 1
@@ -270,59 +279,107 @@ def _run_search_and_get_listings(
     project_types: Iterable[str] | None,
     is_first_search: bool = True,
 ) -> str:
-    # For first search, navigate to URL. For subsequent searches, go back to preserve session
-    if is_first_search:
-        LOGGER.info("Navigating to search page: %s", search_url)
-        session.goto(search_url)
-    else:
-        LOGGER.info("Going back to search page to preserve session")
-        try:
-            session.go_back()
-            import time
-            time.sleep(2)  # Wait for page to stabilize
-        except Exception as e:
-            # If go_back fails (e.g., after detail page fetching), fall back to fresh navigation
-            LOGGER.warning("go_back() failed: %s. Falling back to fresh navigation.", e)
-            session.goto(search_url)
-
-    table_selector = selectors.listing_table or selectors.results_table or "table"
-    table_visible = False
+    """Run a search and return the HTML of the results page.
+    
+    Handles browser errors gracefully and waits for manual CAPTCHA solving.
+    """
     try:
-        session.wait_for_selector(table_selector, timeout_ms=5_000)
-        table_visible = True
-        LOGGER.info("Listing container detected on initial load: %s", table_selector)
-    except Exception:
-        LOGGER.debug("Listing container not immediately visible; proceeding to apply filters")
+        # For first search, navigate to URL. For subsequent searches, go back to preserve session
+        if is_first_search:
+            LOGGER.info("Navigating to search page: %s", search_url)
+            try:
+                session.goto(search_url)
+            except Exception as e:
+                LOGGER.error("Navigation to search page failed: %s", e)
+                print(f"\nFailed to navigate to {search_url}: {e}")
+                raise
+        else:
+            LOGGER.info("Going back to search page to preserve session")
+            try:
+                session.go_back()
+                import time
+                time.sleep(2)  # Wait for page to stabilize
+            except Exception as e:
+                # If go_back fails (e.g., after detail page fetching), fall back to fresh navigation
+                LOGGER.warning("go_back() failed: %s. Falling back to fresh navigation.", e)
+                try:
+                    session.goto(search_url)
+                except Exception as e2:
+                    LOGGER.error("Fresh navigation also failed: %s", e2)
+                    print(f"\nFailed to navigate (even after go_back): {e2}")
+                    raise
 
-    filters = SearchFilters(
-        district=district,
-        status=project_status,
-        project_types=project_types,
-    )
-    LOGGER.info("Applying filters: district=%s, status=%s, types=%s", district, project_status, list(project_types) if project_types else "[]")
-    manual_wait_handled = apply_filters_or_fallback(session, selectors, filters, LOGGER)
-
-    if not manual_wait_handled and selectors.submit_button:
+        table_selector = selectors.listing_table or selectors.results_table or "table"
+        table_visible = False
         try:
-            LOGGER.info("Clicking search button automatically")
-            print("  Clicking search button...")
-            session.click(selectors.submit_button)
-        except Exception as exc:  # pragma: no cover - defensive logging
-            LOGGER.warning("Automatic search click failed: %s", exc)
+            session.wait_for_selector(table_selector, timeout_ms=5_000)
+            table_visible = True
+            LOGGER.info("Listing container detected on initial load: %s", table_selector)
+        except Exception:
+            LOGGER.debug("Listing container not immediately visible; proceeding to apply filters")
+
+        filters = SearchFilters(
+            district=district,
+            status=project_status,
+            project_types=project_types,
+        )
+        LOGGER.info("Applying filters: district=%s, status=%s, types=%s", district, project_status, list(project_types) if project_types else "[]")
+        
+        try:
+            manual_wait_handled = apply_filters_or_fallback(session, selectors, filters, LOGGER)
+        except Exception as exc:
+            LOGGER.warning("Filter application error (will try manual mode): %s", exc)
             manual_wait_handled = manual_filter_fallback(filters)
 
-    if not manual_wait_handled:
-        LOGGER.info("Waiting for CAPTCHA to be solved manually")
-        print("  Waiting for manual CAPTCHA solving...")
-        wait_for_captcha_solved()
+        if not manual_wait_handled and selectors.submit_button:
+            try:
+                LOGGER.info("Clicking search button automatically")
+                print("  Clicking search button...")
+                session.click(selectors.submit_button)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                LOGGER.warning("Automatic search click failed: %s", exc)
+                manual_wait_handled = manual_filter_fallback(filters)
 
-    LOGGER.info("Waiting for results table to appear: %s", table_selector)
-    print("  Waiting for results table to load...")
-    session.wait_for_selector(table_selector, timeout_ms=20_000)
-    if not table_visible:
-        LOGGER.info("Results table now visible after filter/captcha flow")
-    LOGGER.info("Results table loaded successfully")
-    return session.get_page_html()
+        if not manual_wait_handled:
+            LOGGER.info("Waiting for CAPTCHA to be solved manually")
+            print("  Waiting for manual CAPTCHA solving...")
+            try:
+                wait_for_captcha_solved()
+            except KeyboardInterrupt:
+                LOGGER.warning("User interrupted CAPTCHA wait with Ctrl+C")
+                print("CAPTCHA solve interrupted. Retrying...")
+                manual_wait_handled = False
+            except Exception as exc:
+                LOGGER.warning("Error during CAPTCHA wait: %s", exc)
+                print(f"Error during CAPTCHA wait: {exc}")
+                manual_wait_handled = False
+
+        try:
+            LOGGER.info("Waiting for results table to appear: %s", table_selector)
+            print("  Waiting for results table to load...")
+            session.wait_for_selector(table_selector, timeout_ms=20_000)
+            if not table_visible:
+                LOGGER.info("Results table now visible after filter/captcha flow")
+            LOGGER.info("Results table loaded successfully")
+        except Exception as exc:
+            LOGGER.warning("Results table selector timeout (may still have loaded): %s", exc)
+            print(f"Note: Results table selector timeout: {exc}")
+            print("Trying to proceed anyway - the table might still be on the page...")
+            # Don't raise - just continue with whatever HTML we have
+        
+        try:
+            return session.get_page_html()
+        except Exception as exc:
+            LOGGER.exception("Failed to get page HTML: %s", exc)
+            print(f"\nFailed to retrieve page content: {exc}")
+            print("This may indicate the browser was closed or page is no longer accessible.")
+            raise
+    
+    except Exception as exc:
+        LOGGER.exception("Search failed with exception: %s", exc)
+        print(f"\nError during search: {exc}")
+        print("Browser is still open. You can troubleshoot and try again.")
+        raise
 
 
 def _save_listings_snapshot(

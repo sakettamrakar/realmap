@@ -23,12 +23,16 @@ from .schema import (
 )
 
 _LOGICAL_SECTIONS_RESOURCE = "logical_sections_and_keys.json"
+_BRACKETED_TEXT_RE = re.compile(r"[\[\(].*?[\]\)]")
 
 
 def _normalize(value: str | None) -> str:
     if not value:
         return ""
-    return re.sub(r"[^a-z0-9]", "", value.lower())
+    # Strip bracketed/parenthetical metadata so headings like
+    # "Project Details [ Registration No : ... ]" normalize correctly.
+    cleaned = _BRACKETED_TEXT_RE.sub(" ", value)
+    return re.sub(r"[^a-z0-9]", "", cleaned.lower())
 
 
 def _load_logical_section_mapping() -> Tuple[Dict[str, str], Dict[str, Dict[str, str]]]:

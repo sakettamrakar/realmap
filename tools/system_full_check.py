@@ -95,6 +95,30 @@ def api_import_check(_: Path) -> StepResult:
     )
 
 
+def db_check_runner(_: Path) -> StepResult:
+    """Check that data was actually loaded into the database."""
+    
+    command = ["python", "tools/check_db_counts.py"]
+    try:
+        import subprocess
+        result = subprocess.run(command, capture_output=True, text=True)
+        return StepResult(
+            name="DB data verification",
+            command=command,
+            exit_code=result.returncode,
+            stdout=result.stdout,
+            stderr=result.stderr,
+        )
+    except Exception as exc:
+        return StepResult(
+            name="DB data verification",
+            command=command,
+            exit_code=1,
+            stdout="",
+            stderr=str(exc),
+        )
+
+
 def run_step(step: Step, index: int, total: int, log_path: Path) -> StepResult:
     banner = f"=== STEP {index}/{total}: {step.name} ==="
     print(banner)
@@ -199,6 +223,10 @@ def build_steps(config_path: str) -> list[Step]:
         Step(
             name="Load latest run into DB",
             command=["python", "tools/load_runs_to_db.py", "--latest"],
+        ),
+        Step(
+            name="DB data verification",
+            runner=db_check_runner,
         ),
         geocode_step,
         Step(name="API health check", runner=api_import_check),

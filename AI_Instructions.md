@@ -1,143 +1,34 @@
-# CG RERA Data Collection Framework – AI Coding Instructions
+# AI Coding Instructions
 
-> This repository contains a **data collection (Extraction) framework** for **Chhattisgarh RERA (Real Estate Regulatory Authority)** real-estate projects.
+This repository is a CG RERA (Chhattisgarh) extraction + QA + DB toolkit. These notes keep AI assistants aligned with the project's expectations.
 
-The goal is to help AI coding assistants (OpenAI Codecs / Copilot etc.) understand:
+## Scope and boundaries
 
-- What this project is about
-- What we are **allowed** to do
-- What the high-level architecture is
-- How to structure code, configs, and tests
+- Extract listings and detail pages from the CG RERA portal, map to normalized V1 scraper JSON, and support QA + DB loading. Manual CAPTCHA solving is required; do not bypass protections.
+- Keep concerns separated: browser/session helpers, listing navigation, detail fetching, parsing/mapping, QA utilities, and DB loaders.
+- Config-driven: selectors, run modes, caps, and paths come from YAML configs (`config.example.yaml`, `config.phase2.sample.yaml`) and `DATABASE_URL` for DB tools.
 
----
+## Coding conventions
 
-## 1. Project Goal & Scope
+- Python 3.10+, Playwright for browser control, BeautifulSoup for parsing, pytest for tests.
+- Prefer small modules with clear responsibilities; keep HTML parsing logic testable against fixtures.
+- Preserve run output structure: `listings/`, `raw_html/`, `raw_extracted/`, `scraped_json/`, `qa_fields/`, plus `run_report.json`.
 
-### 1.1 Goal
+## Workflows to prefer
 
-Build a **reliable, testable, and extensible data collection framework** that:
+- Health checks before changes: `python tools/self_check.py` or `python tools/system_full_check.py`.
+- Dev smoke: `python tools/dev_fresh_run_and_qa.py` to validate crawl + QA in one shot.
+- DB verification: `python tools/check_db_counts.py` after `load_runs_to_db.py`.
 
-- Scrapes **Chhattisgarh RERA project data** from the official CG RERA portal.
-- Handles **manual CAPTCHA solving** (we do NOT bypass CAPTCHAs).
-- Produces structured outputs in:
-  - Raw HTML (per project)
-  - Raw extracted JSON (sections + fields)
-  - Normalized V1 scraper JSON (canonical schema)
+## What not to do
 
-This is the **E in ETL** (Extraction) only. Transformation and loading to DB may be separate modules / repos.
+- Do not automate CAPTCHA solving or attempt site evasion tactics.
+- Do not hard-code search filters, paths, or credentials into code; keep them in configs/env vars.
+- Do not mix parsing/mapping logic with network or browser code.
 
-### 1.2 Scope (V1)
+## Where to read more
 
-- **State**: Chhattisgarh (CG) only.
-- **Source site**: CG RERA official project search + project detail views.
-- **Entities we care about**:
-  - Projects
-  - Promoters
-  - Buildings / Towers / Blocks
-  - Unit types (1BHK/2BHK/etc.)
-  - Bank / Escrow accounts
-  - Documents (PDFs / certificates)
-  - Quarterly updates / progress
-
-**Non-goals for V1**:
-
-- No multi-state scraping (no Maharashtra etc. yet).
-- No automatic CAPTCHA solving or security bypassing.
-- No browser automation hacks to evade protections.
-- No real-time streaming; batch runs are fine.
-
----
-
-## 2. Key Constraints & Rules (IMPORTANT)
-
-1. **Respect legal / ethical boundaries**
-   - Do not attempt to break or bypass CAPTCHAs.
-   - Assume a **human will manually solve CAPTCHA**; we only integrate the browser session.
-
-2. **Separation of concerns**
-   - Keep these layers logically separated:
-     - Browser automation / session management
-     - Listing scraping
-     - Detail page fetching
-     - HTML → raw JSON conversion
-     - Raw JSON → normalized JSON mapping
-     - Output writing / logging
-
-3. **Config-driven**
-   - No hard-coded values for:
-     - Districts
-     - Status filters
-     - Paths
-   - Use config files (`config.yaml`, `.env`, or similar) wherever possible.
-
-4. **Testability**
-   - Core parsing logic (HTML → JSON mapping) must be testable without hitting the live website.
-   - Use **saved HTML** fixtures for unit tests.
-
-5. **Idempotent & resumable runs (as far as possible)**
-   - Running the same config twice should not corrupt data.
-   - Re-runs over the same period/district should be safe.
-
----
-
-## 3. High-Level Architecture (Modules)
-
-Suggested structure:
-
-cg_rera_extractor/
-  config/
-  browser/
-  listing/
-  detail/
-  parsing/
-  runs/
-  outputs/
-tests/
-
----
-
-## 4. Data Flow Overview
-
-1. Run orchestrator
-2. Browser session + manual CAPTCHA
-3. Listing scraper
-4. Detail page fetcher
-5. Raw extraction
-6. Normalization
-7. Output writing
-
----
-
-## 5. Technologies (Preferred Defaults)
-
-- Python 3.10+
-- Playwright or Selenium
-- BeautifulSoup4
-- Pydantic or dataclasses
-- pytest for tests
-
----
-
-## 6. Manual CAPTCHA Handling
-
-Use a simple pause:
-
-input("Solve CAPTCHA in browser, then press ENTER to continue...")
-
----
-
-## 7. Naming & Style Conventions
-
-- snake_case for Python
-- CapWords for classes
-- No giant files; small modular code
-- Docstrings everywhere
-
----
-
-## 8. Summary for AI Assistants
-
-- Think “CG RERA extraction pipeline”
-- Do not bypass CAPTCHA
-- Respect mappings and V1 scraper schema
-- Follow the multi-layer architecture
+- User entrypoint and quick commands: `README.md`
+- Architecture and workflows: `docs/DEV_GUIDE.md`
+- QA tooling: `docs/QA_GUIDE.md`
+- Database loading: `docs/DB_GUIDE.md`

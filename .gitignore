@@ -1,13 +1,42 @@
+# Python bytecode and caches
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.egg-info/
+.eggs/
 .build/
+
+# Test caches
 .pytest_cache/
-.playwright/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# IDE and editor configs
+.idea/
+.vscode/
+*.swp
+*~
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Environment
 .env
 .venv/
-.eggs/
-*.log
+venv/
+
+# Playwright
+.playwright/
+
+# Build artifacts and outputs
 outputs/
+runs/
+
+# Runtime logs
+*.log
+logs/

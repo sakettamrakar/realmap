@@ -50,3 +50,69 @@ def test_extract_raw_links_are_captured():
     certificate = _get_field(result, "Completion Certificate")
     assert certificate is not None
     assert certificate.links == ["https://example.com/cc.pdf"]
+
+
+def test_extract_raw_handles_form_controls_and_selects():
+    html = """
+    <html>
+      <body>
+        <h3>Project Details [ Registration No : CG-REG-001 ] [ Project Web Address : example.com ]</h3>
+        <div class="control-group">
+          <label class="control-label">Project Status</label>
+          <input type="text" value="Ongoing" disabled />
+        </div>
+        <div class="control-group">
+          <label>Project Address</label>
+          <div class="controls">
+            <textarea>Plot 12, Near City Center</textarea>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>District</label>
+          <div class="controls">
+            <select>
+              <option value="0">Select District</option>
+              <option value="14" selected="selected">Raipur</option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Tehsil</label>
+          <div class="controls">
+            <select>
+              <option value="0" selected="selected">Select Tehsil</option>
+              <option value="99">Tilda</option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Launch Date</label>
+          <input type="text" value="2024-01-15" />
+        </div>
+      </body>
+    </html>
+    """
+
+    result = extract_raw_from_html(html, source_file="form.html")
+
+    status = _get_field(result, "Project Status")
+    assert status is not None
+    assert status.value == "Ongoing"
+    assert status.value_type == FieldValueType.TEXT
+
+    address = _get_field(result, "Project Address")
+    assert address is not None
+    assert address.value == "Plot 12, Near City Center"
+
+    district = _get_field(result, "District")
+    assert district is not None
+    assert district.value == "Raipur"
+
+    tehsil = _get_field(result, "Tehsil")
+    assert tehsil is not None
+    assert tehsil.value is None
+
+    launch = _get_field(result, "Launch Date")
+    assert launch is not None
+    assert launch.value == "2024-01-15"
+    assert launch.value_type == FieldValueType.DATE

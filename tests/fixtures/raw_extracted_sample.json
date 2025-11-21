@@ -4,7 +4,7 @@
   "source_url": "https://rera.cgstate.gov.in/project/CG-REG-2024-001",
   "sections": [
     {
-      "section_title_raw": "Project Details",
+      "section_title_raw": "Project Details [ Registration No : CG-REG-2024-001 ] [ Project Web Address : www.emeraldresidency.com ]",
       "fields": [
         {"label": "Project Name", "value": "Emerald Residency"},
         {"label": "Registration No", "value": "CG-REG-2024-001"},
@@ -58,7 +58,7 @@
       ]
     },
     {
-      "section_title_raw": "Bank / Escrow Details",
+      "section_title_raw": "Bank Details(RERA designated account)",
       "fields": [
         {"label": "Bank Name", "value": "State Bank of India"},
         {"label": "Branch", "value": "Raipur Main"},

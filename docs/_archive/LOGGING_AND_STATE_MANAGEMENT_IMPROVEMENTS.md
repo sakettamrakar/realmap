@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # Logging & State Management Improvements
 
 ## What Was Updated
@@ -287,4 +289,5 @@ Your crawler is now **fully transparent**. You'll see:
 - ✅ How it handles navigation (no refresh!)
 
 For a complete understanding of the crawl flow, see: `CRAWL_FLOW_EXPLAINED.md`
+
 

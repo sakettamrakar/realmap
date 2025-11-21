@@ -82,7 +82,9 @@ class PlaywrightBrowserSession:
 
     def goto(self, url: str) -> None:
         page = self._require_page()
-        page.goto(url)
+        # Use "domcontentloaded" to avoid waiting for all network requests
+        # This prevents long waits on slow/resource-heavy pages
+        page.goto(url, wait_until="domcontentloaded")
 
     def go_back(self) -> None:
         page = self._require_page()

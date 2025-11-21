@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # User Guide – CG RERA Extraction & API
 
 ## 1. What this project is
@@ -80,8 +82,56 @@ Prerequisites: running Postgres instance (use the shared `postgresql://postgres:
 
 Steps:
 1. Initialize schema: `python tools/init_db.py` (uses config-provided URL or `DATABASE_URL`).
-2. Load a specific run: `python tools/load_runs_to_db.py --run-id <run_id>` (defaults to `./runs`; add `--runs-dir <path>` if different). To load all runs under a folder: `python tools/load_runs_to_db.py --runs-dir <path>`.
+2. Load a specific run: `python tools/load_runs_to_db.py --run-id <run_id>` (defaults to `./outputs/runs`; add `--runs-dir <path>` if different). To load all runs under a folder: `python tools/load_runs_to_db.py --runs-dir <path>`.
 3. Verify with SQL (e.g., `SELECT COUNT(*) FROM projects;`) using your preferred SQL client. A populated `projects` table confirms success.
+
+### DB Load Smoke Test – Quick Verification
+
+To verify that the DB loading pipeline is working end-to-end:
+
+**Quick test (5–10 minutes):**
+```bash
+# 1. Run a small crawl (FULL mode, very few projects)
+python -m cg_rera_extractor.cli --config config.phase2.sample.yaml --mode full --max-projects 5
+
+# 2. Initialize the database schema
+python tools/init_db.py
+
+# 3. Load the latest run into the DB
+python tools/load_runs_to_db.py --latest
+
+# 4. Verify row counts
+python tools/check_db_counts.py
+```
+
+**Expected output from step 4:**
+```
+Database Row Counts
+==================
+Database: localhost/realmapdb
+
+Total Rows:
+  Projects:          5
+  Promoters:         5
+  Buildings:         ...
+  Unit Types:        ...
+  Documents:         ...
+  Quarterly Updates: ...
+
+  TOTAL RECORDS:     ...
+```
+
+**For a specific project:**
+```bash
+# Check a single project's details and child records
+python tools/check_db_counts.py --project-reg CG-2024-00123
+```
+
+**If row counts are zero:**
+- Ensure Postgres is running and accessible at `DATABASE_URL`.
+- Run `python tools/init_db.py` to verify table creation.
+- Check that the run directory contains `.v1.json` files under `scraped_json/`.
+- Review `load_runs_to_db.py` output for any errors or warnings.
 
 ## 7. Running the Read-only API & Testing It
 Start the FastAPI app (requires DB URL pointing at a database with loaded projects):
@@ -107,8 +157,10 @@ Confirm the server logs show startup without errors, and responses include proje
 | FULL small crawl   | Run FULL with small config, see V1 JSON + run_report populated | [ ]      |
 | DB init            | `python tools/init_db.py` completes without error              | [ ]      |
 | DB load            | `python tools/load_runs_to_db.py --run-id <id>`                | [ ]      |
+| DB verify          | `python tools/check_db_counts.py` shows row counts             | [ ]      |
 | API /health        | `curl /health` returns status=ok                               | [ ]      |
 | API /projects      | `curl /projects?limit=5` returns a small list of projects      | [ ]      |
 
 ## 9. Optional: Jira integration (short admin note)
 Jira sync tooling exists for repo maintainers (`tools/sync_dev_plan_to_jira.py` and the GitHub Actions workflow). Regular users running crawls/DB/API can ignore Jira configuration; no Jira settings are needed for the steps above.
+

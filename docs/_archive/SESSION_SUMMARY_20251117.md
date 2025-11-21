@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # Session Summary: CG RERA Realmap Crawling - November 17, 2025
 
 ## Status: ✅ MAJOR MILESTONES ACHIEVED
@@ -197,3 +199,4 @@ The system is ready for production use in LISTINGS_ONLY mode. Detail page fetchi
 **Session Timestamp:** November 17, 2025, 18:06 UTC+0:30
 **Total Session Time:** ~3 hours
 **Status Update:** From "unable to navigate" → "20 listings scraped from 2 districts successfully"
+

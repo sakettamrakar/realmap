@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # Full Crawler Test Report - Preview Button Extraction Feature
 
 ## Test Summary
@@ -228,4 +230,5 @@ if canonical_key:
 2. Test fix with current production data
 3. Re-run crawl to verify preview files are downloaded
 4. Validate preview artifacts in output directory
+
 

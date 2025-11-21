@@ -92,8 +92,8 @@ def _extract_value_and_links(label_tag: Tag) -> tuple[str, List[str], str | None
     if parent and parent.name == "td":
         sibling_td = parent.find_next_sibling("td")
         if sibling_td:
-            text, links, preview_hint = _text_and_links_from_tag(sibling_td)
-            if text:
+            text, links, preview_hint, has_value = _text_and_links_from_tag(sibling_td)
+            if has_value:
                 return text, links, preview_hint
 
     # inline label layout
@@ -103,8 +103,8 @@ def _extract_value_and_links(label_tag: Tag) -> tuple[str, List[str], str | None
             if text:
                 return text, [], None
         elif isinstance(sibling, Tag):
-            text, links, preview_hint = _text_and_links_from_tag(sibling)
-            if text:
+            text, links, preview_hint, has_value = _text_and_links_from_tag(sibling)
+            if has_value:
                 return text, links, preview_hint
 
     # fallback to parent text without the label contents
@@ -120,11 +120,72 @@ def _extract_value_and_links(label_tag: Tag) -> tuple[str, List[str], str | None
     return "", [], None
 
 
-def _text_and_links_from_tag(tag: Tag) -> tuple[str, List[str], str | None]:
-    text = tag.get_text(" ", strip=True)
+def _is_placeholder_option(text: str, value: str) -> bool:
+    lowered = text.strip().lower()
+    if not lowered:
+        return value.strip() in {"", "0", "-1"}
+    if lowered.startswith("select "):
+        return True
+    return lowered in {"select", "please select"}
+
+
+def _extract_form_field_value(tag: Tag) -> Optional[str]:
+    if not isinstance(tag, Tag) or not tag.name:
+        return None
+
+    name = tag.name.lower()
+    if name == "input":
+        input_type = (tag.get("type") or "text").lower()
+        if input_type in {"hidden", "submit", "button", "reset", "image", "file"}:
+            return None
+        if input_type in {"checkbox", "radio"}:
+            if tag.has_attr("checked"):
+                value = tag.get("value") or "on"
+                return value.strip()
+            return None
+        value = tag.get("value")
+        return value.strip() if value is not None else ""
+
+    if name == "textarea":
+        text = tag.get_text(" ", strip=True)
+        return text or ""
+
+    if name == "select":
+        options = tag.find_all("option")
+        selected = None
+        for option in options:
+            if option.has_attr("selected"):
+                selected = option
+                break
+        if selected is None and options:
+            selected = options[0]
+        if selected:
+            option_text = selected.get_text(" ", strip=True)
+            option_value = (selected.get("value") or "").strip()
+            if _is_placeholder_option(option_text, option_value):
+                return ""
+            return option_text or option_value
+        return ""
+
+    for child in tag.find_all(["input", "select", "textarea"]):
+        value = _extract_form_field_value(child)
+        if value is not None:
+            return value
+
+    return None
+
+
+def _text_and_links_from_tag(tag: Tag) -> tuple[str, List[str], str | None, bool]:
+    form_value = _extract_form_field_value(tag)
+    if form_value is not None:
+        text = form_value
+        has_value = True
+    else:
+        text = tag.get_text(" ", strip=True)
+        has_value = bool(text)
     links = _collect_links(tag)
     preview_hint = _find_preview_hint(tag)
-    return text, links, preview_hint
+    return text, links, preview_hint, has_value
 
 
 def _collect_links(tag: Tag) -> List[str]:

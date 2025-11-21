@@ -1,3 +1,5 @@
+ARCHIVED - superseded by README.md and docs/DEV_GUIDE.md.
+
 # CG RERA Data Collection Framework – Development Plan
 
 > This document describes a **step-by-step implementation plan** for the CG RERA Extraction Framework.  
@@ -299,3 +301,4 @@ Add PR template.
 ---
 
 This plan is the actionable roadmap for development.
+

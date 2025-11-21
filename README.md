@@ -1,51 +1,81 @@
-# CG RERA Extraction Framework
+# CG RERA Extraction, QA, and DB Tools
 
-This repository hosts the extraction (E) layer for the Chhattisgarh (CG) RERA data
-pipeline. The framework focuses on collecting data from the official CG RERA
-portal and producing a normalized **V1 scraper JSON** output. Transformation and
-loading steps happen in downstream repositories.
+This repository collects project data from the Chhattisgarh RERA portal, normalizes it to V1 scraper JSON, validates outputs with field-by-field QA, and loads results into Postgres for querying (including a lightweight FastAPI API).
 
-## Repository layout
+## What is here
+
+- Crawler (`cg_rera_extractor.cli`) with DRY_RUN, LISTINGS_ONLY, and FULL modes.
+- QA utilities (`tools/run_field_by_field_qa.py`, `tools/dev_fresh_run_and_qa.py`) to compare detail HTML against normalized JSON.
+- DB tooling (`tools/init_db.py`, `tools/load_runs_to_db.py`, `tools/check_db_counts.py`) and a tiny FastAPI app.
+- Test suites covering parsing, QA comparison, and system checks.
+
+Repository layout (key folders):
 
 ```
 cg_rera_extractor/
-  browser/      # Browser/session management abstractions
-  config/       # Config models and loaders
-  detail/       # Detail page fetchers
-  listing/      # Listing page scrapers and models
-  outputs/      # Helpers for writing run artefacts
-  parsing/      # HTML -> JSON parsing utilities
-  runs/         # Run metadata and orchestrator
+  browser/      # Browser and session helpers
+  config/       # Config models and CLI parsing
+  listing/      # Listing scraper + models
+  detail/       # Detail page fetchers and preview helpers
+  outputs/      # Run artifact writers
+  parsing/      # HTML parsing and V1 mapping
+  qa/           # Field extraction and comparison utilities
+tests/          # Unit and smoke tests
+tools/          # CLI helpers (crawl+QA smoke, DB tools, system checks)
 ```
 
-Additional documentation:
+## Quick setup
 
-- [`AI_Instructions.md`](./AI_Instructions.md)
-- [`DEV_PLAN.md`](./DEV_PLAN.md)
+1) Python 3.10+, Postgres optional unless loading data or running the API.  
+2) Create a virtualenv and install: `python -m venv .venv && .\\.venv\\Scripts\\Activate.ps1 && pip install -r requirements.txt`.  
+3) Copy a config: `config.example.yaml` (FULL demo) or `config.phase2.sample.yaml` (safe LISTINGS_ONLY).  
+4) If using the DB/API, set `DATABASE_URL` (or edit `db.url` in your config).
 
-## Configuration
+## Run the crawler
 
-Configuration lives in YAML files that follow the schema documented in
-`cg_rera_extractor.config`. Use [`config.example.yaml`](./config.example.yaml) as
-a reference when creating your own configuration. Load the configuration within
-Python code using `cg_rera_extractor.config.load_config`.
+- Dry run (no browser/network):  
+  `python -m cg_rera_extractor.cli --config config.phase2.sample.yaml --mode dry-run`
+- Listings only:  
+  `python -m cg_rera_extractor.cli --config config.phase2.sample.yaml --mode listings-only`
+- Full flow with detail HTML and normalized JSON (manual CAPTCHA required):  
+  `python -m cg_rera_extractor.cli --config config.phase2.sample.yaml --mode full`
 
-For local development copy `.env.example` to `.env` (or export the variable manually)
-so `DATABASE_URL` always points at the shared Postgres instance.
+Outputs land under `<output_base_dir>/runs/run_<timestamp>/` with `listings/`, `raw_html/`, `scraped_json/`, and `run_report.json`.
 
-## Tests
+## QA in a few commands
 
-We use `pytest` for testing. All parsing logic and orchestrator components must
-be covered by unit tests using saved HTML fixtures, allowing test execution
-without hitting the live CG RERA portal.
+- One-shot crawl + QA smoke (best default):  
+  `python tools/dev_fresh_run_and_qa.py --mode full --config config.debug.yaml`
+- QA on an existing run:  
+  `python tools/run_field_by_field_qa.py --run-id <run_id> [--limit 10 | --project-key CG-REG-001]`
+- QA helper menu:  
+  `python tools/test_qa_helper.py list|inspect|qa|compare`
 
-## API service
+Reports live under `<run>/qa_fields/qa_fields_report.(json|md)`. See `docs/QA_GUIDE.md` for reading the statuses and troubleshooting mismatches.
 
-A lightweight FastAPI app exposes read-only endpoints for project summaries and
-details backed by the normalized Postgres database. To run it locally, export
-the unified connection string and start uvicorn:
+## Load and verify the database
 
-```bash
-export DATABASE_URL=postgresql://postgres:betsson@123@localhost:5432/realmapdb
-uvicorn cg_rera_extractor.api.app:app --reload
-```
+1) Initialize schema: `python tools/init_db.py`  
+2) Load the latest run: `python tools/load_runs_to_db.py --latest`  
+3) Show row counts or drill into a project:  
+   `python tools/check_db_counts.py [--project-reg <id>]`
+
+Once data is loaded, start the optional API:  
+`uvicorn cg_rera_extractor.api.app:app --reload`
+
+Details and troubleshooting live in `docs/DB_GUIDE.md`.
+
+## Health checks and developer workflows
+
+- Fast offline check: `python tools/self_check.py`
+- Supervised end-to-end check (crawl + DB verify): `python tools/system_full_check.py`
+- Dev smoke (crawl + QA only): `python tools/dev_fresh_run_and_qa.py`
+
+Architecture notes, test strategy, and extension tips are in `docs/DEV_GUIDE.md`.
+
+## Doc map
+
+- AI agent rules: `AI_Instructions.md`
+- Developer workflows and architecture: `docs/DEV_GUIDE.md`
+- QA tooling and report interpretation: `docs/QA_GUIDE.md`
+- Database flow and schema notes: `docs/DB_GUIDE.md`
