@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Literal, Tuple
+from urllib.parse import urljoin
 
 from playwright.sync_api import (  # type: ignore
     BrowserContext,
@@ -20,6 +22,15 @@ from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
 from cg_rera_extractor.parsing.schema import PreviewArtifact, V1Project
 
 LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class PreviewTarget:
+    field_key: str
+    label: str
+    target_type: Literal["url", "click"]
+    value: str
+    locator_type: Literal["css", "text"] | None = None
 
 
 def build_preview_placeholders(
@@ -50,58 +61,212 @@ def capture_previews(
     output_base: Path,
     preview_placeholders: Dict[str, PreviewArtifact],
 ) -> Dict[str, PreviewArtifact]:
-    """Click preview controls and persist any captured artifacts."""
+    """Capture preview artifacts with a two-phase approach for speed and reliability."""
 
     captured: Dict[str, PreviewArtifact] = {}
-    LOGGER.info("Collecting preview images / HTML...")
-    for placeholder in preview_placeholders.values():
-        field_key = placeholder.field_key
-        target_dir = make_preview_dir(str(output_base), project_key, field_key)
+    LOGGER.info("Collecting preview targets in a single pass...")
+    targets, missing_notes = _collect_preview_targets(page, preview_placeholders)
+
+    for field_key, note in missing_notes:
+        placeholder = preview_placeholders[field_key]
+        artifact = PreviewArtifact(**placeholder.model_dump())
+        artifact.notes = _merge_notes(artifact.notes, note)
+        captured[field_key] = artifact
+
+    LOGGER.info("Collected %d preview targets; beginning processing...", len(targets))
+    for idx, target in enumerate(targets):
+        placeholder = preview_placeholders[target.field_key]
+        target_dir = make_preview_dir(str(output_base), project_key, placeholder.field_key)
         target_dir.mkdir(parents=True, exist_ok=True)
         artifact = PreviewArtifact(**placeholder.model_dump())
 
-        locator = _resolve_locator(page, placeholder.notes)
-        if locator is None:
-            LOGGER.info("Preview element not found for %s", field_key)
-            artifact.notes = _merge_notes(artifact.notes, "Preview element not found")
-            captured[field_key] = artifact
-            continue
+        LOGGER.info(
+            "Processing preview %d/%d: %s",
+            idx + 1,
+            len(targets),
+            target.label or placeholder.field_key,
+        )
 
         try:
-            LOGGER.info("Clicking preview button for %s", field_key)
-            with page.expect_popup(timeout=5_000) as popup_info:
-                locator.click()
-            new_page = popup_info.value
-            LOGGER.info("Collecting preview images / HTML for %s", field_key)
-            artifact = _save_page_artifact(
-                new_page,
-                context,
-                artifact,
-                target_dir,
-                output_base,
-                prefix="preview",
-            )
-            new_page.close()
-        except PlaywrightTimeoutError:
-            # Popup did not appear. The click already happened.
-            # Check for inline modal without clicking again.
-            LOGGER.info("Falling back to inline modal capture for %s", field_key)
-            artifact = _capture_inline_modal(
-                locator,
-                page,
-                artifact,
-                target_dir,
-                output_base,
-                click_needed=False,
+            artifact = _process_preview(
+                page=page,
+                context=context,
+                target=target,
+                artifact=artifact,
+                target_dir=target_dir,
+                output_base=output_base,
             )
         except Exception as exc:  # pragma: no cover - defensive logging
-            LOGGER.warning("Preview click failed for %s: %s", field_key, exc)
+            LOGGER.warning("Preview %d/%d failed: %s", idx + 1, len(targets), exc)
             artifact.notes = _merge_notes(artifact.notes, str(exc))
 
-        captured[field_key] = artifact
+        captured[artifact.field_key] = artifact
 
     LOGGER.info("Completed preview capture for %d artifacts", len(captured))
     return captured
+
+
+def _collect_preview_targets(
+    page: Page, preview_placeholders: Dict[str, PreviewArtifact]
+) -> Tuple[List[PreviewTarget], List[Tuple[str, str]]]:
+    """Collect preview targets quickly without processing them."""
+
+    targets: List[PreviewTarget] = []
+    missing: List[Tuple[str, str]] = []
+
+    for placeholder in preview_placeholders.values():
+        label = placeholder.notes or placeholder.field_key
+
+        if placeholder.notes and placeholder.notes.lower().startswith("http"):
+            targets.append(
+                PreviewTarget(
+                    field_key=placeholder.field_key,
+                    label=label,
+                    target_type="url",
+                    value=urljoin(page.url, placeholder.notes),
+                )
+            )
+            continue
+
+        hint, locator_type = _locator_hint_from_notes(placeholder.notes)
+        locator = _resolve_locator(page, hint, locator_type)
+        if locator is None:
+            missing.append((placeholder.field_key, "Preview element not found"))
+            continue
+
+        href: str | None = None
+        try:
+            href = locator.first.get_attribute("href", timeout=1_000)
+        except Exception:
+            href = None
+
+        if href and _is_navigable_href(href):
+            targets.append(
+                PreviewTarget(
+                    field_key=placeholder.field_key,
+                    label=label,
+                    target_type="url",
+                    value=urljoin(page.url, href),
+                )
+            )
+            continue
+
+        targets.append(
+            PreviewTarget(
+                field_key=placeholder.field_key,
+                label=label,
+                target_type="click",
+                value=hint or "Preview",
+                locator_type=locator_type,
+            )
+        )
+
+    return targets, missing
+
+
+def _process_preview(
+    *,
+    page: Page,
+    context: BrowserContext,
+    target: PreviewTarget,
+    artifact: PreviewArtifact,
+    target_dir: Path,
+    output_base: Path,
+    timeout_ms: int = 20_000,
+) -> PreviewArtifact:
+    if target.target_type == "url":
+        return _process_url_preview(
+            context=context,
+            target=target,
+            artifact=artifact,
+            target_dir=target_dir,
+            output_base=output_base,
+            timeout_ms=timeout_ms,
+        )
+
+    return _process_click_preview(
+        page=page,
+        context=context,
+        target=target,
+        artifact=artifact,
+        target_dir=target_dir,
+        output_base=output_base,
+        timeout_ms=timeout_ms,
+    )
+
+
+def _process_url_preview(
+    *,
+    context: BrowserContext,
+    target: PreviewTarget,
+    artifact: PreviewArtifact,
+    target_dir: Path,
+    output_base: Path,
+    timeout_ms: int,
+) -> PreviewArtifact:
+    new_page = context.new_page()
+    try:
+        new_page.goto(target.value, wait_until="load", timeout=timeout_ms)
+        artifact = _save_page_artifact(
+            new_page,
+            context,
+            artifact,
+            target_dir,
+            output_base,
+            prefix="preview",
+        )
+    except Exception as exc:  # pragma: no cover - defensive logging
+        artifact.notes = _merge_notes(artifact.notes, f"URL preview failed: {exc}")
+    finally:
+        try:
+            new_page.close()
+        except Exception:
+            LOGGER.debug("Failed to close preview tab")
+    return artifact
+
+
+def _process_click_preview(
+    *,
+    page: Page,
+    context: BrowserContext,
+    target: PreviewTarget,
+    artifact: PreviewArtifact,
+    target_dir: Path,
+    output_base: Path,
+    timeout_ms: int,
+) -> PreviewArtifact:
+    locator = _resolve_locator(page, target.value, target.locator_type or "text")
+    if locator is None:
+        artifact.notes = _merge_notes(artifact.notes, "Preview element not found")
+        return artifact
+
+    try:
+        with page.expect_popup(timeout=timeout_ms) as popup_info:
+            locator.click()
+        new_page = popup_info.value
+        artifact = _save_page_artifact(
+            new_page,
+            context,
+            artifact,
+            target_dir,
+            output_base,
+            prefix="preview",
+        )
+        new_page.close()
+    except PlaywrightTimeoutError:
+        LOGGER.info("Falling back to inline modal capture for %s", artifact.field_key)
+        artifact = _capture_inline_modal(
+            locator,
+            page,
+            artifact,
+            target_dir,
+            output_base,
+            click_needed=False,
+        )
+    except Exception as exc:  # pragma: no cover - defensive logging
+        artifact.notes = _merge_notes(artifact.notes, f"Preview click failed: {exc}")
+
+    return artifact
 
 
 def save_preview_metadata(
@@ -123,25 +288,37 @@ def load_preview_metadata(preview_dir: Path) -> Dict[str, PreviewArtifact]:
     return {key: PreviewArtifact(**value) for key, value in raw.items()}
 
 
-def _resolve_locator(page: Page, hint: str | None) -> Locator | None:
-    if not hint:
-        try:
-            return page.get_by_text("Preview")
-        except Exception:
-            return None
+def _locator_hint_from_notes(notes: str | None) -> Tuple[str | None, Literal["css", "text"]]:
+    if notes and notes.startswith(("#", ".")):
+        return notes, "css"
+    if notes:
+        return notes, "text"
+    return "Preview", "text"
 
-    if hint.startswith(("#", ".")):
-        try:
-            return page.locator(hint)
-        except Exception:
-            LOGGER.debug("Failed to resolve locator for hint %s", hint)
-    elif hint.lower().startswith("http"):
+
+def _is_navigable_href(href: str | None) -> bool:
+    if not href:
+        return False
+
+    lowered = href.strip().lower()
+    if lowered.startswith(("javascript:", "mailto:", "tel:", "#")):
+        return False
+
+    return True
+
+
+def _resolve_locator(
+    page: Page, hint: str | None, locator_type: Literal["css", "text"] = "text"
+) -> Locator | None:
+    if not hint:
         return None
-    else:
-        try:
-            return page.get_by_text(hint)
-        except Exception:
-            LOGGER.debug("Failed to resolve text locator for hint %s", hint)
+
+    try:
+        if locator_type == "css":
+            return page.locator(hint)
+        return page.get_by_text(hint)
+    except Exception:
+        LOGGER.debug("Failed to resolve locator for hint %s", hint)
     return None
 
 
