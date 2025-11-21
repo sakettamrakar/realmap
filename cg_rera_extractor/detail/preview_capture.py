@@ -140,7 +140,7 @@ def _collect_preview_targets(
         except Exception:
             href = None
 
-        if href:
+        if href and _is_navigable_href(href):
             targets.append(
                 PreviewTarget(
                     field_key=placeholder.field_key,
@@ -294,6 +294,17 @@ def _locator_hint_from_notes(notes: str | None) -> Tuple[str | None, Literal["cs
     if notes:
         return notes, "text"
     return "Preview", "text"
+
+
+def _is_navigable_href(href: str | None) -> bool:
+    if not href:
+        return False
+
+    lowered = href.strip().lower()
+    if lowered.startswith(("javascript:", "mailto:", "tel:", "#")):
+        return False
+
+    return True
 
 
 def _resolve_locator(
