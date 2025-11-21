@@ -98,6 +98,13 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
 
             counts["search_combinations_attempted"] += 1
             is_first_search = (search_idx == 0)
+            LOGGER.info(
+                "Starting full crawl for district=%s status=%s (index %d/%d)",
+                district,
+                project_status,
+                search_idx + 1,
+                len(search_pairs),
+            )
             print(f"Running search for district={district} status={project_status}")
             LOGGER.info(
                 "Running search for district=%s status=%s", district, project_status
@@ -183,6 +190,13 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                 status.errors.append(str(exc))
             else:
                 counts["search_combinations_processed"] += 1
+                LOGGER.info(
+                    "Finished full crawl for district=%s status=%s (index %d/%d)",
+                    district,
+                    project_status,
+                    search_idx + 1,
+                    len(search_pairs),
+                )
     finally:
         if session is not None:
             session.close()
@@ -284,6 +298,7 @@ def _run_search_and_get_listings(
     Handles browser errors gracefully and waits for manual CAPTCHA solving.
     """
     try:
+        LOGGER.info("Preparing search page for district=%s status=%s", district, project_status)
         # For first search, navigate to URL. For subsequent searches, go back to preserve session
         if is_first_search:
             LOGGER.info("Navigating to search page: %s", search_url)

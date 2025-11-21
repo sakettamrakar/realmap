@@ -115,21 +115,25 @@ def fetch_and_save_details(
             except Exception as exc:  # pragma: no cover - defensive logging
                 LOGGER.warning("Preview capture failed for %s: %s", record.reg_no, exc)
 
-            # Navigate back to the listing page if we had to click within the grid.
-            # This preserves the filter selections without page refresh.
+            # Navigate back to the listing page after each detail fetch to keep the
+            # search context alive for subsequent listings and search combinations.
             if uses_js_detail:
-                LOGGER.debug("Navigating back to listing page (JavaScript method preserves filters)")
+                back_description = "(JavaScript method preserves filters)"
+            else:
+                back_description = "(direct navigation)"
+
+            LOGGER.debug("Navigating back to listing page %s", back_description)
+            try:
+                session.go_back()
                 try:
-                    session.go_back()
-                    try:
-                        session.wait_for_selector(table_selector, timeout_ms=10_000)
-                    except Exception as e:
-                        LOGGER.warning("Timeout waiting for listing table after go_back: %s", e)
+                    session.wait_for_selector(table_selector, timeout_ms=10_000)
                 except Exception as e:
-                    # go_back() can fail with ERR_CACHE_MISS or timeout after multiple detail fetches
-                    LOGGER.warning("go_back() failed after fetching details: %s. Continuing to next listing.", e)
-                    # The filter state is lost, but we can continue processing other listings
-                LOGGER.debug("Listing page navigation handled")
+                    LOGGER.warning("Timeout waiting for listing table after go_back: %s", e)
+            except Exception as e:
+                # go_back() can fail with ERR_CACHE_MISS or timeout after multiple detail fetches
+                LOGGER.warning("go_back() failed after fetching details: %s. Continuing to next listing.", e)
+                # The filter state is lost, but we can continue processing other listings
+            LOGGER.debug("Listing page navigation handled")
         
         except Exception as exc:
             # Main catch-all for entire detail fetch iteration
