@@ -498,7 +498,15 @@ def _process_saved_html(
     for html_file in sorted(raw_html_dir.glob("*.html")):
         try:
             html = html_file.read_text(encoding="utf-8")
-            raw = extract_raw_from_html(html, source_file=str(html_file))
+            
+            # Extract registration number from filename if possible
+            # Filename format: project_{state_code}_{reg_no}.html
+            project_key = html_file.stem.replace("project_", "", 1)
+            reg_no = None
+            if project_key.startswith(f"{state_code}_"):
+                reg_no = project_key[len(state_code) + 1:]
+            
+            raw = extract_raw_from_html(html, source_file=str(html_file), registration_number=reg_no)
             raw_path = dirs["raw_extracted"] / f"{html_file.stem}.json"
             _write_json(raw_path, raw.model_dump(mode="json"))
 
@@ -510,7 +518,7 @@ def _process_saved_html(
                 v1_project = v1_project.model_copy(
                     update={"validation_messages": validation_messages}
                 )
-            project_key = html_file.stem.replace("project_", "", 1)
+            
             preview_dir = dirs.get("previews", dirs["run_dir"]) / project_key
             preview_metadata = load_preview_metadata(preview_dir)
             if preview_metadata:
