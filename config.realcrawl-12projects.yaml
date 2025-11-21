@@ -1,0 +1,36 @@
+# Real crawl configuration for 12 projects
+# Focus: Get 12 complete projects to test pagination (10 per page usually)
+
+run:
+  mode: FULL
+  search_filters:
+    districts:
+      - Raipur
+    statuses:
+      - Ongoing
+    project_types: []
+  output_base_dir: ./outputs/realcrawl
+  state_code: CG
+  max_search_combinations: 1
+  max_total_listings: 12  # Target 12 to force pagination if page size is 10
+
+browser:
+  driver: playwright
+  headless: false
+  default_timeout_ms: 30000
+  slow_mo_ms: 1000
+
+search_page:
+  url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"
+  selectors:
+    listing_table: "#ContentPlaceHolder1_gv_ProjectList"
+    row_selector: "#ContentPlaceHolder1_gv_ProjectList > tbody > tr"
+    view_details_link: "a[id*='gv_ProjectList_lnk_View']"
+    district: "#ContentPlaceHolder1_District_Name"
+    status: "#ContentPlaceHolder1_ApplicantType"
+    project_type: "#ContentPlaceHolder1_DropDownList2"
+    submit_button: "#ContentPlaceHolder1_Button1"
+    results_table: "#ContentPlaceHolder1_gv_ProjectList"
+
+db:
+  url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb

@@ -53,6 +53,7 @@ def capture_previews(
     """Click preview controls and persist any captured artifacts."""
 
     captured: Dict[str, PreviewArtifact] = {}
+    LOGGER.info("Collecting preview images / HTML...")
     for placeholder in preview_placeholders.values():
         field_key = placeholder.field_key
         target_dir = make_preview_dir(str(output_base), project_key, field_key)
@@ -61,14 +62,17 @@ def capture_previews(
 
         locator = _resolve_locator(page, placeholder.notes)
         if locator is None:
+            LOGGER.info("Preview element not found for %s", field_key)
             artifact.notes = _merge_notes(artifact.notes, "Preview element not found")
             captured[field_key] = artifact
             continue
 
         try:
+            LOGGER.info("Clicking preview button for %s", field_key)
             with page.expect_popup(timeout=5_000) as popup_info:
                 locator.click()
             new_page = popup_info.value
+            LOGGER.info("Collecting preview images / HTML for %s", field_key)
             artifact = _save_page_artifact(
                 new_page,
                 context,
@@ -79,12 +83,16 @@ def capture_previews(
             )
             new_page.close()
         except PlaywrightTimeoutError:
+            # Popup did not appear. The click already happened.
+            # Check for inline modal without clicking again.
+            LOGGER.info("Falling back to inline modal capture for %s", field_key)
             artifact = _capture_inline_modal(
                 locator,
                 page,
                 artifact,
                 target_dir,
                 output_base,
+                click_needed=False,
             )
         except Exception as exc:  # pragma: no cover - defensive logging
             LOGGER.warning("Preview click failed for %s: %s", field_key, exc)
@@ -92,6 +100,7 @@ def capture_previews(
 
         captured[field_key] = artifact
 
+    LOGGER.info("Completed preview capture for %d artifacts", len(captured))
     return captured
 
 
@@ -175,6 +184,7 @@ def _download_url(
     output_base: Path,
     prefix: str,
 ) -> PreviewArtifact:
+    LOGGER.info("Downloading artifact: %s", url)
     try:
         response = context.request.get(url, timeout=10_000)
         content_type = response.headers.get("content-type", "")
@@ -198,18 +208,21 @@ def _capture_inline_modal(
     artifact: PreviewArtifact,
     target_dir: Path,
     output_base: Path,
+    click_needed: bool = True,
 ) -> PreviewArtifact:
-    try:
-        locator.click()
-    except Exception as exc:  # pragma: no cover - defensive logging
-        artifact.notes = _merge_notes(artifact.notes, f"Preview click failed: {exc}")
-        return artifact
+    if click_needed:
+        try:
+            locator.click()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            artifact.notes = _merge_notes(artifact.notes, f"Preview click failed: {exc}")
+            return artifact
 
     modal = _wait_for_modal(page)
     if modal is None:
         artifact.notes = _merge_notes(artifact.notes, "No preview modal detected")
         return artifact
 
+    LOGGER.info("Collecting preview images / HTML for %s (inline modal)", artifact.field_key)
     try:
         inner = modal.inner_html()
         html_path = target_dir / "modal_1.html"

@@ -24,6 +24,57 @@ from cg_rera_extractor.listing.models import ListingRecord
 
 LOGGER = logging.getLogger(__name__)
 
+
+def wait_for_page_loaded(session: BrowserSession, timeout: int = 30, main_selector: str | None = None) -> bool:
+    """Wait until the page is fully loaded and log progress."""
+
+    deadline = time.time() + timeout
+    poll_interval = 2
+    page = None
+
+    try:
+        page = session.current_page()  # type: ignore[attr-defined]
+    except Exception as exc:
+        LOGGER.debug("Unable to fetch current page for load checks: %s", exc)
+
+    while time.time() < deadline:
+        try:
+            ready_state_complete = False
+            if page is not None:
+                ready_state = page.evaluate("document.readyState")
+                ready_state_complete = ready_state == "complete"
+
+            selector_ready = False
+            if main_selector:
+                try:
+                    session.wait_for_selector(main_selector, timeout_ms=int(poll_interval * 1000))
+                    selector_ready = True
+                except Exception:
+                    selector_ready = False
+
+            if ready_state_complete or selector_ready:
+                LOGGER.info("Page load complete.")
+                return True
+        except Exception as exc:
+            LOGGER.debug("Page still settling (%s)", exc)
+
+        LOGGER.debug("Page still loading...")
+        time.sleep(poll_interval)
+
+    LOGGER.warning("Page did not fully load within timeout, continuing anyway.")
+    return False
+
+
+def _log_loaded_page_state(session: BrowserSession) -> None:
+    """Log current page URL and title for easier traceability."""
+
+    try:
+        page = session.current_page()  # type: ignore[attr-defined]
+        LOGGER.info("Project details page loaded. URL=%s, title=%s", page.url, page.title())
+    except Exception as exc:
+        LOGGER.debug("Unable to log page state: %s", exc)
+
+
 def fetch_and_save_details(
     session: BrowserSession,
     selectors: SearchPageSelectors,
@@ -44,6 +95,7 @@ def fetch_and_save_details(
             continue
 
         try:
+            project_label = record.project_name or record.reg_no
             uses_js_detail = record.detail_url.startswith("javascript") or "__doPostBack" in record.detail_url
 
             if uses_js_detail:
@@ -58,15 +110,47 @@ def fetch_and_save_details(
                 target_selector = f"{row_locator}:nth-of-type({record.row_index}) {view_locator}"
                 LOGGER.info("[%d/%d] Fetching details for %s (JS click method)", idx, total, record.reg_no)
                 print(f"[{idx}/{total}] Fetching details for {record.reg_no} (JavaScript click)...")
-                
+                LOGGER.info("Clicking project #%d: %s", idx, project_label)
+
                 # Click the link - this triggers an ASP.NET postback
                 session.click(target_selector)
+                LOGGER.debug("Project details page click submitted; waiting for page to load...")
+                wait_for_page_loaded(session, timeout=30)
+                _log_loaded_page_state(session)
                 
-                # After click, wait for the DOM to settle and page content to change
-                # The postback navigation can take significant time on this server
-                LOGGER.debug("Waiting for postback navigation to complete")
-                time.sleep(8)  # Give postback more time to trigger and settle
+                # Dynamic wait for detail page content
+                # We look for a common element on the detail page, e.g. "Project Detail" header or similar
+                # Based on raw_extractor, we expect headings like "Project Detail" or "Promoter Details"
+                # Let's wait for a generic indicator that we are NOT on the search page anymore
+                try:
+                    # Dynamic wait for detail page content
+                    # We poll for characteristic text that appears on the detail page.
+                    # We also handle errors that occur if the page is in the middle of navigation.
+
+                    detail_loaded = False
+                    for _ in range(20): # Wait up to 20 seconds
+                        try:
+                            html = session.get_page_html()
+                            # Check for characteristic detail page text that is NOT on search page
+                            if "Project Detail" in html or "Promoter Detail" in html:
+                                detail_loaded = True
+                                break
+                        except Exception as e:
+                            # If page is navigating, content retrieval might fail. 
+                            # This is expected during the transition.
+                            LOGGER.debug("Ignored error during detail wait check (likely navigating): %s", e)
+                        
+                        time.sleep(1)
+                        
+                    if not detail_loaded:
+                        LOGGER.warning("Timed out waiting for detail page content (Project/Promoter Detail)")
+                        # Proceed anyway, maybe it's a different format or just slow
                 
+                except Exception as e:
+                    LOGGER.warning("Unexpected error while waiting for detail page load: %s", e)
+                    # Fallback to sleep
+                    time.sleep(5)
+
                 # Try to get content with multiple retries
                 max_retries = 5
                 for attempt in range(max_retries):
@@ -84,7 +168,11 @@ def fetch_and_save_details(
             else:
                 LOGGER.info("[%d/%d] Fetching details for %s (direct URL)", idx, total, record.reg_no)
                 print(f"[{idx}/{total}] Fetching details for {record.reg_no} (direct navigation)...")
+                LOGGER.info("Clicking project #%d: %s", idx, project_label)
                 session.goto(urljoin(listing_page_url, record.detail_url))
+                LOGGER.debug("Project details page navigation submitted; waiting for page to load...")
+                wait_for_page_loaded(session, timeout=30)
+                _log_loaded_page_state(session)
                 html = session.get_page_html()
 
             project_key = make_project_key(state_code, record.reg_no)
@@ -93,6 +181,8 @@ def fetch_and_save_details(
             LOGGER.info("Saved detail page for %s to %s", record.reg_no, path)
 
             try:
+                LOGGER.info("Starting data extraction for current project...")
+                LOGGER.info("Collecting basic project fields...")
                 preview_placeholders = build_preview_placeholders(
                     html,
                     source_file=path,
@@ -100,9 +190,11 @@ def fetch_and_save_details(
                     registration_number=record.reg_no,
                     project_name=record.project_name,
                 )
+                LOGGER.info("Locating preview section...")
                 if preview_placeholders and hasattr(session, "current_page"):
                     page = session.current_page()  # type: ignore[attr-defined]
                     context = session.current_context()  # type: ignore[attr-defined]
+                    LOGGER.info("Starting download of artifacts for current project...")
                     captured = capture_previews(
                         page=page,
                         context=context,
@@ -110,10 +202,14 @@ def fetch_and_save_details(
                         output_base=Path(output_base),
                         preview_placeholders=preview_placeholders,
                     )
+                    LOGGER.info("All artifacts downloaded for current project.")
                     if captured:
                         save_preview_metadata(Path(output_base), project_key, captured)
+                LOGGER.info("Finished data extraction for current project.")
+                print(f"[{idx}/{total}] Preview capture completed for {record.reg_no}")
             except Exception as exc:  # pragma: no cover - defensive logging
                 LOGGER.warning("Preview capture failed for %s: %s", record.reg_no, exc)
+                print(f"Warning: Preview capture failed for {record.reg_no}: {exc}")
 
             # Navigate back to the listing page after each detail fetch to keep the
             # search context alive for subsequent listings and search combinations.
@@ -122,16 +218,34 @@ def fetch_and_save_details(
             else:
                 back_description = "(direct navigation)"
 
-            LOGGER.debug("Navigating back to listing page %s", back_description)
+            LOGGER.info("Navigating back to search/list page to pick next project... %s", back_description)
             try:
+                # Handle "Confirm Form Resubmission" dialog which might appear on go_back
+                if hasattr(session, "current_page"):
+                    page = session.current_page()
+                    # Add a listener to accept any dialogs (like form resubmission confirmation)
+                    # Note: This might stack listeners if not careful, but for this script it's acceptable
+                    page.on("dialog", lambda dialog: dialog.accept())
+
                 session.go_back()
-                try:
-                    session.wait_for_selector(table_selector, timeout_ms=10_000)
-                except Exception as e:
-                    LOGGER.warning("Timeout waiting for listing table after go_back: %s", e)
+                wait_for_page_loaded(session, timeout=30, main_selector=table_selector)
+                LOGGER.info("Search/list page loaded again, continuing to next project.")
+
             except Exception as e:
-                # go_back() can fail with ERR_CACHE_MISS or timeout after multiple detail fetches
-                LOGGER.warning("go_back() failed after fetching details: %s. Continuing to next listing.", e)
+                # Handle ERR_CACHE_MISS by reloading, which should trigger the form resubmission dialog
+                if "ERR_CACHE_MISS" in str(e) and hasattr(session, "current_page"):
+                    LOGGER.warning("go_back() failed with ERR_CACHE_MISS. Attempting reload to resubmit form...")
+                    try:
+                        session.current_page().reload()
+                        wait_for_page_loaded(session, timeout=30, main_selector=table_selector)
+                        LOGGER.info("Reloaded page successfully (form resubmitted).")
+                        # Clear the exception so we don't log the warning below
+                        e = None 
+                    except Exception as reload_exc:
+                        LOGGER.error("Reload failed: %s", reload_exc)
+                
+                if e:
+                    LOGGER.warning("go_back() failed after fetching details: %s. Continuing to next listing.", e)
                 # The filter state is lost, but we can continue processing other listings
             LOGGER.debug("Listing page navigation handled")
         
@@ -139,6 +253,32 @@ def fetch_and_save_details(
             # Main catch-all for entire detail fetch iteration
             LOGGER.exception("Failed to fetch details for %s: %s", record.reg_no, exc)
             print(f"Skipping {record.reg_no} - error fetching details: {exc}")
+            
+            if "Target closed" in str(exc) or "Session closed" in str(exc):
+                LOGGER.error("Browser session appears to be closed. Aborting detail fetch.")
+                raise exc
+
+            # Attempt to recover navigation state if we failed in the middle of a detail fetch
+            # We might be stuck on the detail page or an error page.
+            # We need to ensure we are back on the listing page for the next iteration.
+            try:
+                LOGGER.info("Attempting to recover navigation state after error...")
+                # If we are on the detail page (or not on search page), go back
+                # How do we know? We can check for the search table.
+                try:
+                    session.wait_for_selector(table_selector, timeout_ms=2000)
+                    LOGGER.info("Search table found, we are likely on the listing page.")
+                except Exception:
+                    LOGGER.info("Search table not found, attempting go_back()...")
+                    session.go_back()
+                    session.wait_for_selector(table_selector, timeout_ms=10_000)
+                    LOGGER.info("Recovered to listing page.")
+            except Exception as rec_exc:
+                LOGGER.error("Failed to recover navigation state: %s", rec_exc)
+                # If we can't recover, the next iteration will likely fail too.
+                # We might want to break or re-navigate to search url?
+                # For now, just continue and let the next iteration try (or fail).
+
             # Continue processing remaining listings instead of crashing
             continue
         

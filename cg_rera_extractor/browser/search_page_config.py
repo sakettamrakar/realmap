@@ -22,6 +22,7 @@ class SearchPageSelectors:
     project_type: str | None = "#ContentPlaceHolder1_DropDownList2"
     submit_button: str | None = "#ContentPlaceHolder1_Button1"
     results_table: str | None = "#ContentPlaceHolder1_gv_ProjectList"
+    next_page_button: str | None = "#ContentPlaceHolder1_gv_ProjectList_next"
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,7 @@ def _merge_selectors(
         project_type=config_selectors.project_type or defaults.project_type,
         submit_button=config_selectors.submit_button or defaults.submit_button,
         results_table=config_selectors.results_table or defaults.results_table,
+        next_page_button=defaults.next_page_button,  # Not currently configurable via YAML, using default
     )
 
 

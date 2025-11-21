@@ -32,8 +32,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        level=logging.DEBUG,
+        format="%(asctime)s %(levelname)s %(message)s",
     )
 
     config = load_config(args.config)

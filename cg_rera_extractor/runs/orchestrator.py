@@ -110,6 +110,8 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                 "Running search for district=%s status=%s", district, project_status
             )
             try:
+                # Initial search (navigates, filters, solves captcha, waits for table)
+                # This returns the HTML of the first page of results
                 listings_html = _run_search_and_get_listings(
                     session,
                     search_page_config.url,
@@ -119,68 +121,95 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                     filters.project_types,
                     is_first_search=is_first_search,
                 )
-                listings = parse_listing_html(
-                    listings_html,
-                    search_page_config.url,
-                    listing_selector=search_page_config.selectors.listing_table,
-                    row_selector=search_page_config.selectors.row_selector,
-                    view_details_selector=search_page_config.selectors.view_details_link,
-                )
+                
+                page_num = 1
+                while True:
+                    LOGGER.info("Processing page %d for %s/%s", page_num, district, project_status)
+                    
+                    # If this is not the first page, we need to get the current HTML
+                    if page_num > 1:
+                        listings_html = session.get_page_html()
 
-                if len(listings) > MAX_LISTINGS_PER_SEARCH:
-                    LOGGER.warning(
-                        "Parsed %s listings; truncating to %s for safety",
-                        len(listings),
-                        MAX_LISTINGS_PER_SEARCH,
+                    listings = parse_listing_html(
+                        listings_html,
+                        search_page_config.url,
+                        listing_selector=search_page_config.selectors.listing_table,
+                        row_selector=search_page_config.selectors.row_selector,
+                        view_details_selector=search_page_config.selectors.view_details_link,
                     )
-                    status.warnings.append(
-                        f"Truncated listings for {district}/{project_status} to {MAX_LISTINGS_PER_SEARCH}"
-                    )
-                    listings = listings[:MAX_LISTINGS_PER_SEARCH]
 
-                allowed = _remaining_listings(
-                    listings_limit, counts["listings_scraped"]
-                )
-                if allowed is not None:
-                    if allowed <= 0:
+                    if len(listings) > MAX_LISTINGS_PER_SEARCH:
+                        LOGGER.warning(
+                            "Parsed %s listings; truncating to %s for safety",
+                            len(listings),
+                            MAX_LISTINGS_PER_SEARCH,
+                        )
+                        status.warnings.append(
+                            f"Truncated listings for {district}/{project_status} to {MAX_LISTINGS_PER_SEARCH}"
+                        )
+                        listings = listings[:MAX_LISTINGS_PER_SEARCH]
+
+                    allowed = _remaining_listings(
+                        listings_limit, counts["listings_scraped"]
+                    )
+                    
+                    # If we have a limit, apply it
+                    should_stop_after_this_batch = False
+                    if allowed is not None:
+                        if allowed <= 0:
+                            LOGGER.info("Global listing limit reached before processing page %d", page_num)
+                            break
+                        if len(listings) > allowed:
+                            LOGGER.info(
+                                "Global listing cap %s reached; trimming to %s entries",
+                                listings_limit,
+                                allowed,
+                            )
+                            listings = listings[:allowed]
+                            should_stop_after_this_batch = True
+
+                    for record in listings:
+                        record.run_id = run_id
+
+                    LOGGER.info(
+                        "Parsed %d listings for %s / %s (Page %d)", len(listings), district, project_status, page_num
+                    )
+                    print(f"Parsed {len(listings)} listings for {district} / {project_status} (Page {page_num})")
+                    
+                    _save_listings_snapshot(
+                        dirs["listings"], f"{district}_p{page_num}", project_status, listings, listings_html
+                    )
+                    counts["listings_parsed"] += len(listings)
+                    counts["listings_scraped"] += len(listings)
+
+                    if run_config.mode != RunMode.LISTINGS_ONLY and listings:
+                        try:
+                            fetch_and_save_details(
+                                session,
+                                search_page_config.selectors,
+                                listings,
+                                str(dirs["run_dir"]),
+                                search_page_config.url,
+                                run_config.state_code,
+                            )
+                            counts["details_fetched"] += len(listings)
+                        except Exception as exc:
+                            LOGGER.exception("Detail fetching failed for %s/%s page %d: %s", district, project_status, page_num, exc)
+                            print(f"Warning: Detail fetching failed: {exc}")
+                            status.errors.append(f"Detail fetch failed for {district}/{project_status} page {page_num}: {str(exc)}")
+                            # Continue processing even if detail fetch fails
+                    
+                    if should_stop_after_this_batch:
+                        LOGGER.info("Stopping pagination as global limit reached.")
                         break
-                    if len(listings) > allowed:
-                        LOGGER.info(
-                            "Global listing cap %s reached; trimming to %s entries",
-                            listings_limit,
-                            allowed,
-                        )
-                        listings = listings[:allowed]
+                        
+                    # Try to go to next page
+                    if not _go_to_next_page(session, search_page_config.selectors):
+                        LOGGER.info("No more pages or next button disabled.")
+                        break
+                        
+                    page_num += 1
 
-                for record in listings:
-                    record.run_id = run_id
-
-                LOGGER.info(
-                    "Parsed %d listings for %s / %s", len(listings), district, project_status
-                )
-                print(f"Parsed {len(listings)} listings for {district} / {project_status}")
-                _save_listings_snapshot(
-                    dirs["listings"], district, project_status, listings, listings_html
-                )
-                counts["listings_parsed"] += len(listings)
-                counts["listings_scraped"] += len(listings)
-
-                if run_config.mode != RunMode.LISTINGS_ONLY and listings:
-                    try:
-                        fetch_and_save_details(
-                            session,
-                            search_page_config.selectors,
-                            listings,
-                            str(dirs["run_dir"]),
-                            search_page_config.url,
-                            run_config.state_code,
-                        )
-                        counts["details_fetched"] += len(listings)
-                    except Exception as exc:
-                        LOGGER.exception("Detail fetching failed for %s/%s: %s", district, project_status, exc)
-                        print(f"Warning: Detail fetching failed: {exc}")
-                        status.errors.append(f"Detail fetch failed for {district}/{project_status}: {str(exc)}")
-                        # Continue processing even if detail fetch fails
             except Exception as exc:  # pragma: no cover - defensive logging
                 LOGGER.exception("Search failed for %s/%s", district, project_status)
                 print(f"\nError during search for {district}/{project_status}: {exc}")
@@ -395,6 +424,47 @@ def _run_search_and_get_listings(
         print(f"\nError during search: {exc}")
         print("Browser is still open. You can troubleshoot and try again.")
         raise
+
+
+def _go_to_next_page(session: PlaywrightBrowserSession, selectors: SearchPageSelectors) -> bool:
+    """Attempt to navigate to the next page of results.
+    
+    Returns True if navigation was successful, False if no next page exists.
+    """
+    next_btn_selector = selectors.next_page_button
+    if not next_btn_selector:
+        return False
+        
+    try:
+        page = session.current_page()
+        next_btn = page.locator(next_btn_selector)
+        
+        # Check visibility
+        if not next_btn.is_visible():
+            LOGGER.debug("Next button not visible")
+            return False
+            
+        # Check if disabled (DataTables adds 'disabled' class to the button)
+        class_attr = next_btn.get_attribute("class") or ""
+        if "disabled" in class_attr:
+            LOGGER.debug("Next button is disabled (end of results)")
+            return False
+            
+        LOGGER.info("Navigating to next page of results...")
+        print("  Clicking Next page...")
+        next_btn.click()
+        
+        # Wait for table to update. 
+        # Since we don't know if it's client-side or server-side, we wait a bit.
+        # Ideally we would wait for a specific change, but a short sleep is safer than
+        # complex logic that might flake.
+        import time
+        time.sleep(3) 
+        
+        return True
+    except Exception as e:
+        LOGGER.warning("Failed to go to next page: %s", e)
+        return False
 
 
 def _save_listings_snapshot(
