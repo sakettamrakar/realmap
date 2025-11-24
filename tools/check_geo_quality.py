@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -192,7 +192,7 @@ def main() -> int:
     parser.add_argument(
         "--output-json",
         default="runs/geo_qa_report.json",
-        help="Path to write the JSON report (omit to disable writing)",
+        help="Path to write the JSON report (default: runs/geo_qa_report.json). Use --no-write to disable writing.",
     )
     parser.add_argument(
         "--sample-size",
@@ -215,7 +215,7 @@ def main() -> int:
         evaluation = evaluate_projects(session, args.sample_size, INDIA_BOUNDS)
 
     report = {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
         "database": describe_database_target(db_url),
         "bounds": INDIA_BOUNDS,
         **evaluation,
