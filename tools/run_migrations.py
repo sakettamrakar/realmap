@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
-from cg_rera_extractor.db import MIGRATIONS, apply_migrations, get_engine
+from cg_rera_extractor.db import apply_migrations, get_engine
 
 
 def main() -> int:
