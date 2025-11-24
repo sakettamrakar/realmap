@@ -215,7 +215,7 @@ def main() -> int:
         evaluation = evaluate_projects(session, args.sample_size, INDIA_BOUNDS)
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "database": describe_database_target(db_url),
         "bounds": INDIA_BOUNDS,
         **evaluation,
