@@ -6,7 +6,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Iterable
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
 from cg_rera_extractor.amenities.provider import Amenity, AmenityProvider
@@ -141,11 +141,10 @@ class AmenityCache:
             )
             amenity_map[(amenity.provider, place_id)] = amenity
 
-        # Batch query for existing records using IN clause
+        # Batch query for existing records using tuple matching
         keys = list(amenity_map.keys())
         stmt = select(AmenityPOI).where(
-            AmenityPOI.provider.in_([k[0] for k in keys]),
-            AmenityPOI.provider_place_id.in_([k[1] for k in keys]),
+            tuple_(AmenityPOI.provider, AmenityPOI.provider_place_id).in_(keys)
         )
         existing_pois = {
             (poi.provider, poi.provider_place_id): poi
