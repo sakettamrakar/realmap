@@ -7,6 +7,7 @@ from .provider import (
     get_provider_from_config,
 )
 from .cache import AmenityCache
+from .stats import AmenitySliceStats, compute_project_amenity_stats, to_orm_rows
 from .scoring import (
     ScoreComputation,
     ScoreConfig,
@@ -20,6 +21,9 @@ __all__ = [
     "OSMOverpassProvider",
     "get_provider_from_config",
     "AmenityCache",
+    "AmenitySliceStats",
+    "compute_project_amenity_stats",
+    "to_orm_rows",
     "ScoreResult",
     "ScoreConfig",
     "ScoreComputation",

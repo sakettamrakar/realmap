@@ -43,6 +43,7 @@ def _create_amenity_tables(conn: Connection) -> None:
                 formatted_address VARCHAR(1024),
                 source_raw JSONB,
                 last_seen_at TIMESTAMPTZ,
+                search_radius_km NUMERIC(4, 2),
                 created_at TIMESTAMPTZ,
                 updated_at TIMESTAMPTZ,
                 UNIQUE (provider, provider_place_id)
