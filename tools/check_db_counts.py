@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 from sqlalchemy.orm import Session
 
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
@@ -35,6 +35,29 @@ def get_total_counts(session: Session) -> dict[str, int]:
     counts["quarterly_updates"] = session.execute(select(func.count(QuarterlyUpdate.id))).scalar() or 0
     
     return counts
+
+
+def report_geo_columns(engine) -> tuple[list[str], list[str]]:
+    """Report presence of expected GEO columns on the projects table."""
+
+    expected_geo_columns = {
+        "latitude",
+        "longitude",
+        "geocoding_status",
+        "geocoding_source",
+        "geo_source",
+        "geo_precision",
+        "geo_confidence",
+        "geo_normalized_address",
+        "geo_formatted_address",
+    }
+
+    inspector = inspect(engine)
+    existing = {col["name"] for col in inspector.get_columns("projects")}
+
+    present = sorted(expected_geo_columns & existing)
+    missing = sorted(expected_geo_columns - existing)
+    return present, missing
 
 
 def get_project_by_reg(session: Session, state_code: str, reg_number: str) -> Optional[Project]:
@@ -116,8 +139,15 @@ def main() -> int:
         print(f"  Unit Types:        {totals['unit_types']:>10,}")
         print(f"  Documents:         {totals['documents']:>10,}")
         print(f"  Quarterly Updates: {totals['quarterly_updates']:>10,}")
-        
+
         print(f"\n  TOTAL RECORDS:     {sum(totals.values()):>10,}")
+
+        present_geo, missing_geo = report_geo_columns(engine)
+        print("\nGEO Columns (projects table):")
+        print(f"  Present: {', '.join(present_geo) if present_geo else 'none'}")
+        print(
+            f"  Missing: {', '.join(missing_geo) if missing_geo else 'none'}"
+        )
         
         # If project filter requested, show details
         if args.project_reg:
