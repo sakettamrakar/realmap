@@ -7,6 +7,12 @@ from .provider import (
     get_provider_from_config,
 )
 from .cache import AmenityCache
+from .scoring import (
+    ScoreComputation,
+    ScoreConfig,
+    ScoreResult,
+    compute_amenity_scores,
+)
 
 __all__ = [
     "Amenity",
@@ -14,4 +20,8 @@ __all__ = [
     "OSMOverpassProvider",
     "get_provider_from_config",
     "AmenityCache",
+    "ScoreResult",
+    "ScoreConfig",
+    "ScoreComputation",
+    "compute_amenity_scores",
 ]
