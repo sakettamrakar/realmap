@@ -46,6 +46,11 @@ class RateLimiter:
         self._last_request_at = 0.0
 
     def wait(self) -> None:
+        """Block until sufficient time has passed since the last request.
+
+        The timestamp is updated before returning to accurately reflect when
+        the next request is about to be made.
+        """
         if not self.min_interval:
             return
         now = time.monotonic()
@@ -53,6 +58,8 @@ class RateLimiter:
         remaining = self.min_interval - elapsed
         if remaining > 0:
             time.sleep(remaining)
+        # Update timestamp immediately before returning so the caller
+        # makes the request right after this returns.
         self._last_request_at = time.monotonic()
 
 

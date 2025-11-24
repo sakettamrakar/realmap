@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-from operator import attrgetter
+from typing import Any
 
 from cg_rera_extractor.amenities import AmenityCache, get_provider_from_config
 from cg_rera_extractor.amenities.cache import haversine_distance_km
@@ -61,17 +61,18 @@ def main() -> None:
         logger.info("No amenities found for %s within %.2f km", args.amenity_type, args.radius_km)
         return
 
-    for amenity in amenities:
-        distance = haversine_distance_km(args.lat, args.lon, amenity.lat, amenity.lon)
-        setattr(amenity, "_distance_km", distance)
+    amenities_with_distance: list[tuple[float, Any]] = [
+        (haversine_distance_km(args.lat, args.lon, a.lat, a.lon), a)
+        for a in amenities
+    ]
+    amenities_with_distance.sort(key=lambda x: x[0])
 
-    amenities.sort(key=attrgetter("_distance_km"))
     logger.info("Fetched %d amenities via provider '%s'", len(amenities), provider.name)
-    for amenity in amenities[:5]:
+    for distance_km, amenity in amenities_with_distance[:5]:
         logger.info(
             "- %s (%.2f km) [%s]",
             amenity.name or "<unnamed>",
-            getattr(amenity, "_distance_km", 0.0),
+            distance_km,
             amenity.formatted_address or "no address",
         )
 

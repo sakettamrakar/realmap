@@ -14,6 +14,11 @@ from cg_rera_extractor.db import AmenityPOI
 
 logger = logging.getLogger(__name__)
 
+# Approximate kilometers per degree of latitude/longitude.
+# This approximation is most accurate near the equator and becomes less precise
+# at higher latitudes due to the Earth's curvature.
+KM_PER_DEGREE = 111.0
+
 
 def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Return the great-circle distance in kilometers between two coordinates."""
@@ -74,8 +79,12 @@ class AmenityCache:
             if not amenities:
                 return []
 
-            self._upsert(session, amenities)
-            session.commit()
+            try:
+                self._upsert(session, amenities)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
             return amenities
         finally:
             session.close()
@@ -89,11 +98,12 @@ class AmenityCache:
         radius_km: float,
     ) -> list[Amenity]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=self.freshness_days)
-        degree_buffer = radius_km / 111.0
+        degree_buffer = radius_km / KM_PER_DEGREE
 
         stmt = (
             select(AmenityPOI)
             .where(AmenityPOI.amenity_type == amenity_type)
+            .where(AmenityPOI.provider == self.provider.name)
             .where(AmenityPOI.last_seen_at >= cutoff)
             .where(AmenityPOI.lat.between(lat - degree_buffer, lat + degree_buffer))
             .where(AmenityPOI.lon.between(lon - degree_buffer, lon + degree_buffer))
@@ -120,15 +130,31 @@ class AmenityCache:
         return amenities
 
     def _upsert(self, session: Session, amenities: list[Amenity]) -> None:
+        if not amenities:
+            return
+
+        # Build a mapping of (provider, place_id) -> amenity for batch lookup
+        amenity_map: dict[tuple[str, str], Amenity] = {}
         for amenity in amenities:
             place_id = amenity.provider_place_id or (
                 f"{amenity.amenity_type}:{amenity.lat:.6f},{amenity.lon:.6f}"
             )
-            stmt = select(AmenityPOI).where(
-                AmenityPOI.provider == amenity.provider,
-                AmenityPOI.provider_place_id == place_id,
-            )
-            existing = session.scalars(stmt).first()
+            amenity_map[(amenity.provider, place_id)] = amenity
+
+        # Batch query for existing records using IN clause
+        keys = list(amenity_map.keys())
+        stmt = select(AmenityPOI).where(
+            AmenityPOI.provider.in_([k[0] for k in keys]),
+            AmenityPOI.provider_place_id.in_([k[1] for k in keys]),
+        )
+        existing_pois = {
+            (poi.provider, poi.provider_place_id): poi
+            for poi in session.scalars(stmt)
+        }
+
+        # Update existing or insert new records
+        for (provider, place_id), amenity in amenity_map.items():
+            existing = existing_pois.get((provider, place_id))
             if existing:
                 existing.name = amenity.name
                 existing.amenity_type = amenity.amenity_type
@@ -140,7 +166,7 @@ class AmenityCache:
             else:
                 session.add(
                     AmenityPOI(
-                        provider=amenity.provider,
+                        provider=provider,
                         provider_place_id=place_id,
                         amenity_type=amenity.amenity_type,
                         name=amenity.name,
