@@ -107,10 +107,7 @@ class AmenityCache:
             .where(AmenityPOI.amenity_type == amenity_type)
             .where(AmenityPOI.last_seen_at >= cutoff)
             .where(AmenityPOI.provider == self.provider.name)
-            .where(
-                (AmenityPOI.search_radius_km.is_(None))
-                | (AmenityPOI.search_radius_km >= radius_km)
-            )
+            .where(AmenityPOI.search_radius_km >= radius_km)
             .where(AmenityPOI.lat.between(lat - degree_buffer, lat + degree_buffer))
             .where(AmenityPOI.lon.between(lon - degree_buffer, lon + degree_buffer))
         )

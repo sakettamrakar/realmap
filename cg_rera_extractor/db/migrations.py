@@ -58,15 +58,6 @@ def _create_amenity_tables(conn: Connection) -> None:
     conn.execute(
         text(
             """
-            ALTER TABLE amenity_poi
-                ADD COLUMN IF NOT EXISTS search_radius_km NUMERIC(4, 2);
-            """
-        )
-    )
-
-    conn.execute(
-        text(
-            """
             CREATE TABLE IF NOT EXISTS project_amenity_stats (
                 id SERIAL PRIMARY KEY,
                 project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

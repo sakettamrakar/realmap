@@ -117,7 +117,7 @@ def main() -> int:
     skipped = 0
     started_at = time.time()
 
-    for idx, project in enumerate(projects, start=1):
+    for project in projects:
         if not args.recompute and project.id in existing_ids:
             skipped += 1
             continue
@@ -137,12 +137,12 @@ def main() -> int:
         processed += 1
         inserted_rows += len(rows)
 
-        if idx % 25 == 0:
+        if processed and processed % 25 == 0:
             elapsed = time.time() - started_at
             rate = (elapsed / processed * 100) if processed else 0
             logger.info(
                 "Processed %s/%s projects (%.1f s elapsed, %.1f s per 100 projects)",
-                idx,
+                processed,
                 len(projects),
                 elapsed,
                 rate,
