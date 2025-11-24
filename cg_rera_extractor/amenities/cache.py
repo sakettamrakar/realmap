@@ -15,6 +15,9 @@ from cg_rera_extractor.db import AmenityPOI
 logger = logging.getLogger(__name__)
 
 
+KM_PER_DEGREE = 111.0
+
+
 def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Return the great-circle distance in kilometers between two coordinates."""
 
@@ -74,8 +77,12 @@ class AmenityCache:
             if not amenities:
                 return []
 
-            self._upsert(session, amenities)
-            session.commit()
+            try:
+                self._upsert(session, amenities, radius_km)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
             return amenities
         finally:
             session.close()
@@ -89,12 +96,14 @@ class AmenityCache:
         radius_km: float,
     ) -> list[Amenity]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=self.freshness_days)
-        degree_buffer = radius_km / 111.0
+        degree_buffer = radius_km / KM_PER_DEGREE
 
         stmt = (
             select(AmenityPOI)
             .where(AmenityPOI.amenity_type == amenity_type)
             .where(AmenityPOI.last_seen_at >= cutoff)
+            .where(AmenityPOI.provider == self.provider.name)
+            .where(AmenityPOI.search_radius_km >= radius_km)
             .where(AmenityPOI.lat.between(lat - degree_buffer, lat + degree_buffer))
             .where(AmenityPOI.lon.between(lon - degree_buffer, lon + degree_buffer))
         )
@@ -119,16 +128,26 @@ class AmenityCache:
                 )
         return amenities
 
-    def _upsert(self, session: Session, amenities: list[Amenity]) -> None:
+    def _upsert(
+        self, session: Session, amenities: list[Amenity], radius_km: float
+    ) -> None:
+        place_ids: dict[str, Amenity] = {}
         for amenity in amenities:
             place_id = amenity.provider_place_id or (
                 f"{amenity.amenity_type}:{amenity.lat:.6f},{amenity.lon:.6f}"
             )
-            stmt = select(AmenityPOI).where(
-                AmenityPOI.provider == amenity.provider,
-                AmenityPOI.provider_place_id == place_id,
-            )
-            existing = session.scalars(stmt).first()
+            place_ids[place_id] = amenity
+
+        existing_stmt = select(AmenityPOI).where(
+            AmenityPOI.provider == self.provider.name,
+            AmenityPOI.provider_place_id.in_(place_ids.keys()),
+        )
+        existing_by_id = {
+            poi.provider_place_id: poi for poi in session.scalars(existing_stmt)
+        }
+
+        for place_id, amenity in place_ids.items():
+            existing = existing_by_id.get(place_id)
             if existing:
                 existing.name = amenity.name
                 existing.amenity_type = amenity.amenity_type
@@ -136,6 +155,9 @@ class AmenityCache:
                 existing.lon = amenity.lon
                 existing.formatted_address = amenity.formatted_address
                 existing.source_raw = amenity.raw
+                existing.search_radius_km = max(
+                    float(existing.search_radius_km or 0), radius_km
+                )
                 existing.touch_last_seen()
             else:
                 session.add(
@@ -149,6 +171,7 @@ class AmenityCache:
                         formatted_address=amenity.formatted_address,
                         source_raw=amenity.raw,
                         last_seen_at=datetime.now(timezone.utc),
+                        search_radius_km=radius_km,
                     )
                 )
 

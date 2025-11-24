@@ -53,6 +53,10 @@ class RateLimiter:
         remaining = self.min_interval - elapsed
         if remaining > 0:
             time.sleep(remaining)
+
+    def mark_request(self) -> None:
+        """Record the timestamp when a request is about to be made."""
+
         self._last_request_at = time.monotonic()
 
 
@@ -118,6 +122,7 @@ class OSMOverpassProvider:
 
         for attempt in range(1, self.retries + 1):
             self.rate_limiter.wait()
+            self.rate_limiter.mark_request()
             try:
                 response = self.session.post(
                     self.base_url, data={"data": query}, timeout=self.timeout

@@ -52,9 +52,23 @@ def _create_amenity_poi(conn: Connection) -> None:
     )
 
 
+def _add_amenity_search_radius(conn: Connection) -> None:
+    """Add search radius column for amenity cache coverage tracking."""
+
+    conn.execute(
+        text(
+            """
+            ALTER TABLE amenity_poi
+                ADD COLUMN IF NOT EXISTS search_radius_km NUMERIC(6, 2) DEFAULT 0;
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250515_create_amenity_poi", _create_amenity_poi),
+    ("20250520_add_amenity_search_radius", _add_amenity_search_radius),
 ]
 
 

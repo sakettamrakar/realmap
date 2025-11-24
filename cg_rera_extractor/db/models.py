@@ -247,6 +247,9 @@ class AmenityPOI(Base):
     name: Mapped[str | None] = mapped_column(String(255))
     lat: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
     lon: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
+    search_radius_km: Mapped[Numeric] = mapped_column(
+        Numeric(6, 2), nullable=False, default=0
+    )
     formatted_address: Mapped[str | None] = mapped_column(String(512))
     source_raw: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     last_seen_at: Mapped[datetime] = mapped_column(
