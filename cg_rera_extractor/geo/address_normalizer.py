@@ -62,7 +62,7 @@ def _normalize_district(value: str | None) -> str | None:
         return None
 
     lowered = cleaned.lower()
-    for prefix in ("dist.", "dist ", "dist", "district"):
+    for prefix in ("district", "dist.", "dist ", "dist"):
         if lowered.startswith(prefix):
             remainder = cleaned[len(prefix) :].lstrip(" .-")
             return f"District {remainder}" if remainder else "District"
@@ -76,7 +76,7 @@ def _normalize_tehsil(value: str | None) -> str | None:
 
     # Normalize common abbreviation "Tah"/"Tahsil"
     lowered = cleaned.lower()
-    for prefix in ("tahsil", "tahsildar", "tah.", "tah", "tehsil"):
+    for prefix in ("tahsildar", "tahsil", "tehsil", "tah.", "tah"):
         if lowered.startswith(prefix):
             remainder = cleaned[len(prefix) :].lstrip(" .-")
             return f"Tehsil {remainder}" if remainder else "Tehsil"
