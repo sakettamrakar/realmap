@@ -12,9 +12,12 @@ from sqlalchemy.orm import Session
 
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
 from cg_rera_extractor.db import (
+    AmenityPOI,
     Building,
     Project,
+    ProjectAmenityStats,
     ProjectDocument,
+    ProjectScores,
     Promoter,
     QuarterlyUpdate,
     UnitType,
@@ -33,6 +36,13 @@ def get_total_counts(session: Session) -> dict[str, int]:
     counts["unit_types"] = session.execute(select(func.count(UnitType.id))).scalar() or 0
     counts["documents"] = session.execute(select(func.count(ProjectDocument.id))).scalar() or 0
     counts["quarterly_updates"] = session.execute(select(func.count(QuarterlyUpdate.id))).scalar() or 0
+    counts["amenity_poi"] = session.execute(select(func.count(AmenityPOI.id))).scalar() or 0
+    counts["project_amenity_stats"] = session.execute(
+        select(func.count(ProjectAmenityStats.id))
+    ).scalar() or 0
+    counts["project_scores"] = session.execute(
+        select(func.count(ProjectScores.id))
+    ).scalar() or 0
     
     return counts
 
@@ -139,6 +149,9 @@ def main() -> int:
         print(f"  Unit Types:        {totals['unit_types']:>10,}")
         print(f"  Documents:         {totals['documents']:>10,}")
         print(f"  Quarterly Updates: {totals['quarterly_updates']:>10,}")
+        print(f"  Amenity POIs:      {totals['amenity_poi']:>10,}")
+        print(f"  Amenity Stats:     {totals['project_amenity_stats']:>10,}")
+        print(f"  Project Scores:    {totals['project_scores']:>10,}")
 
         print(f"\n  TOTAL RECORDS:     {sum(totals.values()):>10,}")
 

@@ -26,8 +26,82 @@ def _add_geo_columns(conn: Connection) -> None:
     )
 
 
+def _create_amenity_tables(conn: Connection) -> None:
+    """Create amenity and scoring tables if they do not exist."""
+
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS amenity_poi (
+                id SERIAL PRIMARY KEY,
+                provider TEXT NOT NULL,
+                provider_place_id TEXT NOT NULL,
+                amenity_type TEXT NOT NULL,
+                name TEXT,
+                lat NUMERIC(9, 6) NOT NULL,
+                lon NUMERIC(9, 6) NOT NULL,
+                formatted_address TEXT,
+                source_raw JSONB,
+                last_seen_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ,
+                updated_at TIMESTAMPTZ,
+                UNIQUE (provider, provider_place_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_amenity_poi_type_lat_lon
+                ON amenity_poi (amenity_type, lat, lon);
+            """
+        )
+    )
+
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS project_amenity_stats (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                amenity_type TEXT NOT NULL,
+                radius_km NUMERIC(4, 2) NOT NULL,
+                count_within_radius INTEGER,
+                nearest_distance_km NUMERIC(6, 3),
+                provider_snapshot TEXT,
+                last_computed_at TIMESTAMPTZ,
+                UNIQUE (project_id, amenity_type, radius_km)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_amenity_stats_project_id
+                ON project_amenity_stats (project_id);
+            CREATE INDEX IF NOT EXISTS ix_project_amenity_stats_amenity_type
+                ON project_amenity_stats (amenity_type);
+            """
+        )
+    )
+
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS project_scores (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                connectivity_score INTEGER,
+                daily_needs_score INTEGER,
+                social_infra_score INTEGER,
+                overall_score INTEGER,
+                score_version TEXT,
+                last_computed_at TIMESTAMPTZ,
+                UNIQUE (project_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_scores_project_id
+                ON project_scores (project_id);
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
+    ("20250322_create_amenity_tables", _create_amenity_tables),
 ]
 
 
