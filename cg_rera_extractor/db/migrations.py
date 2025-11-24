@@ -43,6 +43,7 @@ def _create_amenity_tables(conn: Connection) -> None:
                 formatted_address VARCHAR(1024),
                 source_raw JSONB,
                 last_seen_at TIMESTAMPTZ,
+                search_radius_km NUMERIC(4, 2),
                 created_at TIMESTAMPTZ,
                 updated_at TIMESTAMPTZ,
                 UNIQUE (provider, provider_place_id)
@@ -50,6 +51,15 @@ def _create_amenity_tables(conn: Connection) -> None:
 
             CREATE INDEX IF NOT EXISTS ix_amenity_poi_type_lat_lon
                 ON amenity_poi (amenity_type, lat, lon);
+            """
+        )
+    )
+
+    conn.execute(
+        text(
+            """
+            ALTER TABLE amenity_poi
+                ADD COLUMN IF NOT EXISTS search_radius_km NUMERIC(4, 2);
             """
         )
     )

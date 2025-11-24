@@ -48,6 +48,8 @@ class AmenityCache:
         self.provider = provider
         self.session_factory = session_factory
         self.freshness_days = freshness_days
+        self.cache_hits = 0
+        self.provider_calls = 0
 
     def fetch_amenities(
         self, lat: float, lon: float, amenity_type: str, radius_km: float
@@ -58,6 +60,7 @@ class AmenityCache:
         try:
             cached = self._get_cached(session, lat, lon, amenity_type, radius_km)
             if cached:
+                self.cache_hits += 1
                 logger.debug(
                     "Cache hit for amenity_type=%s radius=%.2fkm (lat=%.5f, lon=%.5f)",
                     amenity_type,
@@ -73,6 +76,7 @@ class AmenityCache:
                 amenity_type,
                 radius_km,
             )
+            self.provider_calls += 1
             amenities = self.provider.search(lat, lon, amenity_type, radius_km)
             if not amenities:
                 return []
@@ -103,7 +107,10 @@ class AmenityCache:
             .where(AmenityPOI.amenity_type == amenity_type)
             .where(AmenityPOI.last_seen_at >= cutoff)
             .where(AmenityPOI.provider == self.provider.name)
-            .where(AmenityPOI.search_radius_km >= radius_km)
+            .where(
+                (AmenityPOI.search_radius_km.is_(None))
+                | (AmenityPOI.search_radius_km >= radius_km)
+            )
             .where(AmenityPOI.lat.between(lat - degree_buffer, lat + degree_buffer))
             .where(AmenityPOI.lon.between(lon - degree_buffer, lon + degree_buffer))
         )
@@ -170,8 +177,10 @@ class AmenityCache:
                         lon=amenity.lon,
                         formatted_address=amenity.formatted_address,
                         source_raw=amenity.raw,
-                        last_seen_at=datetime.now(timezone.utc),
                         search_radius_km=radius_km,
+                        last_seen_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc),
                     )
                 )
 

@@ -259,8 +259,14 @@ class AmenityPOI(Base):
     formatted_address: Mapped[str | None] = mapped_column(String(1024))
     source_raw: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     last_seen_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+    search_radius_km: Mapped[Numeric | None] = mapped_column(Numeric(4, 2))
     created_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+
+    def touch_last_seen(self) -> None:
+        now = datetime.now(timezone.utc)
+        self.last_seen_at = now
+        self.updated_at = now
 
 
 class ProjectAmenityStats(Base):
