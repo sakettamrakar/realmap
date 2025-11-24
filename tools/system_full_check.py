@@ -119,6 +119,43 @@ def db_check_runner(_: Path) -> StepResult:
         )
 
 
+def geo_qa_runner(_: Path) -> StepResult:
+    """Run geo QA in non-blocking mode and surface the stdout."""
+
+    command = [
+        "python",
+        "tools/check_geo_quality.py",
+        "--sample-size",
+        "3",
+        "--output-json",
+        "runs/system_geo_qa_report.json",
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True)
+        stdout = result.stdout
+        stderr = result.stderr
+        if result.returncode != 0:
+            stdout += (
+                "\n(check_geo_quality exited with "
+                f"{result.returncode}; treating as warning)\n"
+            )
+        return StepResult(
+            name="Geo QA (non-blocking)",
+            command=command,
+            exit_code=0,
+            stdout=stdout,
+            stderr=stderr,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        return StepResult(
+            name="Geo QA (non-blocking)",
+            command=command,
+            exit_code=0,
+            stdout="",
+            stderr=str(exc),
+        )
+
+
 def run_step(step: Step, index: int, total: int, log_path: Path) -> StepResult:
     banner = f"=== STEP {index}/{total}: {step.name} ==="
     print(banner)
@@ -229,6 +266,7 @@ def build_steps(config_path: str) -> list[Step]:
             runner=db_check_runner,
         ),
         geocode_step,
+        Step(name="Geo QA (non-blocking)", runner=geo_qa_runner),
         Step(name="API health check", runner=api_import_check),
     ]
 
