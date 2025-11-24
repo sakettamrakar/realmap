@@ -47,7 +47,7 @@ class ScoreConfig:
     # Component weights for aggregation.
     connectivity_weight_bank: float = 0.3
     connectivity_weight_transit: float = 0.7
-    overall_weights: Mapping[str, float] = None
+    overall_weights: Mapping[str, float] | None = None
 
     def __post_init__(self) -> None:
         # Default mappings mirror the design doc hints.
