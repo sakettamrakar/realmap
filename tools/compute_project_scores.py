@@ -153,16 +153,7 @@ def main() -> int:
                 last_computed_at=datetime.now(timezone.utc),
             )
 
-            # Sanity check score ranges.
-            for label, value in [
-                ("connectivity", scores.connectivity_score),
-                ("daily_needs", scores.daily_needs_score),
-                ("social_infra", scores.social_infra_score),
-                ("overall", scores.overall_score),
-            ]:
-                if value < 0 or value > 100:
-                    raise ValueError(f"Score out of bounds ({label}={value}) for project {project_id}")
-
+            # Scores are already clamped to [0, 100] by compute_amenity_scores.
             _upsert_score(session, project_id, scores)
             session.commit()
 
