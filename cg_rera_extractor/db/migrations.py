@@ -26,40 +26,74 @@ def _add_geo_columns(conn: Connection) -> None:
     )
 
 
-def _create_amenity_poi(conn: Connection) -> None:
-    """Create the amenity_poi cache table."""
+def _create_amenity_tables(conn: Connection) -> None:
+    """Create amenity and scoring tables if they do not exist."""
 
     conn.execute(
         text(
             """
             CREATE TABLE IF NOT EXISTS amenity_poi (
                 id SERIAL PRIMARY KEY,
-                provider TEXT NOT NULL,
-                provider_place_id TEXT NOT NULL,
-                amenity_type TEXT NOT NULL,
-                name TEXT,
+                provider VARCHAR(64) NOT NULL,
+                provider_place_id VARCHAR(255) NOT NULL,
+                amenity_type VARCHAR(64) NOT NULL,
+                name VARCHAR(255),
                 lat NUMERIC(9, 6) NOT NULL,
                 lon NUMERIC(9, 6) NOT NULL,
-                formatted_address TEXT,
+                formatted_address VARCHAR(1024),
                 source_raw JSONB,
-                last_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT uq_amenity_poi_provider_place_id UNIQUE (provider, provider_place_id)
+                last_seen_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ,
+                updated_at TIMESTAMPTZ,
+                UNIQUE (provider, provider_place_id)
             );
+
+            CREATE INDEX IF NOT EXISTS ix_amenity_poi_type_lat_lon
+                ON amenity_poi (amenity_type, lat, lon);
             """
         )
     )
 
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS project_amenity_stats (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                amenity_type VARCHAR(64) NOT NULL,
+                radius_km NUMERIC(4, 2) NOT NULL,
+                count_within_radius INTEGER,
+                nearest_distance_km NUMERIC(6, 3),
+                provider_snapshot VARCHAR(128),
+                last_computed_at TIMESTAMPTZ,
+                UNIQUE (project_id, amenity_type, radius_km)
+            );
 
-def _add_amenity_search_radius(conn: Connection) -> None:
-    """Add search radius column for amenity cache coverage tracking."""
+            CREATE INDEX IF NOT EXISTS ix_project_amenity_stats_project_id
+                ON project_amenity_stats (project_id);
+            CREATE INDEX IF NOT EXISTS ix_project_amenity_stats_amenity_type
+                ON project_amenity_stats (amenity_type);
+            """
+        )
+    )
 
     conn.execute(
         text(
             """
-            ALTER TABLE amenity_poi
-                ADD COLUMN IF NOT EXISTS search_radius_km NUMERIC(6, 2) DEFAULT 0;
+            CREATE TABLE IF NOT EXISTS project_scores (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                connectivity_score INTEGER,
+                daily_needs_score INTEGER,
+                social_infra_score INTEGER,
+                overall_score INTEGER,
+                score_version VARCHAR(32),
+                last_computed_at TIMESTAMPTZ,
+                UNIQUE (project_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_scores_project_id
+                ON project_scores (project_id);
             """
         )
     )
@@ -67,8 +101,7 @@ def _add_amenity_search_radius(conn: Connection) -> None:
 
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
-    ("20250515_create_amenity_poi", _create_amenity_poi),
-    ("20250520_add_amenity_search_radius", _add_amenity_search_radius),
+    ("20250322_create_amenity_tables", _create_amenity_tables),
 ]
 
 

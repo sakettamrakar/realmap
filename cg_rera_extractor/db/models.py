@@ -9,12 +9,12 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     Numeric,
     String,
     UniqueConstraint,
-    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -100,6 +100,12 @@ class Project(Base):
     )
     artifacts: Mapped[list["ProjectArtifact"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
+    )
+    amenity_stats: Mapped[list["ProjectAmenityStats"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    score: Mapped["ProjectScores" | None] = relationship(
+        back_populates="project", cascade="all, delete-orphan", uselist=False
     )
 
 
@@ -231,41 +237,82 @@ class ProjectArtifact(Base):
 
 
 class AmenityPOI(Base):
-    """Cached amenity points of interest fetched from external providers."""
+    """Cached amenity point of interest from a provider."""
 
     __tablename__ = "amenity_poi"
     __table_args__ = (
         UniqueConstraint(
-            "provider", "provider_place_id", name="uq_amenity_poi_provider_place_id"
+            "provider",
+            "provider_place_id",
+            name="uq_amenity_poi_provider_place_id",
         ),
+        Index("ix_amenity_poi_type_lat_lon", "amenity_type", "lat", "lon"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    provider: Mapped[str] = mapped_column(String(32), nullable=False)
-    provider_place_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider_place_id: Mapped[str] = mapped_column(String(255), nullable=False)
     amenity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255))
     lat: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
     lon: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
-    search_radius_km: Mapped[Numeric] = mapped_column(
-        Numeric(6, 2), nullable=False, default=0
-    )
-    formatted_address: Mapped[str | None] = mapped_column(String(512))
+    formatted_address: Mapped[str | None] = mapped_column(String(1024))
     source_raw: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now(), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now(), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    last_seen_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+
+
+class ProjectAmenityStats(Base):
+    """Aggregated amenity statistics per project, amenity type, and radius."""
+
+    __tablename__ = "project_amenity_stats"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "amenity_type",
+            "radius_km",
+            name="uq_project_amenity_slice",
+        ),
+        Index("ix_project_amenity_stats_project_id", "project_id"),
+        Index("ix_project_amenity_stats_amenity_type", "amenity_type"),
     )
 
-    def touch_last_seen(self) -> None:
-        """Refresh the ``last_seen_at`` timestamp to now."""
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    amenity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    radius_km: Mapped[Numeric] = mapped_column(Numeric(4, 2), nullable=False)
+    count_within_radius: Mapped[int | None] = mapped_column(Integer)
+    nearest_distance_km: Mapped[Numeric | None] = mapped_column(Numeric(6, 3))
+    provider_snapshot: Mapped[str | None] = mapped_column(String(128))
+    last_computed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
 
-        self.last_seen_at = datetime.now(timezone.utc)
+    project: Mapped[Project] = relationship(back_populates="amenity_stats")
+
+
+class ProjectScores(Base):
+    """Composite amenity-based scores per project."""
+
+    __tablename__ = "project_scores"
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_project_scores_project_id"),
+        Index("ix_project_scores_project_id", "project_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    connectivity_score: Mapped[int | None] = mapped_column(Integer)
+    daily_needs_score: Mapped[int | None] = mapped_column(Integer)
+    social_infra_score: Mapped[int | None] = mapped_column(Integer)
+    overall_score: Mapped[int | None] = mapped_column(Integer)
+    score_version: Mapped[str | None] = mapped_column(String(32))
+    last_computed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+
+    project: Mapped[Project] = relationship(back_populates="score")
 
 
 __all__ = [
@@ -279,4 +326,6 @@ __all__ = [
     "LandParcel",
     "ProjectArtifact",
     "AmenityPOI",
+    "ProjectAmenityStats",
+    "ProjectScores",
 ]
