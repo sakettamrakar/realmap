@@ -79,6 +79,7 @@ class ProjectSummary(BaseModel):
     district: str | None = None
     tehsil: str | None = None
     village_or_locality: str | None = None
+    normalized_address: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     approved_date: date | None = None

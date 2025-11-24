@@ -36,7 +36,15 @@ python tools/check_db_counts.py --project-reg CG-REG-001 --state-code CG
 
 Tables: `projects`, `promoters`, `buildings`, `unit_types`, `project_documents`, `quarterly_updates` (and related metadata tables used by loaders/tests). Natural key is `state_code + rera_registration_number`.
 
-GEO columns defined in `docs/PHASE4_GEO_DESIGN.md` (precision, confidence, source, and normalized/formatted addresses) are added to the `projects` table via the migration step above.
+### Geocoding columns
+
+- `projects.normalized_address` stores a cleaned, geocoding-ready string built from the best available address components (address line, village/locality, tehsil, district, state, pincode, country). New ingests populate it automatically; existing rows can be backfilled with:
+
+```
+python tools/backfill_normalized_addresses.py --config config.example.yaml --limit 100 --dry-run
+```
+
+Drop `--dry-run` to commit updates once you are satisfied with the output.
 
 ## Troubleshooting
 

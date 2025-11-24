@@ -24,6 +24,7 @@ from cg_rera_extractor.db import (
     get_engine,
     get_session_local,
 )
+from cg_rera_extractor.geo import AddressParts, normalize_address
 from cg_rera_extractor.parsing.schema import V1Project
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,18 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
     project.proposed_end_date = _parse_date(details.expected_completion_date)
     project.extended_end_date = None
     project.raw_data_json = v1_project.model_dump()
+
+    normalized = normalize_address(
+        AddressParts(
+            address_line=project.full_address,
+            village_or_locality=project.village_or_locality,
+            tehsil=project.tehsil,
+            district=project.district,
+            state_code=project.state_code,
+            pincode=project.pincode,
+        )
+    )
+    project.normalized_address = normalized.normalized_address
 
     session.flush()
 
