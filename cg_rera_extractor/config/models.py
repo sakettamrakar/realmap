@@ -81,12 +81,34 @@ class BrowserConfig(BaseModel):
     default_timeout_ms: int = 20_000
 
 
+class GeocoderProvider(str, Enum):
+    """Supported geocoding providers."""
+
+    NOMINATIM = "nominatim"
+    GOOGLE = "google"
+
+
+class GeocoderConfig(BaseModel):
+    """Geocoding provider and caching configuration."""
+
+    provider: GeocoderProvider = GeocoderProvider.NOMINATIM
+    api_key: str | None = None
+    user_agent: str = "realmap-geocoder"
+    base_url: str | None = None
+    rate_limit_per_sec: float = 1.0
+    cache_path: str = "data/geocode_cache.sqlite"
+    request_timeout_sec: float = 10.0
+    retries: int = 3
+    backoff_factor: float = 1.5
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
 
     db: DatabaseConfig
     run: RunConfig
     browser: BrowserConfig
+    geocoder: GeocoderConfig = GeocoderConfig()
     search_page: SearchPageConfig = SearchPageConfig()
 
 
@@ -99,4 +121,6 @@ __all__ = [
     "SearchPageConfig",
     "SearchPageSelectorsConfig",
     "DatabaseConfig",
+    "GeocoderConfig",
+    "GeocoderProvider",
 ]
