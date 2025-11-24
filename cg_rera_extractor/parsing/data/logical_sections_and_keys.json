@@ -18,7 +18,7 @@
         "total_units": ["total units", "total number of units"],
         "total_area_sq_m": ["total area (sq m)", "project area"],
         "launch_date": ["launch date"],
-        "expected_completion_date": ["expected completion", "expected completion date"]
+        "expected_completion_date": ["expected completion", "expected completion date", "proposed end date"]
       }
     },
     {
@@ -29,10 +29,10 @@
       ],
       "keys": {
         "promoter_name": ["promoter name"],
-        "promoter_type": ["promoter type"],
-        "promoter_address": ["promoter address", "address"],
+        "promoter_type": ["promoter type", "application type"],
+        "promoter_address": ["promoter address", "address", "registered address"],
         "promoter_email": ["promoter email", "email"],
-        "promoter_phone": ["promoter phone", "contact number"],
+        "promoter_phone": ["promoter phone", "contact number", "mobile"],
         "promoter_pan": ["promoter pan", "pan"],
         "promoter_cin": ["promoter cin", "cin"]
       }
@@ -93,7 +93,13 @@
       "logical_section": "documents",
       "section_title_variants": [
         "documents",
-        "uploaded documents"
+        "uploaded documents",
+        "segment specific",
+        "land documents",
+        "approval from competent authoroties",
+        "project specific",
+        "miscellaneous",
+        "acts & rules"
       ],
       "keys": {
         "document_name": ["document name"],

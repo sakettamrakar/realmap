@@ -94,10 +94,47 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
     section_data: Dict[str, Dict[str, str]] = {}
     unmapped_sections: Dict[str, Dict[str, str]] = {}
     previews: Dict[str, PreviewArtifact] = {}
+    extracted_documents: List[V1Document] = []
 
     for section in raw.sections:
         normalized_title = _normalize(section.section_title_raw)
         logical_section = _SECTION_LOOKUP.get(normalized_title)
+        
+        if logical_section == "documents":
+            canonical_map = _KEY_LOOKUP.get(logical_section, {})
+            logical_section_data = section_data.setdefault(logical_section, {})
+            
+            for field in section.fields:
+                if not field.label:
+                    continue
+
+                normalized_label = _normalize(field.label)
+                canonical_key = canonical_map.get(normalized_label)
+
+                if canonical_key:
+                    logical_section_data[canonical_key] = field.value or ""
+                else:
+                    # Implicit document: Label is name, Value is URL
+                    extracted_documents.append(
+                        V1Document(
+                            name=field.label,
+                            document_type="Unknown",
+                            url=field.value or field.preview_hint or "NA",
+                            uploaded_on=None,
+                        )
+                    )
+
+                if field.preview_present:
+                    key_for_preview = canonical_key if canonical_key else normalized_label
+                    if key_for_preview not in previews:
+                        previews[key_for_preview] = PreviewArtifact(
+                            field_key=key_for_preview,
+                            artifact_type="unknown",
+                            files=[],
+                            notes=field.preview_hint,
+                        )
+            continue
+
         if not logical_section:
             target = unmapped_sections.setdefault(section.section_title_raw, {})
             for field in section.fields:
@@ -228,7 +265,7 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
             )
         )
 
-    documents = []
+    documents = list(extracted_documents)
     document_section = section_data.get("documents")
     if document_section:
         documents.append(

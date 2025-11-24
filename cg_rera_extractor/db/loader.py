@@ -18,6 +18,9 @@ from cg_rera_extractor.db import (
     Promoter,
     QuarterlyUpdate,
     UnitType,
+    BankAccount,
+    LandParcel,
+    ProjectArtifact,
     get_engine,
     get_session_local,
 )
@@ -36,6 +39,9 @@ class LoadStats:
     unit_types: int = 0
     documents: int = 0
     quarterly_updates: int = 0
+    bank_accounts: int = 0
+    land_parcels: int = 0
+    artifacts: int = 0
     runs_processed: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, int | list[str]]:
@@ -46,6 +52,9 @@ class LoadStats:
             "unit_types": self.unit_types,
             "documents": self.documents,
             "quarterly_updates": self.quarterly_updates,
+            "bank_accounts": self.bank_accounts,
+            "land_parcels": self.land_parcels,
+            "artifacts": self.artifacts,
             "runs_processed": list(self.runs_processed),
         }
 
@@ -120,10 +129,14 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
         (UnitType, v1_project.unit_types),
         (ProjectDocument, v1_project.documents),
         (QuarterlyUpdate, v1_project.quarterly_updates),
+        (BankAccount, v1_project.bank_details),
+        (LandParcel, []),  # Land details not directly in V1Project top-level yet
+        (ProjectArtifact, []),  # Artifacts handled via previews
     ]
     for model, _ in child_tables:
         session.execute(delete(model).where(model.project_id == project.id))
 
+    # --- Promoters ---
     for promoter in v1_project.promoter_details:
         session.add(
             Promoter(
@@ -138,6 +151,9 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
         )
         stats.promoters += 1
 
+
+
+    # --- Buildings ---
     for building in v1_project.building_details:
         session.add(
             Building(
@@ -151,6 +167,9 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
         )
         stats.buildings += 1
 
+
+
+    # --- Unit Types ---
     for unit_type in v1_project.unit_types:
         session.add(
             UnitType(
@@ -164,6 +183,9 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
         )
         stats.unit_types += 1
 
+
+
+    # --- Documents (Legacy) ---
     for doc in v1_project.documents:
         session.add(
             ProjectDocument(
@@ -175,6 +197,9 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
         )
         stats.documents += 1
 
+
+
+    # --- Quarterly Updates ---
     for update in v1_project.quarterly_updates:
         quarter_label = " ".join(part for part in [update.quarter, update.year] if part)
         session.add(
@@ -188,6 +213,47 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
             )
         )
         stats.quarterly_updates += 1
+
+    # --- Bank Accounts ---
+    for bank in v1_project.bank_details:
+        session.add(
+            BankAccount(
+                project_id=project.id,
+                bank_name=bank.bank_name,
+                branch_name=bank.branch_name,
+                account_number=bank.account_number,
+                ifsc_code=bank.ifsc_code,
+                account_holder_name=None,  # Not in V1Project.bank_details
+            )
+        )
+        stats.bank_accounts += 1
+
+    # --- Artifacts (from Previews) ---
+    # V1Project doesn't strongly type 'previews' yet, it's in raw_data or a dict
+    # We'll try to access it if it exists on the model or raw dict
+    previews = getattr(v1_project, "previews", {})
+    if not previews and v1_project.raw_data_json:
+        previews = v1_project.raw_data_json.get("previews", {})
+
+    if isinstance(previews, dict):
+        for field_key, preview_data in previews.items():
+            # preview_data might be a dict with 'notes', 'files', etc.
+            if isinstance(preview_data, dict):
+                notes = preview_data.get("notes")
+                # If notes looks like a file path, use it
+                file_path = notes if notes and isinstance(notes, str) else None
+                
+                session.add(
+                    ProjectArtifact(
+                        project_id=project.id,
+                        category="unknown",
+                        artifact_type=field_key,
+                        file_path=file_path,
+                        source_url=None,
+                        is_preview=True,
+                    )
+                )
+                stats.artifacts += 1
 
     stats.projects_upserted += 1
     return stats
@@ -215,6 +281,8 @@ def load_run_into_db(run_dir: str, session: Session | None = None) -> dict:
                 stats.unit_types += project_stats.unit_types
                 stats.documents += project_stats.documents
                 stats.quarterly_updates += project_stats.quarterly_updates
+                stats.bank_accounts += project_stats.bank_accounts
+                stats.artifacts += project_stats.artifacts
             except Exception as exc:
                 logger.error(f"Failed to load {path.name}: {exc}")
                 raise
@@ -249,6 +317,8 @@ def load_all_runs(base_runs_dir: str, session: Session | None = None) -> dict:
                 stats.unit_types += int(run_stats.get("unit_types", 0))
                 stats.documents += int(run_stats.get("documents", 0))
                 stats.quarterly_updates += int(run_stats.get("quarterly_updates", 0))
+                stats.bank_accounts += int(run_stats.get("bank_accounts", 0))
+                stats.artifacts += int(run_stats.get("artifacts", 0))
                 stats.runs_processed.append(run_path.name)
             except Exception as exc:
                 logger.error(f"Failed to load run {run_path.name}: {exc}")
