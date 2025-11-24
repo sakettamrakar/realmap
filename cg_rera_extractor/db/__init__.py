@@ -7,6 +7,7 @@ from .models import (
     BankAccount,
     Building,
     LandParcel,
+    AmenityPOI,
     Project,
     ProjectAmenityStats,
     ProjectArtifact,

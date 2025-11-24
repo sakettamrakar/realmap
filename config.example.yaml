@@ -24,6 +24,13 @@ geocoder:
   rate_limit_per_sec: 1
   cache_path: ./data/geocode_cache.sqlite
   # api_key: ""  # Only needed for google provider
+amenities:
+  provider: osm
+  rate_limit_per_minute: 30
+  # api_key: ""  # Only needed for commercial providers such as Google Places
+  # request_timeout_sec: 15
+  # retries: 3
+  # backoff_factor: 1.5
 search_page:
   url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override when the portal moves
   # selectors:  # Optional overrides; defaults match the current CG RERA site
