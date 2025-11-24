@@ -1,10 +1,21 @@
 """SQLAlchemy ORM models for CG RERA projects."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -219,6 +230,44 @@ class ProjectArtifact(Base):
     project: Mapped[Project] = relationship(back_populates="artifacts")
 
 
+class AmenityPOI(Base):
+    """Cached amenity points of interest fetched from external providers."""
+
+    __tablename__ = "amenity_poi"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "provider_place_id", name="uq_amenity_poi_provider_place_id"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_place_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    amenity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str | None] = mapped_column(String(255))
+    lat: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
+    lon: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
+    search_radius_km: Mapped[Numeric] = mapped_column(
+        Numeric(6, 2), nullable=False, default=0
+    )
+    formatted_address: Mapped[str | None] = mapped_column(String(512))
+    source_raw: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    def touch_last_seen(self) -> None:
+        """Refresh the ``last_seen_at`` timestamp to now."""
+
+        self.last_seen_at = datetime.now(timezone.utc)
+
+
 __all__ = [
     "Project",
     "Promoter",
@@ -229,4 +278,5 @@ __all__ = [
     "BankAccount",
     "LandParcel",
     "ProjectArtifact",
+    "AmenityPOI",
 ]
