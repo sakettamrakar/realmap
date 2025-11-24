@@ -8,6 +8,12 @@ from .provider import (
 )
 from .cache import AmenityCache
 from .stats import AmenitySliceStats, compute_project_amenity_stats, to_orm_rows
+from .scoring import (
+    ScoreComputation,
+    ScoreConfig,
+    ScoreResult,
+    compute_amenity_scores,
+)
 
 __all__ = [
     "Amenity",
@@ -18,4 +24,8 @@ __all__ = [
     "AmenitySliceStats",
     "compute_project_amenity_stats",
     "to_orm_rows",
+    "ScoreResult",
+    "ScoreConfig",
+    "ScoreComputation",
+    "compute_amenity_scores",
 ]
