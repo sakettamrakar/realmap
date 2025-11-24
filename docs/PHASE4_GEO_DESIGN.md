@@ -16,8 +16,8 @@
 | `latitude` | `Numeric(9,6)` (existing) | Store the resolved latitude as decimal degrees.
 | `longitude` | `Numeric(9,6)` (existing) | Store the resolved longitude as decimal degrees.
 | `geo_precision` | `String(32)` (new) | Categorical resolution of the coordinates: `exact` (rooftop/parcel), `street`, `locality`, `district`, `state`, `fallback` (only state inferred), `unknown`. Drives map zoom and distance confidence.
-| `geo_source` | `String(64)` (existing `geocoding_source`, rename or reuse) | Source of coordinates: `google`, `osm`, `mapbox`, `manual`, `imported`. If reusing `geocoding_source`, expand allowed values to this set.
-| `geo_status` | `String(64)` (reuse `geocoding_status` or add) | Workflow status: `pending`, `geocoded`, `failed`, `needs_review`. Track retries and QA.
+| `geo_source` | `String(64)` (rename and reuse existing `geocoding_source`) | Source of coordinates: `google`, `osm`, `mapbox`, `manual`, `imported`. Rename existing `geocoding_source` column to `geo_source` and expand allowed values to this set.
+| `geo_status` | `String(64)` (rename and reuse existing `geocoding_status`) | Workflow status: `pending`, `geocoded`, `failed`, `needs_review`. Track retries and QA.
 | `normalized_address` | `Text` (new) | String sent to the geocoder, assembled from structured fields with consistent ordering and separators; stored for reproducibility and debugging.
 | `formatted_address` | `Text` (new, optional) | The cleaned, provider-returned address (e.g., Google formatted address) to display and audit.
 | `geo_bbox` | `JSON` (optional/future) | Bounding box returned by provider when precision is coarse; useful for filters at district/locality level.
@@ -38,8 +38,9 @@
   - `locality`: Only city/locality matched (e.g., district/tehsil centroid).
   - `district`: District-level centroid only.
   - `state`: State centroid fallback.
-  - `fallback/unknown`: No reliable match; lat/lon null.
-- **geo_source values**: `google`, `osm`, `mapbox`, `manual`, `imported` (if supplied in source data). Align with `geocoding_source` column or migrate it to `geo_source` for clarity.
+  - `fallback`: Only state-level centroid could be assigned (best-effort fallback).
+  - `unknown`: No reliable match; lat/lon null.
+- **geo_source values**: `google`, `osm`, `mapbox`, `manual`, `imported` (if supplied in source data). This replaces the existing `geocoding_source` column via rename.
 - **geo_status lifecycle**: `pending` → `geocoded` (lat/lon present) or `failed` (no match) → optional `needs_review` after QA.
 
 ## JSON vs DB placement
@@ -50,4 +51,4 @@
 - Pincode availability is uncertain; we may need to parse it from free-text addresses or future HTML fields.
 - `village_or_locality` is unused in current JSON; confirming whether the site exposes a separate locality field would improve normalized addresses.
 - Provider choice (Google vs OSM/Mapbox) will drive rate limits and accuracy; selection to be finalized with Ops.
-- If we keep both `geocoding_source` and `geo_source`, we should document which one is authoritative or plan a migration to avoid duplication.
+- Column renames (`geocoding_source` → `geo_source`, `geocoding_status` → `geo_status`) should be applied via migration to maintain consistency.
