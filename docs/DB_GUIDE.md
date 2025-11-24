@@ -9,7 +9,12 @@ Tools for initializing, loading, and verifying the CG RERA database. Postgres is
 python tools/init_db.py
 ```
 
-2) Load run outputs (V1 JSON from `scraped_json/`):
+2) Apply non-destructive migrations (idempotent; safe to re-run):
+```
+python tools/run_migrations.py
+```
+
+3) Load run outputs (V1 JSON from `scraped_json/`):
 ```
 # Latest run under default outputs/runs
 python tools/load_runs_to_db.py --latest
@@ -19,7 +24,7 @@ python tools/load_runs_to_db.py --run-id run_20251117_123456
 python tools/load_runs_to_db.py --runs-dir ./outputs/demo-run/runs --latest
 ```
 
-3) Verify counts or inspect a project:
+4) Verify counts or inspect a project (also reports GEO schema presence):
 ```
 python tools/check_db_counts.py
 python tools/check_db_counts.py --project-reg CG-REG-001 --state-code CG
@@ -30,6 +35,16 @@ python tools/check_db_counts.py --project-reg CG-REG-001 --state-code CG
 ## Schema overview
 
 Tables: `projects`, `promoters`, `buildings`, `unit_types`, `project_documents`, `quarterly_updates` (and related metadata tables used by loaders/tests). Natural key is `state_code + rera_registration_number`.
+
+### Geocoding columns
+
+- `projects.normalized_address` stores a cleaned, geocoding-ready string built from the best available address components (address line, village/locality, tehsil, district, state, pincode, country). New ingests populate it automatically; existing rows can be backfilled with:
+
+```
+python tools/backfill_normalized_addresses.py --config config.example.yaml --limit 100 --dry-run
+```
+
+Drop `--dry-run` to commit updates once you are satisfied with the output.
 
 ## Troubleshooting
 

@@ -31,13 +31,33 @@ class Project(Base):
     full_address: Mapped[str | None] = mapped_column(String(512))
     normalized_address: Mapped[str | None] = mapped_column(String(512))
     pincode: Mapped[str | None] = mapped_column(String(20))
-    latitude: Mapped[Numeric | None] = mapped_column(Numeric(9, 6))
-    longitude: Mapped[Numeric | None] = mapped_column(Numeric(9, 6))
-    formatted_address: Mapped[str | None] = mapped_column(String(512))
-    geo_precision: Mapped[str | None] = mapped_column(String(64))
-    geo_source: Mapped[str | None] = mapped_column(String(64))
-    geocoding_status: Mapped[str | None] = mapped_column(String(64))
-    geocoding_source: Mapped[str | None] = mapped_column(String(64))
+    latitude: Mapped[Numeric | None] = mapped_column(
+        Numeric(9, 6), doc="Latitude in decimal degrees"
+    )
+    longitude: Mapped[Numeric | None] = mapped_column(
+        Numeric(9, 6), doc="Longitude in decimal degrees"
+    )
+    geocoding_status: Mapped[str | None] = mapped_column(
+        String(64), doc="Lifecycle flag for geocoding runs"
+    )
+    geocoding_source: Mapped[str | None] = mapped_column(
+        String(64), doc="Legacy source label for geocoding"
+    )
+    geo_source: Mapped[str | None] = mapped_column(
+        String(128), doc="Canonical source/provider for GEO data"
+    )
+    geo_precision: Mapped[str | None] = mapped_column(
+        String(32), doc="Precision level such as ROOFTOP/LOCALITY/CITY_CENTROID"
+    )
+    geo_confidence: Mapped[Numeric | None] = mapped_column(
+        Numeric(4, 3), doc="Optional confidence score from the geocoder"
+    )
+    geo_normalized_address: Mapped[str | None] = mapped_column(
+        String(512), doc="Normalized address string used for geocoding"
+    )
+    geo_formatted_address: Mapped[str | None] = mapped_column(
+        String(512), doc="Formatted address returned by the geocoder"
+    )
     approved_date: Mapped[date | None] = mapped_column(Date())
     proposed_end_date: Mapped[date | None] = mapped_column(Date())
     extended_end_date: Mapped[date | None] = mapped_column(Date())
