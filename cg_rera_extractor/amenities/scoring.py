@@ -43,7 +43,7 @@ class ScoreConfig:
     # Target radii (km) for each amenity slice per dimension.
     daily_needs_amenities: Mapping[str, float] = None
     social_infra_amenities: Mapping[str, float] = None
-    transit_radii_km: Sequence[float] = None
+    transit_radii_km: Sequence[float] | None = None
     # Component weights for aggregation.
     connectivity_weight_bank: float = 0.3
     connectivity_weight_transit: float = 0.7
