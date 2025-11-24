@@ -43,7 +43,7 @@ python tools/compute_project_scores.py \
 **Options:**
 - `--limit N` – process only the first `N` projects with amenity stats.
 - `--project-id` – restrict to a single project ID.
-- `--project-reg` – restrict to a specific registration number (state prefix optional upstream).
+- `--project-reg` – restrict to a specific registration number (state prefix is optional; if provided, it will be stripped automatically).
 - `--recompute` – overwrite existing rows in `project_scores`.
 - `--log-level` – verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
 
