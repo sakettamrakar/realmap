@@ -3,12 +3,12 @@
 from .base import Base, get_engine, get_session_local
 from .migrations import MIGRATIONS, apply_migrations
 from .models import (
+    AmenityPOI,
     BankAccount,
     Building,
-    AmenityPOI,
     LandParcel,
-    ProjectAmenityStats,
     Project,
+    ProjectAmenityStats,
     ProjectArtifact,
     ProjectDocument,
     ProjectScores,

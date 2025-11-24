@@ -34,13 +34,13 @@ def _create_amenity_tables(conn: Connection) -> None:
             """
             CREATE TABLE IF NOT EXISTS amenity_poi (
                 id SERIAL PRIMARY KEY,
-                provider TEXT NOT NULL,
-                provider_place_id TEXT NOT NULL,
-                amenity_type TEXT NOT NULL,
-                name TEXT,
+                provider VARCHAR(64) NOT NULL,
+                provider_place_id VARCHAR(255) NOT NULL,
+                amenity_type VARCHAR(64) NOT NULL,
+                name VARCHAR(255),
                 lat NUMERIC(9, 6) NOT NULL,
                 lon NUMERIC(9, 6) NOT NULL,
-                formatted_address TEXT,
+                formatted_address VARCHAR(1024),
                 source_raw JSONB,
                 last_seen_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ,
@@ -60,11 +60,11 @@ def _create_amenity_tables(conn: Connection) -> None:
             CREATE TABLE IF NOT EXISTS project_amenity_stats (
                 id SERIAL PRIMARY KEY,
                 project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-                amenity_type TEXT NOT NULL,
+                amenity_type VARCHAR(64) NOT NULL,
                 radius_km NUMERIC(4, 2) NOT NULL,
                 count_within_radius INTEGER,
                 nearest_distance_km NUMERIC(6, 3),
-                provider_snapshot TEXT,
+                provider_snapshot VARCHAR(128),
                 last_computed_at TIMESTAMPTZ,
                 UNIQUE (project_id, amenity_type, radius_km)
             );
@@ -87,7 +87,7 @@ def _create_amenity_tables(conn: Connection) -> None:
                 daily_needs_score INTEGER,
                 social_infra_score INTEGER,
                 overall_score INTEGER,
-                score_version TEXT,
+                score_version VARCHAR(32),
                 last_computed_at TIMESTAMPTZ,
                 UNIQUE (project_id)
             );
