@@ -60,5 +60,5 @@ def test_tahsildar_prefix_ordering() -> None:
 
     result = normalize_address(parts)
 
-    # Should correctly extract "Raipur", not "sildar Raipur"
+    # Should correctly extract "Raipur", not "dar Raipur"
     assert result.normalized_address == "Tehsil Raipur, Chhattisgarh, India"
