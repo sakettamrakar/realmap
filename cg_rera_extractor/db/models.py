@@ -29,6 +29,7 @@ class Project(Base):
     tehsil: Mapped[str | None] = mapped_column(String(128))
     village_or_locality: Mapped[str | None] = mapped_column(String(255))
     full_address: Mapped[str | None] = mapped_column(String(512))
+    normalized_address: Mapped[str | None] = mapped_column(String(512))
     pincode: Mapped[str | None] = mapped_column(String(20))
     latitude: Mapped[Numeric | None] = mapped_column(Numeric(9, 6))
     longitude: Mapped[Numeric | None] = mapped_column(Numeric(9, 6))
