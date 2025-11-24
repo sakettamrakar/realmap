@@ -48,7 +48,7 @@ python tools/compute_project_scores.py \
 - `--log-level` – verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
 
 ### Validation & logging
-- The job clamps all scores to 0–100 and raises if any component is outside the range.
+- All scores are clamped to 0–100, with an additional validation check that raises if any component is unexpectedly outside the range.
 - Missing amenity slices are tallied and surfaced in logs for QA.
 - A small sample of projects is logged with key inputs and resulting scores for sanity checks.
 
