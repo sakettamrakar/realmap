@@ -72,11 +72,6 @@ def main() -> int:
         counts = {"processed": 0, "success": 0, "failed": 0}
         for project in projects:
             counts["processed"] += 1
-            if not project.normalized_address:
-                logging.warning("Skipping project %s with no normalized address", project.id)
-                counts["failed"] += 1
-                continue
-
             result = geocoding_client.geocode(project.normalized_address)
             if not result:
                 logging.warning("Geocoding failed for project %s", project.id)
@@ -89,7 +84,6 @@ def main() -> int:
             project.formatted_address = result.formatted_address
             project.geo_precision = result.geo_precision
             project.geo_source = result.geo_source
-            project.geocoding_source = result.geo_source
             project.geocoding_status = GeocodingStatus.SUCCESS
             counts["success"] += 1
 

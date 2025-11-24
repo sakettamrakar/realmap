@@ -33,8 +33,8 @@ class RateLimiter:
     """Simple rate limiter using sleep-based throttling."""
 
     def __init__(self, requests_per_second: float):
+        self.min_interval = 1.0 / requests_per_second if requests_per_second > 0 else 0
         self.requests_per_second = max(requests_per_second, 0)
-        self.min_interval = 1.0 / self.requests_per_second if self.requests_per_second else 0
         self._last_request_at = 0.0
 
     def wait(self) -> None:
@@ -330,6 +330,14 @@ class GeocodingClient:
         self.cache = cache
 
     def geocode(self, normalized_address: str) -> GeocodeResult | None:
+        """
+        Geocode an address, using cache if available.
+        
+        Note: This method is not thread-safe. In a multi-threaded environment,
+        there's a potential race condition between checking the cache and storing
+        the result, which could lead to duplicate API calls. This is acceptable
+        for the current single-threaded use case.
+        """
         cached = self.cache.fetch(normalized_address)
         if cached:
             return cached
@@ -345,8 +353,7 @@ def build_geocoding_client(
 ) -> GeocodingClient:
     """Create a :class:`GeocodingClient` using the provided configuration."""
 
-    configured_provider = config.provider.value if isinstance(config.provider, GeocoderProvider) else str(config.provider)
-    provider_name = (provider_override or configured_provider).lower()
+    provider_name = (provider_override or config.provider.value).lower()
     rate_limiter = RateLimiter(config.rate_limit_per_sec)
 
     if provider_name == GeocoderProvider.GOOGLE.value:
