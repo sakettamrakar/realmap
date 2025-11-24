@@ -194,7 +194,7 @@ def _connectivity_score(
     avg_transit = mean(transit_scores) if transit_scores else 0
 
     bank_stat = _resolve_stat(stat_index.get("bank_atm"), None)
-    bank_distance = float(bank_stat.nearest_distance_km) if bank_stat else None
+    bank_distance = float(bank_stat.nearest_distance_km) if (bank_stat and bank_stat.nearest_distance_km is not None) else None
     if bank_stat is None:
         missing.add("bank_atm")
     inputs["bank_atm_nearest_km"] = bank_distance
