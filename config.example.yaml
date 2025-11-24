@@ -19,6 +19,11 @@ browser:
   driver: playwright
   headless: false  # Set to false for easier manual CAPTCHA solving
   slow_mo_ms: 250
+geocoder:
+  provider: nominatim
+  rate_limit_per_sec: 1
+  cache_path: ./data/geocode_cache.sqlite
+  # api_key: ""  # Only needed for google provider
 search_page:
   url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"  # Override when the portal moves
   # selectors:  # Optional overrides; defaults match the current CG RERA site
