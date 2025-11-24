@@ -55,7 +55,7 @@ Behavior:
 - Selects projects where `normalized_address` is present and any of `latitude`, `longitude`, or `geo_source` is missing.
 - Uses the configured geocoder (with caching) to resolve coordinates.
 - On success, updates `lat`, `lon`, `formatted_address`, `geo_precision`,
-  `geo_source`, and `geocoding_status` (plus legacy `geocoding_source`).
+  `geo_source`, and `geocoding_status`.
 - Logs failures and continues, applying retries and exponential backoff on
   transient HTTP errors.
 

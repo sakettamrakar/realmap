@@ -34,7 +34,6 @@ class RateLimiter:
 
     def __init__(self, requests_per_second: float):
         self.min_interval = 1.0 / requests_per_second if requests_per_second > 0 else 0
-        self.requests_per_second = max(requests_per_second, 0)
         self._last_request_at = 0.0
 
     def wait(self) -> None:
