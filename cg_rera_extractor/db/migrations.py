@@ -26,8 +26,35 @@ def _add_geo_columns(conn: Connection) -> None:
     )
 
 
+def _create_amenity_poi(conn: Connection) -> None:
+    """Create the amenity_poi cache table."""
+
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS amenity_poi (
+                id SERIAL PRIMARY KEY,
+                provider TEXT NOT NULL,
+                provider_place_id TEXT NOT NULL,
+                amenity_type TEXT NOT NULL,
+                name TEXT,
+                lat NUMERIC(9, 6) NOT NULL,
+                lon NUMERIC(9, 6) NOT NULL,
+                formatted_address TEXT,
+                source_raw JSONB,
+                last_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uq_amenity_poi_provider_place_id UNIQUE (provider, provider_place_id)
+            );
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
+    ("20250515_create_amenity_poi", _create_amenity_poi),
 ]
 
 

@@ -102,6 +102,38 @@ class GeocoderConfig(BaseModel):
     backoff_factor: float = 1.5
 
 
+class AmenityProvider(str, Enum):
+    """Supported amenity providers."""
+
+    OSM = "osm"
+    GOOGLE = "google"
+
+
+class AmenitiesConfig(BaseModel):
+    """Amenity provider configuration and defaults."""
+
+    provider: AmenityProvider = AmenityProvider.OSM
+    api_key: str | None = None
+    rate_limit_per_minute: float = 30.0
+    search_radii_km: dict[str, list[float]] = {
+        "school": [1.0, 3.0, 5.0],
+        "college_university": [3.0, 5.0, 8.0],
+        "hospital": [1.0, 3.0, 5.0],
+        "clinic": [1.0, 3.0],
+        "pharmacy": [0.5, 1.0, 2.0],
+        "supermarket": [1.0, 3.0],
+        "grocery_convenience": [0.5, 1.0, 2.0],
+        "mall": [3.0, 5.0, 8.0],
+        "bank_atm": [0.5, 1.0, 2.0],
+        "restaurant_cafe": [1.0, 3.0, 5.0],
+        "park_playground": [1.0, 3.0, 5.0],
+        "transit_stop": [1.0, 3.0, 5.0, 10.0],
+    }
+    request_timeout_sec: float = 15.0
+    retries: int = 3
+    backoff_factor: float = 1.5
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
 
@@ -109,6 +141,7 @@ class AppConfig(BaseModel):
     run: RunConfig
     browser: BrowserConfig
     geocoder: GeocoderConfig = GeocoderConfig()
+    amenities: AmenitiesConfig = AmenitiesConfig()
     search_page: SearchPageConfig = SearchPageConfig()
 
 
@@ -123,4 +156,6 @@ __all__ = [
     "DatabaseConfig",
     "GeocoderConfig",
     "GeocoderProvider",
+    "AmenitiesConfig",
+    "AmenityProvider",
 ]
