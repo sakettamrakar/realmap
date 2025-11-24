@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import Date, ForeignKey, Integer, JSON, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -38,6 +38,9 @@ class Project(Base):
     proposed_end_date: Mapped[date | None] = mapped_column(Date())
     extended_end_date: Mapped[date | None] = mapped_column(Date())
     raw_data_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    scraped_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+    data_quality_score: Mapped[int | None] = mapped_column(Integer)
+    last_parsed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
 
     promoters: Mapped[list["Promoter"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -52,6 +55,15 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan"
     )
     quarterly_updates: Mapped[list["QuarterlyUpdate"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    bank_accounts: Mapped[list["BankAccount"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    land_parcels: Mapped[list["LandParcel"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    artifacts: Mapped[list["ProjectArtifact"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
 
@@ -135,6 +147,54 @@ class QuarterlyUpdate(Base):
     project: Mapped[Project] = relationship(back_populates="quarterly_updates")
 
 
+class BankAccount(Base):
+    """RERA designated bank account for the project."""
+
+    __tablename__ = "bank_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    bank_name: Mapped[str | None] = mapped_column(String(255))
+    branch_name: Mapped[str | None] = mapped_column(String(255))
+    account_number: Mapped[str | None] = mapped_column(String(100))
+    ifsc_code: Mapped[str | None] = mapped_column(String(20))
+    account_holder_name: Mapped[str | None] = mapped_column(String(255))
+
+    project: Mapped[Project] = relationship(back_populates="bank_accounts")
+
+
+class LandParcel(Base):
+    """Details about the land parcel."""
+
+    __tablename__ = "land_parcels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    survey_number: Mapped[str | None] = mapped_column(String(255))
+    area_sqmt: Mapped[Numeric | None] = mapped_column(Numeric(12, 2))
+    owner_name: Mapped[str | None] = mapped_column(String(255))
+    encumbrance_details: Mapped[str | None] = mapped_column(String(1024))
+
+    project: Mapped[Project] = relationship(back_populates="land_parcels")
+
+
+class ProjectArtifact(Base):
+    """Any file associated with the project (Documents, Images, Plans)."""
+
+    __tablename__ = "project_artifacts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(50))  # legal, technical, etc.
+    artifact_type: Mapped[str | None] = mapped_column(String(100))  # reg_cert, building_plan
+    file_path: Mapped[str | None] = mapped_column(String(1024))  # Relative path
+    source_url: Mapped[str | None] = mapped_column(String(1024))  # Original URL
+    file_format: Mapped[str | None] = mapped_column(String(20))  # pdf, jpg
+    is_preview: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    project: Mapped[Project] = relationship(back_populates="artifacts")
+
+
 __all__ = [
     "Project",
     "Promoter",
@@ -142,4 +202,7 @@ __all__ = [
     "UnitType",
     "ProjectDocument",
     "QuarterlyUpdate",
+    "BankAccount",
+    "LandParcel",
+    "ProjectArtifact",
 ]
