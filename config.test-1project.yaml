@@ -1,0 +1,36 @@
+# Test configuration for 1 project
+# Verify website URL and lat/lon extraction
+
+run:
+  mode: FULL  # Full crawl with details
+  search_filters:
+    districts:
+      - Raipur
+    statuses:
+      - Ongoing
+    project_types: []
+  output_base_dir: ./outputs/test-1project
+  state_code: CG
+  max_search_combinations: 1
+  max_total_listings: 1  # Just 1 project
+
+browser:
+  driver: playwright
+  headless: false  # See what's happening
+  default_timeout_ms: 25000
+  slow_mo_ms: 500
+
+search_page:
+  url: "https://rera.cgstate.gov.in/Approved_project_List.aspx"
+  selectors:
+    listing_table: "#ContentPlaceHolder1_gv_ProjectList"
+    row_selector: "#ContentPlaceHolder1_gv_ProjectList > tbody > tr"
+    view_details_link: "a[id*='gv_ProjectList_lnk_View']"
+    district: "#ContentPlaceHolder1_District_Name"
+    status: "#ContentPlaceHolder1_ApplicantType"
+    project_type: "#ContentPlaceHolder1_DropDownList2"
+    submit_button: "#ContentPlaceHolder1_Button1"
+    results_table: "#ContentPlaceHolder1_gv_ProjectList"
+
+db:
+  url: postgresql://postgres:betsson%40123@localhost:5432/realmapdb

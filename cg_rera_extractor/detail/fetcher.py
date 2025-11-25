@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from pathlib import Path
 from urllib.parse import urljoin
@@ -24,6 +25,165 @@ from cg_rera_extractor.listing.models import ListingRecord
 
 
 LOGGER = logging.getLogger(__name__)
+
+# Regex patterns to extract coordinates from Google Maps embed URL
+# Format: !2d<longitude>!3d<latitude> (note: 2d is longitude, 3d is latitude)
+GOOGLE_MAPS_EMBED_PATTERN = re.compile(
+    r"google\.com/maps/embed\?pb=.*?!2d([\d.]+)!3d([\d.]+)", re.IGNORECASE
+)
+
+
+def extract_map_coordinates_from_listing(
+    session: BrowserSession,
+    row_selector: str,
+    row_index: int,
+    timeout_ms: int = 5000,
+) -> tuple[float | None, float | None]:
+    """Click the map link in a listing row and extract coordinates from the popup.
+    
+    The CG RERA listing page has a map icon (fa-map-marker) that triggers a postback.
+    This may either:
+    1. Open a modal with a Google Maps iframe, or
+    2. Navigate to a new page with the map
+    
+    This function handles both cases, extracts coordinates, and returns to the listing page.
+    
+    Args:
+        session: Active browser session on the listing page.
+        row_selector: CSS selector for table rows (e.g., "tr").
+        row_index: 1-based index of the row to click.
+        timeout_ms: Timeout for waiting for modal elements.
+        
+    Returns:
+        Tuple of (latitude, longitude) or (None, None) if extraction fails.
+    """
+    try:
+        page = session.current_page()
+        original_url = page.url
+        
+        # Construct selector for the map link in this row
+        # The map link has ID like: ContentPlaceHolder1_gv_ProjectList_lnk_View_map_0
+        map_link_selector = f"a[id*='lnk_View_map_{row_index - 1}']"
+        
+        # Check if map link exists
+        map_link = page.query_selector(map_link_selector)
+        if not map_link:
+            # Try alternative selector using fa-map-marker icon
+            map_link_selector = f"{row_selector}:nth-of-type({row_index}) a:has(i.fa-map-marker)"
+            map_link = page.query_selector(map_link_selector)
+        
+        if not map_link:
+            LOGGER.debug("No map link found for row %d", row_index)
+            return None, None
+        
+        LOGGER.debug("Clicking map link for row %d", row_index)
+        
+        # Click and wait briefly for response
+        map_link.click()
+        time.sleep(2)  # Wait for postback response
+        
+        # Check if we navigated to a different page or stayed on the same page
+        current_url = page.url
+        navigated = current_url != original_url
+        
+        lat, lon = None, None
+        
+        if navigated:
+            LOGGER.debug("Map click caused navigation to: %s", current_url)
+            # The postback opened a new page with the map
+            # Wait for page to load and look for map/coordinates
+            time.sleep(1)
+            
+        # Look for Google Maps iframe or map data in the page
+        html = page.content()
+        
+        # Try to find Google Maps iframe
+        iframes = page.query_selector_all("iframe")
+        for iframe in iframes:
+            src = iframe.get_attribute("src") or ""
+            if "google.com/maps" in src:
+                LOGGER.debug("Found Google Maps iframe: %s", src[:200])
+                
+                # Extract coordinates from the iframe src
+                match = GOOGLE_MAPS_EMBED_PATTERN.search(src)
+                if match:
+                    lon_val = float(match.group(1))
+                    lat_val = float(match.group(2))
+                    
+                    # Validate coordinates are in India range
+                    if 6.0 <= lat_val <= 36.0 and 68.0 <= lon_val <= 98.0:
+                        LOGGER.info("Extracted map coordinates: lat=%s, lon=%s", lat_val, lon_val)
+                        lat, lon = lat_val, lon_val
+                        break
+                    else:
+                        LOGGER.debug("Coordinates outside India range: lat=%s, lon=%s", lat_val, lon_val)
+        
+        # If we navigated away, go back to the listing page
+        if navigated:
+            LOGGER.debug("Navigating back to listing page after map extraction")
+            page.go_back()
+            time.sleep(2)  # Wait for listing page to load
+            # Verify we're back on the listing page
+            try:
+                session.wait_for_selector(row_selector, timeout_ms=5000)
+                LOGGER.debug("Successfully returned to listing page")
+            except Exception:
+                LOGGER.warning("Failed to verify return to listing page, may need to re-navigate")
+        else:
+            # We stayed on the same page, modal case - try to close it
+            _close_map_modal(page)
+        
+        return lat, lon
+        
+    except Exception as exc:
+        LOGGER.warning("Failed to extract map coordinates for row %d: %s", row_index, exc)
+        # Try to recover - go back to listing page if we navigated away
+        try:
+            page = session.current_page()
+            _close_map_modal(page)
+            # Try going back just in case
+            try:
+                page.go_back()
+                time.sleep(1)
+            except Exception:
+                pass
+        except Exception:
+            pass
+        return None, None
+
+
+def _close_map_modal(page) -> None:
+    """Attempt to close any open modal on the page."""
+    try:
+        # Try common close button selectors
+        close_selectors = [
+            ".modal .close",
+            ".modal-header .close",
+            "button.close",
+            "[data-dismiss='modal']",
+            ".modal-footer button",
+            "button:has-text('Close')",
+            "button:has-text('×')",
+        ]
+        
+        for selector in close_selectors:
+            try:
+                close_btn = page.query_selector(selector)
+                if close_btn and close_btn.is_visible():
+                    close_btn.click()
+                    time.sleep(0.5)
+                    LOGGER.debug("Closed modal using selector: %s", selector)
+                    return
+            except Exception:
+                continue
+        
+        # If no close button found, try pressing Escape
+        page.keyboard.press("Escape")
+        time.sleep(0.5)
+        LOGGER.debug("Closed modal using Escape key")
+        
+    except Exception as exc:
+        LOGGER.debug("Failed to close modal: %s", exc)
 
 
 def wait_for_page_loaded(session: BrowserSession, timeout: int = 30, main_selector: str | None = None) -> bool:
@@ -87,6 +247,7 @@ def fetch_and_save_details(
     """Fetch detail pages for each listing and persist the HTML files."""
 
     table_selector = selectors.listing_table or selectors.results_table or "table"
+    row_locator = selectors.row_selector or "tr"
     total = len(listings)
     LOGGER.info("Starting detail fetch for %d listings", total)
 
@@ -106,7 +267,26 @@ def fetch_and_save_details(
                         record.reg_no,
                     )
                     continue
-                row_locator = selectors.row_selector or "tr"
+                
+                # Extract map coordinates from listing page BEFORE navigating to detail page
+                # NOTE: This feature is currently disabled because clicking the map link on the
+                # CG RERA listing page triggers a full page postback/navigation rather than
+                # opening a modal. This disrupts the scraping flow. The coordinates are already
+                # available from the amenities table on the detail page, so this is not critical.
+                # 
+                # To enable in the future, uncomment the following block:
+                # if record.map_latitude is None and record.map_longitude is None:
+                #     LOGGER.info("Extracting map coordinates for %s from listing page...", record.reg_no)
+                #     lat, lon = extract_map_coordinates_from_listing(
+                #         session, row_locator, record.row_index
+                #     )
+                #     if lat is not None and lon is not None:
+                #         record.map_latitude = lat
+                #         record.map_longitude = lon
+                #         LOGGER.info("Map coordinates for %s: lat=%s, lon=%s", record.reg_no, lat, lon)
+                #     else:
+                #         LOGGER.debug("No map coordinates found for %s", record.reg_no)
+                
                 view_locator = selectors.view_details_link or "a"
                 target_selector = f"{row_locator}:nth-of-type({record.row_index}) {view_locator}"
                 LOGGER.info("[%d/%d] Fetching details for %s (JS click method)", idx, total, record.reg_no)
@@ -181,7 +361,7 @@ def fetch_and_save_details(
             save_project_html(path, html)
             LOGGER.info("Saved detail page for %s to %s", record.reg_no, path)
             
-            # Save listing metadata (website_url, district, etc.) alongside HTML
+            # Save listing metadata (website_url, district, map coords, etc.) alongside HTML
             # This allows correlating listing data with detail data during processing
             listing_meta = {
                 "reg_no": record.reg_no,
@@ -191,6 +371,8 @@ def fetch_and_save_details(
                 "tehsil": record.tehsil,
                 "status": record.status,
                 "website_url": record.website_url,
+                "map_latitude": record.map_latitude,
+                "map_longitude": record.map_longitude,
                 "detail_url": record.detail_url,
             }
             save_listing_metadata(output_base, project_key, listing_meta)

@@ -16,6 +16,77 @@ LOGGER = logging.getLogger(__name__)
 AMENITIES_TABLE_ID = "ContentPlaceHolder1_Single_gv_ProjectList"
 AMENITIES_TABLE_ID_ALT = "ContentPlaceHolder1_gv_Amenity"  # Possible alternative ID
 
+# Regex patterns to extract coordinates from Google Maps embed URL
+# Format: !2d<longitude>!3d<latitude> (note: 2d is longitude, 3d is latitude)
+GOOGLE_MAPS_EMBED_PATTERN = re.compile(
+    r"google\.com/maps/embed\?pb=.*?!2d([\d.]+)!3d([\d.]+)", re.IGNORECASE
+)
+# Alternative pattern for different embed format where lat comes before lon
+GOOGLE_MAPS_EMBED_ALT_PATTERN = re.compile(
+    r"google\.com/maps/embed\?pb=.*?!3d([\d.]+).*?!2d([\d.]+)", re.IGNORECASE
+)
+
+
+def extract_map_iframe_location(html: str) -> Optional[V1ReraLocation]:
+    """Extract lat/lon from embedded Google Maps iframe in the detail page.
+
+    The CG RERA detail page often has a Google Maps iframe embed with coordinates
+    in the URL like: https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d...!2d81.698346!3d21.284...
+    
+    In Google Maps embed URLs:
+    - !2d<value> is longitude
+    - !3d<value> is latitude
+
+    Args:
+        html: The raw HTML content of the detail page.
+
+    Returns:
+        V1ReraLocation with source_type='map_iframe' if found, None otherwise.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Find all iframes
+    iframes = soup.find_all("iframe")
+    for iframe in iframes:
+        src = iframe.get("src", "")
+        if "google.com/maps" in src:
+            # Try to extract coordinates from the embed URL
+            # Format: !2d<longitude>!3d<latitude>
+            match = GOOGLE_MAPS_EMBED_PATTERN.search(src)
+            if match:
+                lon = _parse_float(match.group(1))
+                lat = _parse_float(match.group(2))
+                if lat and lon and _validate_india_coordinates(lat, lon):
+                    LOGGER.info("Extracted map iframe coordinates: lat=%s, lon=%s", lat, lon)
+                    return V1ReraLocation(
+                        source_type="map_iframe",
+                        latitude=lat,
+                        longitude=lon,
+                        particulars="Google Maps embed from detail page",
+                    )
+
+            # Try alternative pattern (lat/lon order might be different in some URLs)
+            match = GOOGLE_MAPS_EMBED_ALT_PATTERN.search(src)
+            if match:
+                lat = _parse_float(match.group(1))
+                lon = _parse_float(match.group(2))
+                if lat and lon and _validate_india_coordinates(lat, lon):
+                    LOGGER.info("Extracted map iframe coordinates (alt): lat=%s, lon=%s", lat, lon)
+                    return V1ReraLocation(
+                        source_type="map_iframe",
+                        latitude=lat,
+                        longitude=lon,
+                        particulars="Google Maps embed from detail page",
+                    )
+
+    LOGGER.debug("No Google Maps iframe with coordinates found")
+    return None
+
+
+def _validate_india_coordinates(lat: float, lon: float) -> bool:
+    """Validate coordinates are roughly within India's bounding box."""
+    return 6.0 <= lat <= 36.0 and 68.0 <= lon <= 98.0
+
 
 def extract_amenity_locations(html: str, base_url: str = "") -> list[V1ReraLocation]:
     """Extract amenity locations with lat/lon from detail page HTML.
@@ -193,7 +264,7 @@ def _parse_amenity_row(
         return None
 
     # Validate coordinate ranges (roughly for India)
-    if not (6.0 <= lat <= 36.0 and 68.0 <= lon <= 98.0):
+    if not _validate_india_coordinates(lat, lon):
         LOGGER.debug("Invalid coordinates outside India: lat=%s, lon=%s", lat, lon)
         return None
 

@@ -17,5 +17,7 @@ class ListingRecord:
     status: str | None = None
     detail_url: str = ""
     website_url: str | None = None  # Project website URL from listing page
+    map_latitude: float | None = None  # Latitude from listing page map popup
+    map_longitude: float | None = None  # Longitude from listing page map popup
     run_id: str | None = None
     row_index: int | None = None

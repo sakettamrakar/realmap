@@ -28,7 +28,11 @@ from cg_rera_extractor.config.models import AppConfig, RunMode
 from cg_rera_extractor.detail.fetcher import fetch_and_save_details
 from cg_rera_extractor.listing.models import ListingRecord
 from cg_rera_extractor.listing.scraper import parse_listing_html
-from cg_rera_extractor.parsing.amenity_extractor import extract_amenity_locations, compute_centroid
+from cg_rera_extractor.parsing.amenity_extractor import (
+    extract_amenity_locations,
+    extract_map_iframe_location,
+    compute_centroid,
+)
 from cg_rera_extractor.parsing.mapper import map_raw_to_v1
 from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
 from cg_rera_extractor.parsing.schema import PreviewArtifact, V1ReraLocation
@@ -514,7 +518,7 @@ def _process_saved_html(
 
             v1_project = map_raw_to_v1(raw, state_code=state_code)
             
-            # Load listing metadata (website_url, etc.) if available
+            # Load listing metadata (website_url, map coords, etc.) if available
             listing_meta = load_listing_metadata(str(dirs["run_dir"]), project_key)
             if listing_meta:
                 website_url = listing_meta.get("website_url")
@@ -543,7 +547,41 @@ def _process_saved_html(
                         particulars="Computed centroid of amenity locations",
                     )
                     amenity_locations.append(centroid_loc)
-                # Merge into v1_project.rera_locations
+            else:
+                amenity_locations = []
+            
+            # Extract Google Maps iframe location from detail page (if present)
+            map_iframe_loc = extract_map_iframe_location(html)
+            if map_iframe_loc:
+                LOGGER.info(
+                    "Extracted map iframe location from %s: lat=%s, lon=%s",
+                    html_file.name,
+                    map_iframe_loc.latitude,
+                    map_iframe_loc.longitude,
+                )
+                amenity_locations.append(map_iframe_loc)
+            
+            # Add map coordinates from listing page (if available in listing metadata)
+            if listing_meta:
+                map_lat = listing_meta.get("map_latitude")
+                map_lon = listing_meta.get("map_longitude")
+                if map_lat is not None and map_lon is not None:
+                    LOGGER.info(
+                        "Adding listing page map location for %s: lat=%s, lon=%s",
+                        project_key,
+                        map_lat,
+                        map_lon,
+                    )
+                    listing_map_loc = V1ReraLocation(
+                        source_type="listing_map",
+                        latitude=map_lat,
+                        longitude=map_lon,
+                        particulars="Google Maps marker from listing page",
+                    )
+                    amenity_locations.append(listing_map_loc)
+            
+            # Merge all locations into v1_project.rera_locations
+            if amenity_locations:
                 v1_project = v1_project.model_copy(
                     update={"rera_locations": amenity_locations}
                 )
