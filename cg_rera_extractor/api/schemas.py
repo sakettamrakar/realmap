@@ -100,3 +100,65 @@ class ProjectDetail(ProjectSummary):
     unit_types: list[UnitType] = Field(default_factory=list)
     documents: list[ProjectDocument] = Field(default_factory=list)
     quarterly_updates: list[QuarterlyUpdate] = Field(default_factory=list)
+
+
+class ProjectSearchItem(BaseModel):
+    """List projection for the Phase 6 search endpoint."""
+
+    project_id: int
+    name: str
+    district: str | None = None
+    tehsil: str | None = None
+    project_type: str | None = None
+    status: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    geo_quality: str | None = None
+    overall_score: float | None = None
+    location_score: float | None = None
+    amenity_score: float | None = None
+    units: int | None = None
+    area_sqft: float | None = None
+    registration_date: date | None = None
+    distance_km: float | None = None
+    highlight_amenities: list[str] = Field(default_factory=list)
+    onsite_amenity_counts: dict[str, int] = Field(default_factory=dict)
+    nearby_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class ProjectSearchResponse(BaseModel):
+    """Paginated response for project search."""
+
+    page: int
+    page_size: int
+    total: int
+    items: list[ProjectSearchItem]
+
+
+class ProjectMapPin(BaseModel):
+    """Lightweight pin for map rendering."""
+
+    project_id: int
+    name: str
+    lat: float
+    lon: float
+    overall_score: float | None = None
+    project_type: str | None = None
+    status: str | None = None
+    size_hint: dict[str, float | None]
+
+
+class ProjectMapResponse(BaseModel):
+    """Collection of pins returned by the map endpoint."""
+
+    items: list[ProjectMapPin]
+
+
+class ProjectDetailV2(BaseModel):
+    """Phase 6 project detail payload."""
+
+    project: dict[str, Any]
+    location: dict[str, Any]
+    scores: dict[str, Any]
+    amenities: dict[str, Any]
+    qa: dict[str, Any]

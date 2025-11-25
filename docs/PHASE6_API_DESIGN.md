@@ -245,6 +245,9 @@ Convenience endpoint for location context cards.
 - `cg_rera_extractor.api.services.detail`: orchestrates detail payload, including POI summaries.
 - `cg_rera_extractor.api.services.export`: CSV export + CLI entrypoint.
 
+## Implementation status
+- `/projects/search`, `/projects/{project_id}`, and `/projects/map` are implemented via `cg_rera_extractor.api.routes_projects` and the supporting service layer in `cg_rera_extractor.api.services.*`.
+
 ## Open questions / next steps
 - Pricing integration: once price bands exist, add `min_price`/`max_price` and `price_per_sqft` filters.
 - Clustering: server-side cluster or vector tile generation for map at scale.
