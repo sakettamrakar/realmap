@@ -84,6 +84,8 @@ export interface ProjectMapPin {
   overall_score?: number;
   project_type?: string;
   status?: string;
+  geo_source?: string;
+  geo_precision?: string;
   size_hint?: {
     units?: number;
     area_sqft?: number;

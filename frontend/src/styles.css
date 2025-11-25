@@ -343,6 +343,11 @@ body {
   transform: translateY(-1px);
 }
 
+.project-card.hovered {
+  border-color: #0ea5e9;
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.2);
+}
+
 .project-card.selected {
   border-color: #22c55e;
   box-shadow: 0 8px 30px rgba(34, 197, 94, 0.2);
@@ -506,34 +511,95 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
+.legend-row {
+  display: grid;
+  gap: 6px;
+}
+.legend-quality {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1f2937;
+}
+.legend-pin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #22c55e;
+}
+.legend-pin-exact {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+.legend-pin-approx {
+  background: #fff;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+}
 
 .map-pin {
-  background: #475569;
+  background: currentColor;
+  color: #475569;
   border-radius: 50%;
   border: 2px solid white;
   width: 16px;
   height: 16px;
   box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.15);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pin-low {
-  background: #f97316;
+  color: #f97316;
 }
 
 .pin-medium {
-  background: #eab308;
+  color: #eab308;
 }
 
 .pin-high {
-  background: #22c55e;
+  color: #22c55e;
 }
 
 .pin-unknown {
-  background: #94a3b8;
+  color: #94a3b8;
 }
 
 .pin-selected {
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.25);
+}
+
+.pin-hovered {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.35);
+}
+
+.pin-approximate {
+  background: #fff;
+  border-color: currentColor;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.25);
+}
+
+.pin-exact {
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.cluster-icon {
+  background: rgba(14, 165, 233, 0.15);
+  color: #0f172a;
+  border-radius: 50%;
+  border: 2px solid rgba(14, 165, 233, 0.65);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.cluster-icon span {
+  display: inline-block;
+  line-height: 1;
 }
 
 .detail-panel {

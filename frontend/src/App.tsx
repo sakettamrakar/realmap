@@ -42,6 +42,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjectDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [hoveredProjectId, setHoveredProjectId] = useState<number | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -173,7 +174,9 @@ function App() {
               projects={searchResults}
               loading={searchLoading}
               onSelectProject={setSelectedProjectId}
+              onHoverProject={setHoveredProjectId}
               selectedProjectId={selectedProjectId}
+              hoveredProjectId={hoveredProjectId}
               total={searchMeta.total}
               page={searchMeta.page}
               pageSize={searchMeta.pageSize}
@@ -189,6 +192,8 @@ function App() {
                 pins={mapPins}
                 selectedProjectId={selectedProjectId}
                 onSelectProject={setSelectedProjectId}
+                hoveredProjectId={hoveredProjectId}
+                onHoverProject={setHoveredProjectId}
                 onBoundsChange={setMapBounds}
                 loading={mapLoading}
                 initialBounds={DEFAULT_BOUNDS}
