@@ -19,9 +19,14 @@ ScoreValue = int
 class ScoreResult:
     """Container for persisted score fields."""
 
+    amenity_score: ScoreValue
+    location_score: ScoreValue
+    
+    # Location sub-scores
     connectivity_score: ScoreValue
     daily_needs_score: ScoreValue
     social_infra_score: ScoreValue
+    
     overall_score: ScoreValue
     score_version: str
 
@@ -47,6 +52,11 @@ class ScoreConfig:
     # Component weights for aggregation.
     connectivity_weight_bank: float = 0.3
     connectivity_weight_transit: float = 0.7
+    
+    # Weights for location score
+    location_weights: Mapping[str, float] | None = None
+    
+    # Weights for overall score
     overall_weights: Mapping[str, float] | None = None
 
     def __post_init__(self) -> None:
@@ -68,11 +78,19 @@ class ScoreConfig:
             }
         if self.transit_radii_km is None:
             self.transit_radii_km = (3.0, 10.0)
-        if self.overall_weights is None:
-            self.overall_weights = {
+
+        
+        if self.location_weights is None:
+            self.location_weights = {
                 "daily_needs": 0.40,
                 "social_infra": 0.35,
                 "connectivity": 0.25,
+            }
+
+        if self.overall_weights is None:
+            self.overall_weights = {
+                "amenity": 0.50,
+                "location": 0.50,
             }
 
 
@@ -160,7 +178,7 @@ def _daily_needs_score(
 
     for amenity_type, radius in config.daily_needs_amenities.items():
         stat = _resolve_stat(stat_index.get(amenity_type), radius)
-        count = stat.count_within_radius if stat else 0
+        count = stat.nearby_count if stat else 0
         if stat is None:
             missing.add(amenity_type)
         score = _score_from_count(count, buckets)
@@ -184,7 +202,7 @@ def _connectivity_score(
     transit_scores: list[int] = []
     for radius, buckets in transit_buckets.items():
         stat = _resolve_stat(stat_index.get("transit_stop"), radius)
-        count = stat.count_within_radius if stat else 0
+        count = stat.nearby_count if stat else 0
         if stat is None:
             missing.add(f"transit_stop_{radius}km")
         score = _score_from_count(count, buckets)
@@ -194,7 +212,7 @@ def _connectivity_score(
     avg_transit = mean(transit_scores) if transit_scores else 0
 
     bank_stat = _resolve_stat(stat_index.get("bank_atm"), None)
-    bank_distance = float(bank_stat.nearest_distance_km) if (bank_stat and bank_stat.nearest_distance_km is not None) else None
+    bank_distance = float(bank_stat.nearby_nearest_km) if (bank_stat and bank_stat.nearby_nearest_km is not None) else None
     if bank_stat is None:
         missing.add("bank_atm")
     inputs["bank_atm_nearest_km"] = bank_distance
@@ -224,7 +242,7 @@ def _social_infra_score(
 
     for amenity_type, radius in config.social_infra_amenities.items():
         stat = _resolve_stat(stat_index.get(amenity_type), radius)
-        count = stat.count_within_radius if stat else 0
+        count = stat.nearby_count if stat else 0
         if stat is None:
             missing.add(amenity_type)
         score = _score_from_count(count, buckets)
@@ -271,14 +289,29 @@ def compute_amenity_scores(
     connectivity = _connectivity_score(stat_index, config, missing_inputs, inputs_used)
     social_infra = _social_infra_score(stat_index, config, missing_inputs, inputs_used)
 
-    weights = config.overall_weights
+    # Location Score (Composite of the above)
+    loc_weights = config.location_weights
+    location_score = _clamp_score(
+        daily_needs * loc_weights.get("daily_needs", 0)
+        + social_infra * loc_weights.get("social_infra", 0)
+        + connectivity * loc_weights.get("connectivity", 0)
+    )
+    
+    # Amenity Score (Onsite)
+    # Placeholder: For now, we don't have onsite data populated, so we default to 0 or a placeholder.
+    # Once RERA data is ingested, we will compute this from `onsite_available` flags.
+    amenity_score = 0 
+    
+    # Overall Score
+    overall_weights = config.overall_weights
     overall = _clamp_score(
-        daily_needs * weights.get("daily_needs", 0)
-        + social_infra * weights.get("social_infra", 0)
-        + connectivity * weights.get("connectivity", 0)
+        amenity_score * overall_weights.get("amenity", 0)
+        + location_score * overall_weights.get("location", 0)
     )
 
     scores = ScoreResult(
+        amenity_score=amenity_score,
+        location_score=location_score,
         connectivity_score=connectivity,
         daily_needs_score=daily_needs,
         social_infra_score=social_infra,

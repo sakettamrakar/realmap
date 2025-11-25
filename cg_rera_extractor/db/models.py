@@ -293,9 +293,16 @@ class ProjectAmenityStats(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     amenity_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    radius_km: Mapped[Numeric] = mapped_column(Numeric(4, 2), nullable=False)
-    count_within_radius: Mapped[int | None] = mapped_column(Integer)
-    nearest_distance_km: Mapped[Numeric | None] = mapped_column(Numeric(6, 3))
+    
+    # Nearby / Location Context
+    radius_km: Mapped[Numeric | None] = mapped_column(Numeric(4, 2)) # Nullable for onsite
+    nearby_count: Mapped[int | None] = mapped_column(Integer)
+    nearby_nearest_km: Mapped[Numeric | None] = mapped_column(Numeric(6, 3))
+    
+    # Onsite / Project Amenities
+    onsite_available: Mapped[bool | None] = mapped_column(Boolean)
+    onsite_details: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    
     provider_snapshot: Mapped[str | None] = mapped_column(String(128))
     last_computed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
 
@@ -315,9 +322,14 @@ class ProjectScores(Base):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
+    amenity_score: Mapped[int | None] = mapped_column(Integer)
+    location_score: Mapped[int | None] = mapped_column(Integer)
+    
+    # Location sub-scores
     connectivity_score: Mapped[int | None] = mapped_column(Integer)
     daily_needs_score: Mapped[int | None] = mapped_column(Integer)
     social_infra_score: Mapped[int | None] = mapped_column(Integer)
+    
     overall_score: Mapped[int | None] = mapped_column(Integer)
     score_version: Mapped[str | None] = mapped_column(String(32))
     last_computed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))

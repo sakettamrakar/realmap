@@ -61,6 +61,8 @@ def _upsert_score(session: Session, project_id: int, scores: ProjectScores) -> P
         select(ProjectScores).where(ProjectScores.project_id == project_id)
     ).scalar_one_or_none()
     if existing:
+        existing.amenity_score = scores.amenity_score
+        existing.location_score = scores.location_score
         existing.connectivity_score = scores.connectivity_score
         existing.daily_needs_score = scores.daily_needs_score
         existing.social_infra_score = scores.social_infra_score
@@ -145,6 +147,8 @@ def main() -> int:
             computation = compute_amenity_scores(stats)
             scores = ProjectScores(
                 project_id=project_id,
+                amenity_score=computation.scores.amenity_score,
+                location_score=computation.scores.location_score,
                 connectivity_score=computation.scores.connectivity_score,
                 daily_needs_score=computation.scores.daily_needs_score,
                 social_infra_score=computation.scores.social_infra_score,
@@ -165,8 +169,8 @@ def main() -> int:
                 sample_logs.append(
                     (
                         f"Project {project_id} ({state_code}-{reg}): "
-                        f"overall={scores.overall_score}, daily={scores.daily_needs_score}, "
-                        f"social={scores.social_infra_score}, conn={scores.connectivity_score}; "
+                        f"overall={scores.overall_score}, loc={scores.location_score}, amenity={scores.amenity_score}; "
+                        f"daily={scores.daily_needs_score}, social={scores.social_infra_score}, conn={scores.connectivity_score}; "
                         f"inputs={computation.inputs_used}"
                     )
                 )

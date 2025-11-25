@@ -17,9 +17,16 @@ class AmenitySliceStats:
     """Aggregate metrics for a single amenity type and radius."""
 
     amenity_type: str
-    radius_km: float
-    count_within_radius: int
-    nearest_distance_km: float | None
+    amenity_type: str
+    radius_km: float | None
+    
+    # Nearby
+    nearby_count: int | None
+    nearby_nearest_km: float | None
+    
+    # Onsite
+    onsite_available: bool | None
+    onsite_details: dict | None
 
 
 def _normalize_radii(radii: Iterable[float]) -> list[float]:
@@ -50,8 +57,10 @@ def compute_project_amenity_stats(
                     AmenitySliceStats(
                         amenity_type=amenity_type,
                         radius_km=radius,
-                        count_within_radius=0,
-                        nearest_distance_km=None,
+                        nearby_count=0,
+                        nearby_nearest_km=None,
+                        onsite_available=False, # Default assumption for now
+                        onsite_details=None,
                     )
                 )
             continue
@@ -68,8 +77,10 @@ def compute_project_amenity_stats(
                 AmenitySliceStats(
                     amenity_type=amenity_type,
                     radius_km=radius,
-                    count_within_radius=len(distances_within_radius),
-                    nearest_distance_km=nearest_distance,
+                    nearby_count=len(distances_within_radius),
+                    nearby_nearest_km=nearest_distance,
+                    onsite_available=False, # Placeholder, will be populated from RERA data later
+                    onsite_details=None,
                 )
             )
 
@@ -90,8 +101,10 @@ def to_orm_rows(
             project_id=project_id,
             amenity_type=stat.amenity_type,
             radius_km=stat.radius_km,
-            count_within_radius=stat.count_within_radius,
-            nearest_distance_km=stat.nearest_distance_km,
+            nearby_count=stat.nearby_count,
+            nearby_nearest_km=stat.nearby_nearest_km,
+            onsite_available=stat.onsite_available,
+            onsite_details=stat.onsite_details,
             provider_snapshot=provider_snapshot,
             last_computed_at=computed_at,
         )

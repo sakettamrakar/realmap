@@ -129,10 +129,38 @@ def _create_project_locations_table(conn: Connection) -> None:
     )
 
 
+
+def _update_amenity_schema(conn: Connection) -> None:
+    """Update schema for onsite vs nearby separation."""
+    conn.execute(
+        text(
+            """
+            -- Update project_amenity_stats
+            ALTER TABLE project_amenity_stats
+                ALTER COLUMN radius_km DROP NOT NULL,
+                ADD COLUMN IF NOT EXISTS nearby_count INTEGER,
+                ADD COLUMN IF NOT EXISTS nearby_nearest_km NUMERIC(6, 3),
+                ADD COLUMN IF NOT EXISTS onsite_available BOOLEAN,
+                ADD COLUMN IF NOT EXISTS onsite_details JSONB;
+            
+            -- Rename old columns to new ones if data exists (optional, or just drop/ignore)
+            -- For now we keep old columns or map them if needed, but let's assume we recompute.
+            -- We can drop old columns if we want to be clean, but let's keep it additive for safety.
+            
+            -- Update project_scores
+            ALTER TABLE project_scores
+                ADD COLUMN IF NOT EXISTS amenity_score INTEGER,
+                ADD COLUMN IF NOT EXISTS location_score INTEGER;
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250322_create_amenity_tables", _create_amenity_tables),
     ("20250401_create_project_locations", _create_project_locations_table),
+    ("20250415_separate_amenity_scopes", _update_amenity_schema),
 ]
 
 

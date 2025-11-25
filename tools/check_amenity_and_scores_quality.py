@@ -76,7 +76,7 @@ def fetch_project_counts(session: Session) -> dict[str, int]:
 def amenity_distribution(session: Session) -> dict[str, dict[str, Any]]:
     per_type: dict[str, list[float]] = defaultdict(list)
     stmt: Select[Any] = select(
-        ProjectAmenityStats.amenity_type, ProjectAmenityStats.count_within_radius
+        ProjectAmenityStats.amenity_type, ProjectAmenityStats.nearby_count
     )
     for amenity_type, count in session.execute(stmt):
         if count is None:
@@ -86,11 +86,13 @@ def amenity_distribution(session: Session) -> dict[str, dict[str, Any]]:
     return {key: asdict(summarize(values)) for key, values in sorted(per_type.items())}
 
 
-def score_distribution(session: Session) -> StatsSummary:
-    stmt = select(ProjectScores.overall_score).where(
-        ProjectScores.overall_score.is_not(None)
-    )
-    return summarize(value for value, in session.execute(stmt))
+def score_distribution(session: Session) -> dict[str, StatsSummary]:
+    summaries = {}
+    for field in ["overall_score", "amenity_score", "location_score"]:
+        col = getattr(ProjectScores, field)
+        stmt = select(col).where(col.is_not(None))
+        summaries[field] = summarize(value for value, in session.execute(stmt))
+    return summaries
 
 
 def sample_projects(
@@ -135,10 +137,10 @@ def anomalies(
             ProjectAmenityStats.project_id,
             ProjectAmenityStats.amenity_type,
             ProjectAmenityStats.radius_km,
-            ProjectAmenityStats.count_within_radius,
+            ProjectAmenityStats.nearby_count,
         )
-        .where(ProjectAmenityStats.count_within_radius.is_not(None))
-        .where(ProjectAmenityStats.count_within_radius > poi_threshold)
+        .where(ProjectAmenityStats.nearby_count.is_not(None))
+        .where(ProjectAmenityStats.nearby_count > poi_threshold)
         .where(ProjectAmenityStats.radius_km <= radius_km)
         .order_by(ProjectAmenityStats.project_id)
     )
@@ -188,7 +190,7 @@ def anomalies(
 
 def print_summary(report: dict[str, Any]) -> None:
     metrics = report["metrics"]
-    score_summary: StatsSummary = report["score_distribution"]
+    score_summaries: dict[str, StatsSummary] = report["score_distribution"]
     print("\n==== AMENITY & SCORE QA ====")
     print(f"Database: {report['database']}")
     print(f"Generated: {report['generated_at']}")
@@ -207,11 +209,12 @@ def print_summary(report: dict[str, Any]) -> None:
         f"({pct(metrics['with_scores'], metrics['with_stats'])}% of stats)"
     )
     print()
-    print("Overall score distribution:")
-    print(
-        f"  count={score_summary.count}, min={score_summary.min}, "
-        f"mean={score_summary.mean}, max={score_summary.max}"
-    )
+    print("Score distributions:")
+    for name, summary in score_summaries.items():
+        print(
+            f"  {name:<18}: count={summary.count}, min={summary.min}, "
+            f"mean={summary.mean}, max={summary.max}"
+        )
 
     print("\nAmenity POI distributions (count_within_radius):")
     for amenity_type, summary_dict in report["amenity_distribution"].items():
@@ -322,7 +325,7 @@ def main() -> int:
         "database": describe_database_target(db_url),
         "metrics": metrics,
         "amenity_distribution": amenity_dist,
-        "score_distribution": asdict(score_dist),
+        "score_distribution": {k: asdict(v) for k, v in score_dist.items()},
         "anomalies": anomaly_block,
         "parameters": {
             "sample_size": args.sample_size,
