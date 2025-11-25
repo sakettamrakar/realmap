@@ -6,10 +6,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from cg_rera_extractor.api.deps import get_db
+from cg_rera_extractor.api.routes_projects import router as projects_router
 from cg_rera_extractor.api.schemas import ProjectDetail, ProjectSummary
 from cg_rera_extractor.db import Project
 
 app = FastAPI(title="CG RERA Projects API", version="0.1.0")
+
+app.include_router(projects_router)
 
 
 @app.get("/health")

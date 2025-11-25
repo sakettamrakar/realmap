@@ -1,0 +1,98 @@
+"""Project detail service assembling enriched payloads."""
+from __future__ import annotations
+
+from typing import Any
+
+from sqlalchemy.orm import Session, selectinload
+
+from cg_rera_extractor.db import Project, ProjectAmenityStats, ProjectScores
+
+from .search import _nearby_counts, _onsite_amenities, _resolve_location, _score_to_float
+
+
+def _build_amenities_section(stats: list[ProjectAmenityStats]) -> dict[str, Any]:
+    onsite_list = [s.amenity_type for s in stats if s.radius_km is None and s.onsite_available]
+    onsite_counts = {
+        "total": len(onsite_list),
+        "primary": len(onsite_list),
+        "secondary": 0,
+    }
+
+    nearby_summary = {k: {"count": v} for k, v in _nearby_counts(stats).items()}
+
+    return {
+        "onsite_list": onsite_list,
+        "onsite_counts": onsite_counts,
+        "nearby_summary": nearby_summary,
+    }
+
+
+def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
+    """Return a project detail payload or ``None`` if missing."""
+
+    project = (
+        db.query(Project)
+        .options(
+            selectinload(Project.score),
+            selectinload(Project.amenity_stats),
+            selectinload(Project.locations),
+            selectinload(Project.promoters),
+            selectinload(Project.buildings),
+            selectinload(Project.unit_types),
+            selectinload(Project.documents),
+            selectinload(Project.quarterly_updates),
+        )
+        .filter(Project.id == project_id)
+        .one_or_none()
+    )
+
+    if not project:
+        return None
+
+    lat, lon, quality = _resolve_location(project)
+    scores: ProjectScores | None = project.score
+    highlight, onsite_counts = _onsite_amenities(project.amenity_stats)
+
+    amenity_section = _build_amenities_section(project.amenity_stats)
+    amenity_section["onsite_list"] = highlight
+    amenity_section["onsite_counts"] = onsite_counts | {"secondary": amenity_section["onsite_counts"].get("secondary", 0)}
+
+    payload: dict[str, Any] = {
+        "project": {
+            "project_id": project.id,
+            "name": project.project_name,
+            "rera_number": project.rera_registration_number,
+            "developer": None,
+            "project_type": project.project_name,
+            "status": project.status,
+            "registration_date": project.approved_date,
+            "expected_completion": project.proposed_end_date or project.extended_end_date,
+            "rera_fields": project.raw_data_json,
+        },
+        "location": {
+            "lat": lat,
+            "lon": lon,
+            "geo_source": project.geo_source or project.geocoding_source or quality,
+            "geo_confidence": project.geo_precision,
+            "address": project.full_address or project.normalized_address,
+            "district": project.district,
+            "tehsil": project.tehsil,
+        },
+        "scores": {
+            "overall_score": _score_to_float(scores.overall_score) if scores else None,
+            "location_score": _score_to_float(scores.location_score) if scores else None,
+            "amenity_score": _score_to_float(scores.amenity_score) if scores else None,
+            "scoring_version": scores.score_version if scores else None,
+        },
+        "amenities": amenity_section,
+        "qa": {
+            "geo_notes": project.geo_normalized_address,
+            "amenity_notes": None,
+            "issues": [],
+        },
+    }
+
+    return payload
+
+
+__all__ = ["fetch_project_detail"]
