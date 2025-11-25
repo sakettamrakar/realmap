@@ -69,6 +69,8 @@ export interface ProjectDetail {
       primary?: number;
       secondary?: number;
     };
+    onsite_progress?: Record<string, number>;
+    onsite_images?: Record<string, string[]>;
     nearby_summary?: Record<string, { count?: number; avg_distance_km?: number }>;
     top_nearby?: Record<string, { name?: string; distance_km?: number }[]>;
   };
