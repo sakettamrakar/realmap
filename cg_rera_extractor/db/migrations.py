@@ -209,13 +209,21 @@ def _create_phase6_read_model(conn: Connection) -> None:
                 WHERE pl.is_active IS TRUE
             ),
             amenity_rollup AS (
+                SELECT DISTINCT ON (pas.project_id)
+                    pas.project_id,
+                    pas.onsite_available,
+                    pas.onsite_details
+                FROM project_amenity_stats pas
+                WHERE pas.radius_km IS NULL
+                ORDER BY pas.project_id, pas.id DESC
+            ),
+            nearby_rollup AS (
                 SELECT
                     pas.project_id,
-                    MAX(CASE WHEN pas.radius_km IS NULL THEN pas.onsite_available END) AS onsite_available,
-                    MAX(CASE WHEN pas.radius_km IS NULL THEN pas.onsite_details END) AS onsite_details,
-                    SUM(CASE WHEN pas.radius_km IS NOT NULL THEN COALESCE(pas.nearby_count, 0) ELSE 0 END) AS total_nearby_count,
-                    MIN(CASE WHEN pas.radius_km IS NOT NULL THEN pas.nearby_nearest_km END) AS nearest_nearby_km
+                    SUM(COALESCE(pas.nearby_count, 0)) AS total_nearby_count,
+                    MIN(pas.nearby_nearest_km) AS nearest_nearby_km
                 FROM project_amenity_stats pas
+                WHERE pas.radius_km IS NOT NULL
                 GROUP BY pas.project_id
             )
             SELECT
@@ -242,15 +250,17 @@ def _create_phase6_read_model(conn: Connection) -> None:
                 ps.score_version,
                 ar.onsite_available,
                 ar.onsite_details,
-                ar.total_nearby_count,
-                ar.nearest_nearby_km
+                nr.total_nearby_count,
+                nr.nearest_nearby_km
             FROM projects p
             LEFT JOIN canonical_location cl
                 ON cl.project_id = p.id AND cl.rn = 1
             LEFT JOIN project_scores ps
                 ON ps.project_id = p.id
             LEFT JOIN amenity_rollup ar
-                ON ar.project_id = p.id;
+                ON ar.project_id = p.id
+            LEFT JOIN nearby_rollup nr
+                ON nr.project_id = p.id;
             """
         )
     )

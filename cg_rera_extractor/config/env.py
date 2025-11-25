@@ -26,6 +26,11 @@ def describe_database_target(url: str | None = None) -> str:
     """Return a sanitized ``host/database`` description for logging."""
 
     active_url = url or os.getenv("DATABASE_URL") or DEFAULT_DATABASE_URL
+    # Handle SQLAlchemy URL objects
+    if hasattr(active_url, 'render_as_string'):
+        active_url = active_url.render_as_string(hide_password=True)
+    elif not isinstance(active_url, str):
+        active_url = str(active_url)
     parts = urlsplit(active_url)
     host = parts.hostname or "unknown-host"
     database = parts.path.lstrip("/") or "<default>"
