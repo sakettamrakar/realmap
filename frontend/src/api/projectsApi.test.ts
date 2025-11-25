@@ -19,7 +19,7 @@ describe("projectsApi", () => {
       total: 1,
       items: [
         {
-          project_id: "123",
+          project_id: 123,
           name: "Test Project",
           district: "Raipur",
           overall_score: 0.8,
@@ -70,8 +70,8 @@ describe("projectsApi", () => {
       .spyOn(apiClient, "get")
       .mockResolvedValue({ data: { project: { name: "P" } } } as any);
 
-    await getProject("abc");
+    await getProject(123);
 
-    expect(spy).toHaveBeenCalledWith("/projects/abc");
+    expect(spy).toHaveBeenCalledWith("/projects/123");
   });
 });

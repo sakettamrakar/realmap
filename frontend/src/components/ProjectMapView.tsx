@@ -8,6 +8,8 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L, { LatLngBounds } from "leaflet";
+import SectionHeader from "./SectionHeader";
+import ScoreBadge from "./ScoreBadge";
 import type { BBox, ProjectMapPin } from "../types/projects";
 
 interface Props {
@@ -97,10 +99,7 @@ const PinsLayer = ({
               <div className="popup">
                 <strong>{pin.name}</strong>
                 <div className="eyebrow">
-                  Score:{" "}
-                  {pin.overall_score != null
-                    ? pin.overall_score.toFixed(2)
-                    : "—"}
+                  Score: {pin.overall_score != null ? pin.overall_score.toFixed(2) : "—"}
                 </div>
               </div>
             </Popup>
@@ -135,31 +134,41 @@ const ProjectMapView = ({
 
   return (
     <div className="map-panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Map</p>
-          <h2>Project pins</h2>
+      <SectionHeader
+        eyebrow="Map View"
+        title="Projects by location"
+        subtitle="Click a pin to view details"
+        actions={loading && <div className="pill pill-muted">Loading…</div>}
+      />
+      <div className="map-card">
+        <MapContainer
+          center={mapCenter}
+          zoom={7}
+          bounds={bounds}
+          className="map"
+          scrollWheelZoom
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <MapEvents onBoundsChange={onBoundsChange} />
+          <PinsLayer
+            pins={pins}
+            onSelectProject={onSelectProject}
+            selectedProjectId={selectedProjectId}
+          />
+        </MapContainer>
+        <div className="map-legend">
+          <span className="legend-title">Score Legend</span>
+          <div className="legend-items">
+            <ScoreBadge score={0.8} />
+            <ScoreBadge score={0.6} />
+            <ScoreBadge score={0.3} />
+            <ScoreBadge score={null} />
+          </div>
         </div>
-        {loading && <div className="pill pill-muted">Loading…</div>}
       </div>
-      <MapContainer
-        center={mapCenter}
-        zoom={7}
-        bounds={bounds}
-        className="map"
-        scrollWheelZoom
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <MapEvents onBoundsChange={onBoundsChange} />
-        <PinsLayer
-          pins={pins}
-          onSelectProject={onSelectProject}
-          selectedProjectId={selectedProjectId}
-        />
-      </MapContainer>
     </div>
   );
 };

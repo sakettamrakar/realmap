@@ -127,45 +127,52 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">CG RERA Explorer</p>
-          <h1>Projects overview</h1>
+        <div className="container header-content">
+          <div>
+            <p className="eyebrow text-on-dark">CG RERA Explorer</p>
+            <h1>Projects • Scores • Location</h1>
+            <p className="muted text-on-dark">
+              Internal view of registered projects with quality scores and map context.
+            </p>
+          </div>
+          <div className="header-pill">Data refreshed daily</div>
         </div>
-        <div className="pill pill-muted">Phase 6 backend live</div>
       </header>
 
-      {error && <div className="banner banner-error">{error}</div>}
+      {error && <div className="banner banner-error container">{error}</div>}
 
-      <main className="layout">
-        <section className="column column-left">
-          <ProjectSearchPanel
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            projects={searchResults}
-            loading={searchLoading}
-            onSelectProject={setSelectedProjectId}
-            selectedProjectId={selectedProjectId}
-            total={searchMeta.total}
-          />
-        </section>
-
-        <section className="column column-right">
-          <div className="map-wrapper">
-            <ProjectMapView
-              pins={mapPins}
-              selectedProjectId={selectedProjectId}
+      <main className="app-main container">
+        <div className="layout-grid">
+          <section className="pane pane-left">
+            <ProjectSearchPanel
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              projects={searchResults}
+              loading={searchLoading}
               onSelectProject={setSelectedProjectId}
-              onBoundsChange={setMapBounds}
-              loading={mapLoading}
-              initialBounds={DEFAULT_BOUNDS}
+              selectedProjectId={selectedProjectId}
+              total={searchMeta.total}
             />
-            <ProjectDetailPanel
-              project={selectedProject}
-              loading={detailLoading}
-              onClose={() => setSelectedProjectId(null)}
-            />
-          </div>
-        </section>
+          </section>
+
+          <section className="pane pane-right">
+            <div className="map-wrapper">
+              <ProjectMapView
+                pins={mapPins}
+                selectedProjectId={selectedProjectId}
+                onSelectProject={setSelectedProjectId}
+                onBoundsChange={setMapBounds}
+                loading={mapLoading}
+                initialBounds={DEFAULT_BOUNDS}
+              />
+              <ProjectDetailPanel
+                project={selectedProject}
+                loading={detailLoading}
+                onClose={() => setSelectedProjectId(null)}
+              />
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   );
