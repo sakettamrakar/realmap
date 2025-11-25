@@ -7,10 +7,16 @@ import useDebouncedValue from "./hooks/useDebouncedValue";
 import type { Filters } from "./types/filters";
 import type { BBox, ProjectDetail, ProjectMapPin, ProjectSummary } from "./types/projects";
 
+const DEFAULT_SORT_BY = "overall_score" as const;
+const DEFAULT_SORT_DIR = "desc" as const;
+const PAGE_SIZE = 20;
+
 const DEFAULT_FILTERS: Filters = {
   district: "",
   minOverallScore: 0,
   nameQuery: "",
+  sortBy: DEFAULT_SORT_BY,
+  sortDir: DEFAULT_SORT_DIR,
 };
 
 const DEFAULT_BOUNDS: BBox = {
@@ -21,13 +27,15 @@ const DEFAULT_BOUNDS: BBox = {
 };
 
 function App() {
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
   const debouncedFilters = useDebouncedValue(filters, 300);
   const [searchResults, setSearchResults] = useState<ProjectSummary[]>([]);
-  const [searchMeta, setSearchMeta] = useState<{ total: number; page: number }>(
-    { total: 0, page: 1 },
+  const [searchMeta, setSearchMeta] = useState<{ total: number; page: number; pageSize: number }>(
+    { total: 0, page: 1, pageSize: PAGE_SIZE },
   );
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const [page, setPage] = useState(1);
 
   const [mapPins, setMapPins] = useState<ProjectMapPin[]>([]);
   const [mapBounds, setMapBounds] = useState<BBox | null>(DEFAULT_BOUNDS);
@@ -39,8 +47,19 @@ function App() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const handleFiltersChange = (next: Partial<Filters>) =>
+  const handleFiltersChange = (next: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...next }));
+    setPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setFilters({ ...DEFAULT_FILTERS });
+    setPage(1);
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -51,12 +70,19 @@ function App() {
           district: debouncedFilters.district || undefined,
           min_overall_score: debouncedFilters.minOverallScore || undefined,
           name_contains: debouncedFilters.nameQuery || undefined,
-          page: 1,
-          page_size: 50,
+          q: debouncedFilters.nameQuery || undefined,
+          sort_by: debouncedFilters.sortBy,
+          sort_dir: debouncedFilters.sortDir,
+          page,
+          page_size: PAGE_SIZE,
         });
         if (cancelled) return;
         setSearchResults(data.items);
-        setSearchMeta({ total: data.total, page: data.page });
+        setSearchMeta({
+          total: data.total,
+          page: data.page,
+          pageSize: data.page_size ?? PAGE_SIZE,
+        });
         setError(null);
       } catch (err: any) {
         if (cancelled) return;
@@ -70,7 +96,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedFilters]);
+  }, [debouncedFilters, page]);
 
   useEffect(() => {
     if (!mapBounds) return;
@@ -152,6 +178,11 @@ function App() {
               onSelectProject={setSelectedProjectId}
               selectedProjectId={selectedProjectId}
               total={searchMeta.total}
+              page={searchMeta.page}
+              pageSize={searchMeta.pageSize}
+              onPageChange={handlePageChange}
+              onResetFilters={handleResetFilters}
+              defaultFilters={DEFAULT_FILTERS}
             />
           </section>
 

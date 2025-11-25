@@ -8,6 +8,8 @@ const sampleFilters: Filters = {
   district: "",
   minOverallScore: 0,
   nameQuery: "",
+  sortBy: "overall_score",
+  sortDir: "desc",
 };
 
 const sampleProjects: ProjectSummary[] = [
@@ -26,6 +28,8 @@ describe("ProjectSearchPanel", () => {
   it("renders projects and triggers filter updates", () => {
     const onFiltersChange = vi.fn();
     const onSelectProject = vi.fn();
+    const onPageChange = vi.fn();
+    const onResetFilters = vi.fn();
 
     render(
       <ProjectSearchPanel
@@ -35,12 +39,18 @@ describe("ProjectSearchPanel", () => {
         loading={false}
         onSelectProject={onSelectProject}
         selectedProjectId={null}
+        total={sampleProjects.length}
+        page={1}
+        pageSize={10}
+        onPageChange={onPageChange}
+        onResetFilters={onResetFilters}
+        defaultFilters={sampleFilters}
       />,
     );
 
     expect(screen.getByText("Skyline Heights")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText(/e.g. City/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Search by project or promoter/i), {
       target: { value: "Sky" },
     });
     expect(onFiltersChange).toHaveBeenCalledWith({ nameQuery: "Sky" });

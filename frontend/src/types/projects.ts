@@ -96,9 +96,12 @@ export interface SearchProjectsParams {
   project_type?: string;
   status?: string;
   name_contains?: string;
+  q?: string;
   min_overall_score?: number;
   min_location_score?: number;
   min_amenity_score?: number;
+  sort_by?: "overall_score" | "location_score" | "registration_date" | "name";
+  sort_dir?: "asc" | "desc";
   page?: number;
   page_size?: number;
 }

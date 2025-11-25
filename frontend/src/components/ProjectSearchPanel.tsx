@@ -3,6 +3,17 @@ import SectionHeader from "./SectionHeader";
 import type { Filters } from "../types/filters";
 import type { ProjectSummary } from "../types/projects";
 
+const sortOptions: {
+  value: Filters["sortBy"];
+  label: string;
+  defaultDir: Filters["sortDir"];
+}[] = [
+  { value: "overall_score", label: "Best overall score", defaultDir: "desc" },
+  { value: "location_score", label: "Best location score", defaultDir: "desc" },
+  { value: "registration_date", label: "Latest registration", defaultDir: "desc" },
+  { value: "name", label: "Name A–Z", defaultDir: "asc" },
+];
+
 const districtOptions = [
   "",
   "Raipur",
@@ -25,6 +36,11 @@ interface Props {
   onSelectProject: (projectId: number) => void;
   selectedProjectId?: number | null;
   total?: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onResetFilters: () => void;
+  defaultFilters: Filters;
 }
 
 export function ProjectSearchPanel({
@@ -35,8 +51,63 @@ export function ProjectSearchPanel({
   onSelectProject,
   selectedProjectId,
   total,
+  page,
+  pageSize,
+  onPageChange,
+  onResetFilters,
+  defaultFilters,
 }: Props) {
-  const handleReset = () => onFiltersChange({ district: "", minOverallScore: 0, nameQuery: "" });
+  const totalPages = Math.max(1, Math.ceil((total ?? 0) / (pageSize || 1)));
+
+  const activeChips: { key: string; label: string; onRemove: () => void }[] = [];
+
+  if (filters.district) {
+    activeChips.push({
+      key: "district",
+      label: `District: ${filters.district}`,
+      onRemove: () => onFiltersChange({ district: "" }),
+    });
+  }
+
+  if (filters.minOverallScore > 0) {
+    activeChips.push({
+      key: "min-score",
+      label: `Min score: ${filters.minOverallScore.toFixed(2)}`,
+      onRemove: () => onFiltersChange({ minOverallScore: defaultFilters.minOverallScore }),
+    });
+  }
+
+  if (filters.nameQuery.trim()) {
+    activeChips.push({
+      key: "search",
+      label: `Search: "${filters.nameQuery}"`,
+      onRemove: () => onFiltersChange({ nameQuery: defaultFilters.nameQuery }),
+    });
+  }
+
+  const sortLabel = sortOptions.find((option) => option.value === filters.sortBy)?.label;
+  if (
+    filters.sortBy !== defaultFilters.sortBy ||
+    filters.sortDir !== defaultFilters.sortDir
+  ) {
+    activeChips.push({
+      key: "sort",
+      label: `Sort: ${sortLabel ?? filters.sortBy} (${filters.sortDir})`,
+      onRemove: () =>
+        onFiltersChange({
+          sortBy: defaultFilters.sortBy,
+          sortDir: defaultFilters.sortDir,
+        }),
+    });
+  }
+
+  const handleSortChange = (value: Filters["sortBy"]) => {
+    const selected = sortOptions.find((option) => option.value === value);
+    onFiltersChange({
+      sortBy: value,
+      sortDir: selected?.defaultDir ?? filters.sortDir,
+    });
+  };
 
   return (
     <div className="panel">
@@ -45,7 +116,7 @@ export function ProjectSearchPanel({
         title="Projects"
         subtitle="Find projects by location, score, or name"
         actions={
-          <button className="ghost-button" onClick={handleReset} type="button">
+          <button className="ghost-button" onClick={onResetFilters} type="button">
             Reset filters
           </button>
         }
@@ -75,6 +146,37 @@ export function ProjectSearchPanel({
       </div>
 
       <div className="filter-group">
+        <p className="group-title">Sorting</p>
+        <div className="filter-row">
+          <label className="field">
+            <span>Sort by</span>
+            <div className="sort-controls">
+              <select
+                value={filters.sortBy}
+                onChange={(e) => handleSortChange(e.target.value as Filters["sortBy"])}
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="ghost-button sort-toggle"
+                onClick={() =>
+                  onFiltersChange({ sortDir: filters.sortDir === "asc" ? "desc" : "asc" })
+                }
+                aria-label="Toggle sort direction"
+              >
+                {filters.sortDir === "asc" ? "Asc ↑" : "Desc ↓"}
+              </button>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div className="filter-group">
         <p className="group-title">Scores</p>
         <label className="field">
           <span>Min overall score</span>
@@ -98,21 +200,53 @@ export function ProjectSearchPanel({
           <span>Project or promoter</span>
           <input
             type="text"
-            placeholder="e.g. City, Heights, Realty"
+            placeholder="Search by project or promoter…"
             value={filters.nameQuery}
             onChange={(e) => onFiltersChange({ nameQuery: e.target.value })}
           />
         </label>
       </div>
 
+      {activeChips.length > 0 && (
+        <div className="chip-row" aria-label="Active filters">
+          {activeChips.map((chip) => (
+            <button
+              key={chip.key}
+              className="filter-chip"
+              type="button"
+              onClick={chip.onRemove}
+            >
+              <span>{chip.label}</span>
+              <span aria-hidden>×</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="list-meta">
         <p className="eyebrow">
           Showing {projects.length} {total ? `of ${total}` : ""} projects
         </p>
-        {loading && <div className="pill pill-muted">Loading…</div>}
+        <div className="meta-actions">
+          <div className="pill pill-muted">Page {page} of {totalPages}</div>
+          {loading && <div className="pill pill-muted">Loading…</div>}
+        </div>
       </div>
 
       <div className="project-list">
+        {loading && projects.length === 0 && (
+          <>
+            {[1, 2, 3].map((placeholder) => (
+              <div key={placeholder} className="project-card skeleton-card">
+                <div className="skeleton skeleton-title" />
+                <div className="skeleton skeleton-text" />
+                <div className="skeleton skeleton-text" />
+              </div>
+            ))}
+            <div className="empty-state muted">Loading projects…</div>
+          </>
+        )}
+
         {projects.map((project) => (
           <ProjectCard
             key={project.project_id}
@@ -123,10 +257,32 @@ export function ProjectSearchPanel({
         ))}
         {!loading && projects.length === 0 && (
           <div className="empty-state">
-            <p>No projects match these filters yet.</p>
-            <p className="eyebrow">Try widening the district or lowering the score.</p>
+            <p>No projects match these filters.</p>
+            <p className="eyebrow">Try relaxing filters or clearing search.</p>
           </div>
         )}
+      </div>
+
+      <div className="pagination">
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          disabled={page <= 1 || loading}
+        >
+          Previous
+        </button>
+        <span className="muted">
+          Page {page} of {totalPages}
+        </span>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages || loading}
+        >
+          Next
+        </button>
       </div>
     </div>
   );
