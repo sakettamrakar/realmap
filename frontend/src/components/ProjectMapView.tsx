@@ -19,6 +19,7 @@ interface Props {
   onBoundsChange: (bbox: BBox) => void;
   loading?: boolean;
   initialBounds: BBox;
+  focus?: { lat: number; lon: number; zoom?: number; timestamp?: number } | null;
 }
 
 const scoreBucket = (score?: number) => {
@@ -110,6 +111,30 @@ const PinsLayer = ({
   );
 };
 
+const RecenterOnFocus = ({ focus }: { focus?: { lat: number; lon: number; zoom?: number; timestamp?: number } | null }) => {
+  const map = useMap();
+  const prevFocusRef = useRef<{ lat: number; lon: number; zoom?: number; timestamp?: number } | null>(null);
+
+  useEffect(() => {
+    if (
+      !focus ||
+      (
+        prevFocusRef.current &&
+        prevFocusRef.current.lat === focus.lat &&
+        prevFocusRef.current.lon === focus.lon &&
+        prevFocusRef.current.zoom === focus.zoom &&
+        prevFocusRef.current.timestamp === focus.timestamp
+      )
+    ) {
+      return;
+    }
+    map.flyTo([focus.lat, focus.lon], focus.zoom ?? Math.max(map.getZoom(), 14));
+    prevFocusRef.current = focus;
+  }, [focus?.lat, focus?.lon, focus?.zoom, focus?.timestamp, map]);
+
+  return null;
+};
+
 const ProjectMapView = ({
   pins,
   selectedProjectId,
@@ -117,6 +142,7 @@ const ProjectMapView = ({
   onBoundsChange,
   loading,
   initialBounds,
+  focus,
 }: Props) => {
   const mapCenter: [number, number] = [
     (initialBounds.maxLat + initialBounds.minLat) / 2,
@@ -153,6 +179,7 @@ const ProjectMapView = ({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapEvents onBoundsChange={onBoundsChange} />
+          <RecenterOnFocus focus={focus} />
           <PinsLayer
             pins={pins}
             onSelectProject={onSelectProject}
