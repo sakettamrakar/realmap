@@ -34,14 +34,18 @@ describe("projectsApi", () => {
     const result = await searchProjects({
       district: "Raipur",
       min_overall_score: 0.5,
-      name_contains: "Test",
+      q: "Test",
+      sort_by: "overall_score",
+      sort_dir: "desc",
     });
 
     expect(spy).toHaveBeenCalledWith("/projects/search", {
       params: {
         district: "Raipur",
         min_overall_score: 0.5,
-        name_contains: "Test",
+        q: "Test",
+        sort_by: "overall_score",
+        sort_dir: "desc",
       },
     });
     expect(result.items[0].name).toBe("Test Project");
