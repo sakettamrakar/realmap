@@ -215,9 +215,10 @@ export function ProjectSearchPanel({
               className="filter-chip"
               type="button"
               onClick={chip.onRemove}
+              aria-label={`Remove ${chip.label} filter`}
             >
               <span>{chip.label}</span>
-              <span aria-hidden>×</span>
+              <span aria-hidden="true">×</span>
             </button>
           ))}
         </div>
@@ -243,7 +244,6 @@ export function ProjectSearchPanel({
                 <div className="skeleton skeleton-text" />
               </div>
             ))}
-            <div className="empty-state muted">Loading projects…</div>
           </>
         )}
 

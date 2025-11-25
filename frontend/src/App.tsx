@@ -35,8 +35,6 @@ function App() {
   );
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const [page, setPage] = useState(1);
-
   const [mapPins, setMapPins] = useState<ProjectMapPin[]>([]);
   const [mapBounds, setMapBounds] = useState<BBox | null>(DEFAULT_BOUNDS);
   const [mapLoading, setMapLoading] = useState(false);
@@ -49,16 +47,16 @@ function App() {
 
   const handleFiltersChange = (next: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...next }));
-    setPage(1);
+    setSearchMeta((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleResetFilters = () => {
     setFilters({ ...DEFAULT_FILTERS });
-    setPage(1);
+    setSearchMeta((prev) => ({ ...prev, page: 1 }));
   };
 
   const handlePageChange = (nextPage: number) => {
-    setPage(nextPage);
+    setSearchMeta((prev) => ({ ...prev, page: nextPage }));
   };
 
   useEffect(() => {
@@ -69,11 +67,10 @@ function App() {
         const data = await searchProjects({
           district: debouncedFilters.district || undefined,
           min_overall_score: debouncedFilters.minOverallScore || undefined,
-          name_contains: debouncedFilters.nameQuery || undefined,
           q: debouncedFilters.nameQuery || undefined,
           sort_by: debouncedFilters.sortBy,
           sort_dir: debouncedFilters.sortDir,
-          page,
+          page: searchMeta.page,
           page_size: PAGE_SIZE,
         });
         if (cancelled) return;
@@ -96,7 +93,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedFilters, page]);
+  }, [debouncedFilters, searchMeta.page]);
 
   useEffect(() => {
     if (!mapBounds) return;
