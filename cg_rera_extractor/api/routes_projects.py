@@ -20,6 +20,7 @@ def search_projects_endpoint(
     *,
     district: str | None = None,
     tehsil: str | None = None,
+    name_contains: str | None = None,
     lat: float | None = Query(None, ge=-90, le=90),
     lon: float | None = Query(None, ge=-180, le=180),
     radius_km: float | None = Query(None, gt=0),
@@ -51,6 +52,7 @@ def search_projects_endpoint(
     params = SearchParams(
         district=district,
         tehsil=tehsil,
+        name_contains=name_contains,
         lat=lat,
         lon=lon,
         radius_km=radius_km,

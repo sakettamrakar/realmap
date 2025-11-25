@@ -17,6 +17,7 @@ class SearchParams:
         *,
         district: str | None = None,
         tehsil: str | None = None,
+        name_contains: str | None = None,
         lat: float | None = None,
         lon: float | None = None,
         radius_km: float | None = None,
@@ -34,6 +35,7 @@ class SearchParams:
     ) -> None:
         self.district = district
         self.tehsil = tehsil
+        self.name_contains = name_contains
         self.lat = lat
         self.lon = lon
         self.radius_km = radius_km
@@ -121,6 +123,8 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         stmt = stmt.filter(Project.district.ilike(params.district))
     if params.tehsil:
         stmt = stmt.filter(Project.tehsil.ilike(params.tehsil))
+    if params.name_contains:
+        stmt = stmt.filter(Project.project_name.ilike(f"%{params.name_contains}%"))
     if params.status:
         stmt = stmt.filter(Project.status.ilike(params.status))
 

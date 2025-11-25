@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -11,6 +12,15 @@ from cg_rera_extractor.api.schemas import ProjectDetail, ProjectSummary
 from cg_rera_extractor.db import Project
 
 app = FastAPI(title="CG RERA Projects API", version="0.1.0")
+
+# Enable CORS for frontend development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(projects_router)
 
