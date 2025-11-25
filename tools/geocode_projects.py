@@ -4,15 +4,21 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from pathlib import Path
 
+# Add tools directory to path to import sibling modules
+sys.path.append(str(Path(__file__).parent))
+
+from backfill_normalized_addresses import build_address_parts
 from sqlalchemy import select
 
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
 from cg_rera_extractor.config.loader import load_config
 from cg_rera_extractor.config.models import AppConfig, DatabaseConfig, GeocoderConfig, GeocoderProvider
 from cg_rera_extractor.db import Project, get_engine, get_session_local
-from cg_rera_extractor.geo import GeocodingStatus, build_geocoding_client
+from cg_rera_extractor.geo import GeocodingStatus, build_geocoding_client, generate_geocoding_candidates
+from cg_rera_extractor.geo.address_normalizer import AddressParts
 
 
 def load_configs(config_path: str | None) -> tuple[DatabaseConfig, GeocoderConfig]:
@@ -72,9 +78,23 @@ def main() -> int:
         counts = {"processed": 0, "success": 0, "failed": 0}
         for project in projects:
             counts["processed"] += 1
-            result = geocoding_client.geocode(project.normalized_address)
+            
+            # Generate candidates for fallback
+            parts = build_address_parts(project)
+            candidates = generate_geocoding_candidates(parts)
+            
+            result = None
+            used_address = None
+            
+            for candidate in candidates:
+                logging.debug("Trying candidate: %s", candidate)
+                result = geocoding_client.geocode(candidate)
+                if result:
+                    used_address = candidate
+                    break
+            
             if not result:
-                logging.warning("Geocoding failed for project %s", project.id)
+                logging.warning("Geocoding failed for project %s (tried %d candidates)", project.id, len(candidates))
                 project.geocoding_status = GeocodingStatus.FAILED
                 counts["failed"] += 1
                 continue
@@ -84,8 +104,11 @@ def main() -> int:
             project.formatted_address = result.formatted_address
             project.geo_precision = result.geo_precision
             project.geo_source = result.geo_source
+            project.geo_normalized_address = used_address # Store which address actually worked
             project.geocoding_status = GeocodingStatus.SUCCESS
             counts["success"] += 1
+            
+            logging.info("Geocoded project %s using: '%s'", project.id, used_address)
 
         if args.dry_run:
             session.rollback()

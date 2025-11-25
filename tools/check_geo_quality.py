@@ -75,6 +75,7 @@ def evaluate_projects(
         Project.geocoding_status,
         Project.raw_data_json,
         Project.full_address,
+        Project.normalized_address,
     )
 
     for row in session.execute(stmt):
@@ -106,8 +107,8 @@ def evaluate_projects(
                 if len(samples["out_of_bounds"]) < sample_size:
                     samples["out_of_bounds"].append(build_sample_row(row, lat, lon))
 
-        normalized_address = None
-        if isinstance(row.raw_data_json, dict):
+        normalized_address = row.normalized_address
+        if not normalized_address and isinstance(row.raw_data_json, dict):
             normalized_address = row.raw_data_json.get("normalized_address")
             if not normalized_address:
                 normalized_address = row.raw_data_json.get("normalizedAddress")

@@ -104,7 +104,7 @@ class Project(Base):
     amenity_stats: Mapped[list["ProjectAmenityStats"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    score: Mapped["ProjectScores" | None] = relationship(
+    score: Mapped["ProjectScores"] = relationship(
         back_populates="project", cascade="all, delete-orphan", uselist=False
     )
 

@@ -129,8 +129,60 @@ def normalize_address(parts: AddressParts) -> AddressNormalizationResult:
     )
 
 
+def generate_geocoding_candidates(parts: AddressParts) -> list[str]:
+    """Generate a list of address strings with decreasing specificity.
+
+    This is useful for fallback geocoding when the full address fails.
+    Strategies:
+    1. Full address (Address Line + Locality + Tehsil + District + State + Pincode)
+    2. Locality level (Locality + Tehsil + District + State + Pincode)
+    3. Tehsil level (Tehsil + District + State)
+    4. District level (District + State)
+    """
+    candidates = []
+    seen = set()
+
+    # Helper to build and add unique candidate
+    def add_candidate(current_parts: AddressParts):
+        result = normalize_address(current_parts)
+        addr = result.normalized_address
+        if addr and addr not in seen:
+            candidates.append(addr)
+            seen.add(addr)
+
+    # 1. Full address
+    add_candidate(parts)
+
+    # 2. Drop address_line (often contains specific landmarks/plot numbers that confuse geocoders)
+    if parts.address_line:
+        parts_no_line = dataclass_replace(parts, address_line=None)
+        add_candidate(parts_no_line)
+
+    # 3. Drop village_or_locality (keep tehsil/district)
+    if parts.village_or_locality:
+        parts_no_loc = dataclass_replace(parts, address_line=None, village_or_locality=None)
+        add_candidate(parts_no_loc)
+
+    # 4. Drop tehsil (keep district)
+    if parts.tehsil:
+        parts_district = dataclass_replace(
+            parts, 
+            address_line=None, 
+            village_or_locality=None, 
+            tehsil=None
+        )
+        add_candidate(parts_district)
+
+    return candidates
+
+
+# Helper for dataclass replacement (available in stdlib dataclasses but explicit here for clarity/compat)
+from dataclasses import replace as dataclass_replace
+
+
 __all__ = [
     "AddressNormalizationResult",
     "AddressParts",
     "normalize_address",
+    "generate_geocoding_candidates",
 ]
