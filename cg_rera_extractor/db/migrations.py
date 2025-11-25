@@ -156,11 +156,112 @@ def _update_amenity_schema(conn: Connection) -> None:
     )
 
 
+def _create_phase6_read_model(conn: Connection) -> None:
+    """Indexes and view to support Phase 6 search/map queries."""
+
+    conn.execute(
+        text(
+            """
+            CREATE INDEX IF NOT EXISTS ix_projects_district
+                ON projects (district);
+            CREATE INDEX IF NOT EXISTS ix_projects_tehsil
+                ON projects (tehsil);
+            CREATE INDEX IF NOT EXISTS ix_projects_status
+                ON projects (status);
+            CREATE INDEX IF NOT EXISTS ix_projects_registration_date
+                ON projects (approved_date);
+
+            CREATE INDEX IF NOT EXISTS ix_project_scores_overall_score
+                ON project_scores (overall_score);
+            CREATE INDEX IF NOT EXISTS ix_project_scores_location_score
+                ON project_scores (location_score);
+            CREATE INDEX IF NOT EXISTS ix_project_scores_amenity_score
+                ON project_scores (amenity_score);
+
+            CREATE INDEX IF NOT EXISTS ix_project_locations_active_lat_lon
+                ON project_locations (lat, lon)
+                WHERE is_active;
+
+            CREATE INDEX IF NOT EXISTS ix_project_amenity_stats_project_radius
+                ON project_amenity_stats (project_id, radius_km);
+            """
+        )
+    )
+
+    conn.execute(
+        text(
+            """
+            CREATE OR REPLACE VIEW project_search_view AS
+            WITH canonical_location AS (
+                SELECT
+                    pl.project_id,
+                    pl.lat,
+                    pl.lon,
+                    pl.source_type,
+                    pl.precision_level,
+                    pl.confidence_score,
+                    pl.updated_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY pl.project_id
+                        ORDER BY COALESCE(pl.confidence_score, 0) DESC, pl.updated_at DESC NULLS LAST, pl.id DESC
+                    ) AS rn
+                FROM project_locations pl
+                WHERE pl.is_active IS TRUE
+            ),
+            amenity_rollup AS (
+                SELECT
+                    pas.project_id,
+                    MAX(CASE WHEN pas.radius_km IS NULL THEN pas.onsite_available END) AS onsite_available,
+                    MAX(CASE WHEN pas.radius_km IS NULL THEN pas.onsite_details END) AS onsite_details,
+                    SUM(CASE WHEN pas.radius_km IS NOT NULL THEN COALESCE(pas.nearby_count, 0) ELSE 0 END) AS total_nearby_count,
+                    MIN(CASE WHEN pas.radius_km IS NOT NULL THEN pas.nearby_nearest_km END) AS nearest_nearby_km
+                FROM project_amenity_stats pas
+                GROUP BY pas.project_id
+            )
+            SELECT
+                p.id AS project_id,
+                p.state_code,
+                p.rera_registration_number,
+                p.project_name,
+                p.status,
+                p.district,
+                p.tehsil,
+                p.village_or_locality,
+                p.full_address,
+                COALESCE(cl.lat, p.latitude) AS lat,
+                COALESCE(cl.lon, p.longitude) AS lon,
+                COALESCE(cl.source_type, p.geo_source) AS geo_source,
+                COALESCE(cl.precision_level, p.geo_precision) AS geo_precision,
+                COALESCE(cl.confidence_score, p.geo_confidence) AS geo_confidence,
+                p.approved_date AS registration_date,
+                p.proposed_end_date,
+                p.extended_end_date,
+                ps.overall_score,
+                ps.location_score,
+                ps.amenity_score,
+                ps.score_version,
+                ar.onsite_available,
+                ar.onsite_details,
+                ar.total_nearby_count,
+                ar.nearest_nearby_km
+            FROM projects p
+            LEFT JOIN canonical_location cl
+                ON cl.project_id = p.id AND cl.rn = 1
+            LEFT JOIN project_scores ps
+                ON ps.project_id = p.id
+            LEFT JOIN amenity_rollup ar
+                ON ar.project_id = p.id;
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250322_create_amenity_tables", _create_amenity_tables),
     ("20250401_create_project_locations", _create_project_locations_table),
     ("20250415_separate_amenity_scopes", _update_amenity_schema),
+    ("20250428_phase6_read_model", _create_phase6_read_model),
 ]
 
 
