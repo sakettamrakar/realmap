@@ -7,11 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
-from cg_rera_extractor.db import Project, get_engine, get_session_local
+from cg_rera_extractor.db import Project, ProjectLocation, get_engine, get_session_local
 
 INDIA_BOUNDS = {
     "min_lat": 6.0,
@@ -132,6 +132,23 @@ def evaluate_projects(
         metrics["missing_normalized_address"], metrics["total_projects"]
     )
 
+    metrics["missing_normalized_address_pct"] = pct(
+        metrics["missing_normalized_address"], metrics["total_projects"]
+    )
+
+    # ProjectLocation stats
+    loc_stats = session.execute(
+        select(
+            ProjectLocation.source_type,
+            ProjectLocation.precision_level,
+            func.count(ProjectLocation.id)
+        ).group_by(ProjectLocation.source_type, ProjectLocation.precision_level)
+    ).all()
+    
+    metrics["location_sources"] = [
+        {"source": s, "precision": p, "count": c} for s, p, c in loc_stats
+    ]
+
     return {"metrics": metrics, "samples": samples}
 
 
@@ -166,6 +183,15 @@ def print_summary(report: dict[str, Any]) -> None:
     print("Geocoding status distribution:")
     for status, count in sorted(metrics["geocoding_status"].items()):
         print(f"  {status:>12}: {count}")
+
+    print("\nProject Location Sources:")
+    if not metrics.get("location_sources"):
+        print("  No project locations found.")
+    else:
+        print(f"  {'Source':<20} | {'Precision':<15} | {'Count':<5}")
+        print(f"  {'-'*20} | {'-'*15} | {'-'*5}")
+        for item in metrics["location_sources"]:
+            print(f"  {item['source']:<20} | {str(item['precision']):<15} | {item['count']:<5}")
 
     for key, rows in report["samples"].items():
         print(f"\nSample: {key.replace('_', ' ').title()} (showing {len(rows)})")

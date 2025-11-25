@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 from .base import Base
 
@@ -106,6 +107,9 @@ class Project(Base):
     )
     score: Mapped["ProjectScores"] = relationship(
         back_populates="project", cascade="all, delete-orphan", uselist=False
+    )
+    locations: Mapped[list["ProjectLocation"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
     )
 
 
@@ -321,6 +325,36 @@ class ProjectScores(Base):
     project: Mapped[Project] = relationship(back_populates="score")
 
 
+class ProjectLocation(Base):
+    """Candidate location for a project from a specific source."""
+
+    __tablename__ = "project_locations"
+    __table_args__ = (
+        Index("ix_project_locations_project_id", "project_id"),
+        Index("ix_project_locations_source_type", "source_type"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    lat: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
+    lon: Mapped[Numeric] = mapped_column(Numeric(9, 6), nullable=False)
+    precision_level: Mapped[str | None] = mapped_column(String(32))
+    confidence_score: Mapped[Numeric | None] = mapped_column(Numeric(4, 3))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    meta_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
+
+    project: Mapped[Project] = relationship(back_populates="locations")
+
+
 __all__ = [
     "Project",
     "Promoter",
@@ -334,4 +368,5 @@ __all__ = [
     "AmenityPOI",
     "ProjectAmenityStats",
     "ProjectScores",
+    "ProjectLocation",
 ]

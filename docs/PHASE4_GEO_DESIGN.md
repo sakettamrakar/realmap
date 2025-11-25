@@ -121,3 +121,27 @@ python tools/backfill_normalized_addresses.py \
 - `village_or_locality` is unused in current JSON; confirming whether the site exposes a separate locality field would improve normalized addresses.
 - Provider choice (Google vs OSM/Mapbox) will drive rate limits and accuracy; selection to be finalized with Ops.
 - Column renames (`geocoding_source` → `geo_source`, `geocoding_status` → `geo_status`) should be applied via migration to maintain consistency.
+
+## Multi-Source Location Model (Refactor)
+
+To support multiple location sources (Geocoding, RERA, Manual) and select the best one, we introduced a `project_locations` table.
+
+### `project_locations` Table
+Stores all candidate locations for a project.
+- `project_id`: FK to `projects`.
+- `source_type`: `manual_pin`, `rera_pin`, `geocode_normalized`, `district_centroid`, etc.
+- `lat`, `lon`: Coordinates.
+- `precision_level`: `exact`, `locality`, `city`, `district`, `state`.
+- `confidence_score`: 0-1 score (optional).
+- `is_active`: Soft delete/toggle.
+- `meta_data`: JSON for provider details.
+
+### Canonical Selection Logic
+A chooser process (`tools/select_canonical_project_locations.py`) selects the best location based on priority:
+1.  **Manual Pin** (`manual_pin`): Highest priority.
+2.  **RERA Pin** (`rera_pin`): High priority (from map links/amenities).
+3.  **Geocode Exact/Locality** (`geocode_normalized` + `exact`/`locality`): Good quality geocodes.
+4.  **Geocode City/District** (`geocode_normalized` + `city`/`district`): Fallback geocodes.
+5.  **Other**: Centroids, etc.
+
+The selected location is copied to `projects.latitude`, `projects.longitude`, `projects.geo_source`, etc., for easy consumption by downstream apps.

@@ -16,9 +16,10 @@ from sqlalchemy import select
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
 from cg_rera_extractor.config.loader import load_config
 from cg_rera_extractor.config.models import AppConfig, DatabaseConfig, GeocoderConfig, GeocoderProvider
-from cg_rera_extractor.db import Project, get_engine, get_session_local
+from cg_rera_extractor.db import Project, ProjectLocation, get_engine, get_session_local
 from cg_rera_extractor.geo import GeocodingStatus, build_geocoding_client, generate_geocoding_candidates
 from cg_rera_extractor.geo.address_normalizer import AddressParts
+from cg_rera_extractor.geo.location_selector import apply_canonical_location, select_canonical_location
 
 
 def load_configs(config_path: str | None) -> tuple[DatabaseConfig, GeocoderConfig]:
@@ -64,12 +65,9 @@ def main() -> int:
     with SessionLocal() as session:
         stmt = (
             select(Project)
+            .outerjoin(ProjectLocation, (ProjectLocation.project_id == Project.id) & (ProjectLocation.source_type == 'geocode_normalized'))
             .where(Project.normalized_address.is_not(None))
-            .where(
-                (Project.latitude.is_(None))
-                | (Project.longitude.is_(None))
-                | (Project.geo_source.is_(None))
-            )
+            .where(ProjectLocation.id.is_(None))
             .limit(args.limit)
         )
         projects = session.scalars(stmt).all()
@@ -99,13 +97,41 @@ def main() -> int:
                 counts["failed"] += 1
                 continue
 
-            project.latitude = result.lat
-            project.longitude = result.lon
-            project.formatted_address = result.formatted_address
-            project.geo_precision = result.geo_precision
-            project.geo_source = result.geo_source
-            project.geo_normalized_address = used_address # Store which address actually worked
+            # Create ProjectLocation entry
+            location = ProjectLocation(
+                project_id=project.id,
+                source_type="geocode_normalized",
+                lat=result.lat,
+                lon=result.lon,
+                precision_level=result.geo_precision,
+                confidence_score=None, # Provider doesn't give score yet
+                meta_data={"formatted_address": result.formatted_address, "raw": result.raw, "used_address": used_address},
+                is_active=True
+            )
+            session.add(location)
+            
+            # Mark status as success
             project.geocoding_status = GeocodingStatus.SUCCESS
+            
+            # Select and apply canonical location immediately
+            # (We know we just added a location, so it should be available in session, 
+            #  but we might need to flush if select_canonical_location queries DB directly.
+            #  However, select_canonical_location uses project.locations relationship.
+            #  SQLAlchemy should handle this if we add to relationship or flush.)
+            
+            # To be safe, let's append to relationship explicitly or flush
+            # project.locations.append(location) # This might duplicate if backref works
+            # session.flush() # Ensure ID is generated and relationship populated if needed
+            
+            # Actually, since we did session.add(location) and location.project_id is set,
+            # we might need to refresh project or manually append to see it in project.locations
+            # without a commit/refresh.
+            project.locations.append(location)
+            
+            best_loc = select_canonical_location(project)
+            if apply_canonical_location(project, best_loc):
+                logging.info("Updated canonical location for project %s", project.id)
+
             counts["success"] += 1
             
             logging.info("Geocoded project %s using: '%s'", project.id, used_address)

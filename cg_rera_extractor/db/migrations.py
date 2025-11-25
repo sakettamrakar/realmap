@@ -100,9 +100,39 @@ def _create_amenity_tables(conn: Connection) -> None:
     )
 
 
+
+def _create_project_locations_table(conn: Connection) -> None:
+    """Create project_locations table."""
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS project_locations (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                source_type VARCHAR(64) NOT NULL,
+                lat NUMERIC(9, 6) NOT NULL,
+                lon NUMERIC(9, 6) NOT NULL,
+                precision_level VARCHAR(32),
+                confidence_score NUMERIC(4, 3),
+                is_active BOOLEAN DEFAULT TRUE,
+                meta_data JSONB,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_locations_project_id
+                ON project_locations (project_id);
+            CREATE INDEX IF NOT EXISTS ix_project_locations_source_type
+                ON project_locations (source_type);
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250322_create_amenity_tables", _create_amenity_tables),
+    ("20250401_create_project_locations", _create_project_locations_table),
 ]
 
 
