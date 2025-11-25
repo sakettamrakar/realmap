@@ -38,7 +38,7 @@ function App() {
   const [mapPins, setMapPins] = useState<ProjectMapPin[]>([]);
   const [mapBounds, setMapBounds] = useState<BBox | null>(DEFAULT_BOUNDS);
   const [mapLoading, setMapLoading] = useState(false);
-  const [mapFocus, setMapFocus] = useState<{ lat: number; lon: number; zoom?: number } | null>(null);
+  const [mapFocus, setMapFocus] = useState<{ lat: number; lon: number; zoom?: number; timestamp?: number } | null>(null);
 
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjectDetail | null>(null);
@@ -199,7 +199,7 @@ function App() {
                 project={selectedProject}
                 loading={detailLoading}
                 onClose={() => setSelectedProjectId(null)}
-                onCenterOnProject={(coords) => setMapFocus({ ...coords, zoom: 15 })}
+                onCenterOnProject={(coords) => setMapFocus({ ...coords, zoom: 15, timestamp: Date.now() })}
               />
             </div>
           </section>

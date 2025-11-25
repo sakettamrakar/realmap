@@ -715,8 +715,8 @@ body {
 }
 
 .status-early {
-  background: rgba(234, 179, 8, 0.15);
-  color: #facc15;
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde047;
 }
 
 .status-in-progress {

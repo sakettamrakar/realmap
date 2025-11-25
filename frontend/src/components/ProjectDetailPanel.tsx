@@ -17,6 +17,9 @@ const scoreBucket = (score?: number) => {
   return "low";
 };
 
+const getScoreBarWidth = (score?: number) =>
+  `${Math.min(Math.max((score ?? 0) * 100, 0), 100)}%`;
+
 const progressStatus = (progress?: number) => {
   if (progress === undefined || progress === null) return "Not reported";
   if (progress < 0.3) return "Early";
@@ -41,7 +44,7 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
       }));
     }
     if (amenities?.onsite_list) {
-      return amenities.onsite_list.map((name) => ({ name, progress: undefined as number | undefined }));
+      return amenities.onsite_list.map((name) => ({ name, progress: undefined }));
     }
     return [];
   })();
@@ -94,6 +97,7 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
           <button
             className="pill"
             disabled={!centerEnabled}
+            aria-label={centerEnabled ? "Center map on this project" : "Center map on this project (location unavailable)"}
             onClick={() =>
               centerEnabled &&
               onCenterOnProject?.({ lat: location!.lat as number, lon: location!.lon as number })
@@ -123,7 +127,7 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
                   <strong>{project.project.rera_number || "—"}</strong>
                 </div>
                 <div className="definition">
-                  <span>Promoter</span>
+                  <span>Developer</span>
                   <strong>{project.project.developer || "—"}</strong>
                 </div>
                 <div className="definition">
@@ -163,7 +167,7 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
                   <div className="score-bar">
                     <div
                       className="score-bar-fill"
-                      style={{ width: `${Math.min(Math.max((scores?.overall_score ?? 0) * 100, 0), 100)}%` }}
+                      style={{ width: getScoreBarWidth(scores?.overall_score) }}
                     />
                   </div>
                   <p className="score-hint">High-level blend of amenity and location quality</p>
@@ -174,10 +178,10 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
                   <div className="score-bar">
                     <div
                       className="score-bar-fill"
-                      style={{ width: `${Math.min(Math.max((scores?.amenity_score ?? 0) * 100, 0), 100)}%` }}
+                      style={{ width: getScoreBarWidth(scores?.amenity_score) }}
                     />
                   </div>
-                  <p className="score-hint">Amenity Score: internal project infra (clubhouse, water, roads…)</p>
+                  <p className="score-hint">Internal project infra (clubhouse, water, roads…)</p>
                 </div>
                 <div className={`score-card score-${scoreBucket(scores?.location_score)}`}>
                   <p className="eyebrow">Location Score</p>
@@ -185,10 +189,10 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
                   <div className="score-bar">
                     <div
                       className="score-bar-fill"
-                      style={{ width: `${Math.min(Math.max((scores?.location_score ?? 0) * 100, 0), 100)}%` }}
+                      style={{ width: getScoreBarWidth(scores?.location_score) }}
                     />
                   </div>
-                  <p className="score-hint">Location Score: nearby schools, hospitals, daily needs</p>
+                  <p className="score-hint">Nearby schools, hospitals, daily needs</p>
                 </div>
               </div>
             </section>
@@ -224,7 +228,13 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
                         </span>
                         <span>
                           {nearestImage ? (
-                            <a href={nearestImage} target="_blank" rel="noreferrer" className="eyebrow">
+                            <a
+                              href={nearestImage}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="eyebrow"
+                              aria-label={`Preview ${amenity.name}`}
+                            >
                               Preview
                             </a>
                           ) : (
