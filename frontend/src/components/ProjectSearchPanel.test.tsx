@@ -12,7 +12,7 @@ const sampleFilters: Filters = {
 
 const sampleProjects: ProjectSummary[] = [
   {
-    project_id: "1",
+    project_id: 1,
     name: "Skyline Heights",
     district: "Raipur",
     overall_score: 0.82,
@@ -46,6 +46,6 @@ describe("ProjectSearchPanel", () => {
     expect(onFiltersChange).toHaveBeenCalledWith({ nameQuery: "Sky" });
 
     fireEvent.click(screen.getByText("Skyline Heights"));
-    expect(onSelectProject).toHaveBeenCalledWith("1");
+    expect(onSelectProject).toHaveBeenCalledWith(1);
   });
 });

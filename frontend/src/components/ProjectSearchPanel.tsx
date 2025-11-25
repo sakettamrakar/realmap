@@ -1,3 +1,5 @@
+import ProjectCard from "./ProjectCard";
+import SectionHeader from "./SectionHeader";
 import type { Filters } from "../types/filters";
 import type { ProjectSummary } from "../types/projects";
 
@@ -25,9 +27,6 @@ interface Props {
   total?: number;
 }
 
-const formatScore = (score?: number) =>
-  score === undefined || score === null ? "–" : score.toFixed(2);
-
 export function ProjectSearchPanel({
   filters,
   onFiltersChange,
@@ -37,31 +36,46 @@ export function ProjectSearchPanel({
   selectedProjectId,
   total,
 }: Props) {
+  const handleReset = () => onFiltersChange({ district: "", minOverallScore: 0, nameQuery: "" });
+
   return (
     <div className="panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Filters</p>
-          <h2>Projects</h2>
+      <SectionHeader
+        eyebrow="Filters"
+        title="Projects"
+        subtitle="Find projects by location, score, or name"
+        actions={
+          <button className="ghost-button" onClick={handleReset} type="button">
+            Reset filters
+          </button>
+        }
+      />
+
+      <div className="filter-group">
+        <p className="group-title">Location Filters</p>
+        <div className="filter-row">
+          <label className="field">
+            <span>District</span>
+            <select
+              value={filters.district}
+              onChange={(e) => onFiltersChange({ district: e.target.value })}
+            >
+              {districtOptions.map((district) => (
+                <option key={district || "all"} value={district}>
+                  {district || "All districts"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Tehsil (optional)</span>
+            <input type="text" placeholder="Enter tehsil" disabled value="" />
+          </label>
         </div>
-        {loading && <div className="pill pill-muted">Loading…</div>}
       </div>
 
-      <div className="filter-row">
-        <label className="field">
-          <span>District</span>
-          <select
-            value={filters.district}
-            onChange={(e) => onFiltersChange({ district: e.target.value })}
-          >
-            {districtOptions.map((district) => (
-              <option key={district || "all"} value={district}>
-                {district || "All districts"}
-              </option>
-            ))}
-          </select>
-        </label>
-
+      <div className="filter-group">
+        <p className="group-title">Scores</p>
         <label className="field">
           <span>Min overall score</span>
           <div className="field-range">
@@ -71,82 +85,42 @@ export function ProjectSearchPanel({
               max={1}
               step={0.05}
               value={filters.minOverallScore}
-              onChange={(e) =>
-                onFiltersChange({ minOverallScore: Number(e.target.value) })
-              }
+              onChange={(e) => onFiltersChange({ minOverallScore: Number(e.target.value) })}
             />
-            <span className="range-value">
-              {filters.minOverallScore.toFixed(2)}
-            </span>
+            <span className="range-value">{filters.minOverallScore.toFixed(2)}</span>
           </div>
         </label>
       </div>
 
-      <label className="field">
-        <span>Project name contains</span>
-        <input
-          type="text"
-          placeholder="e.g. City, Heights"
-          value={filters.nameQuery}
-          onChange={(e) => onFiltersChange({ nameQuery: e.target.value })}
-        />
-      </label>
+      <div className="filter-group">
+        <p className="group-title">Search</p>
+        <label className="field">
+          <span>Project or promoter</span>
+          <input
+            type="text"
+            placeholder="e.g. City, Heights, Realty"
+            value={filters.nameQuery}
+            onChange={(e) => onFiltersChange({ nameQuery: e.target.value })}
+          />
+        </label>
+      </div>
 
       <div className="list-meta">
         <p className="eyebrow">
           Showing {projects.length} {total ? `of ${total}` : ""} projects
         </p>
+        {loading && <div className="pill pill-muted">Loading…</div>}
       </div>
 
       <div className="project-list">
-        {projects.map((project) => {
-          const isSelected = project.project_id === selectedProjectId;
-          return (
-            <button
-              key={project.project_id}
-              className={`project-card ${isSelected ? "selected" : ""}`}
-              onClick={() => onSelectProject(project.project_id)}
-            >
-              <div className="card-header">
-                <div>
-                  <p className="eyebrow">{project.district}</p>
-                  <h3>{project.name}</h3>
-                </div>
-                <div className="pill">{formatScore(project.overall_score)}</div>
-              </div>
-              <div className="card-meta">
-                <span>{project.status || "Status unknown"}</span>
-                {project.project_type && <span>· {project.project_type}</span>}
-                {project.distance_km != null && (
-                  <span>· {project.distance_km.toFixed(1)} km</span>
-                )}
-              </div>
-              <div className="score-row">
-                <div>
-                  <p className="eyebrow">Location</p>
-                  <p>{formatScore(project.location_score)}</p>
-                </div>
-                <div>
-                  <p className="eyebrow">Amenities</p>
-                  <p>{formatScore(project.amenity_score)}</p>
-                </div>
-                <div>
-                  <p className="eyebrow">Units</p>
-                  <p>{project.units ?? "—"}</p>
-                </div>
-              </div>
-              {project.highlight_amenities && project.highlight_amenities.length > 0 && (
-                <div className="tag-row">
-                  {project.highlight_amenities.slice(0, 4).map((amenity) => (
-                    <span key={amenity} className="pill pill-muted">
-                      {amenity}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </button>
-          );
-        })}
+        {projects.map((project) => (
+          <ProjectCard
+            key={project.project_id}
+            project={project}
+            selected={project.project_id === selectedProjectId}
+            onSelect={onSelectProject}
+          />
+        ))}
         {!loading && projects.length === 0 && (
           <div className="empty-state">
             <p>No projects match these filters yet.</p>
