@@ -156,6 +156,44 @@ def geo_qa_runner(_: Path) -> StepResult:
         )
 
 
+def amenity_score_qa_runner(_: Path) -> StepResult:
+    """Run amenity/score QA without failing the overall check."""
+
+    command = [
+        "python",
+        "tools/check_amenity_and_scores_quality.py",
+        "--sample-size",
+        "3",
+        "--output-json",
+        "runs/system_amenity_qa_report.json",
+    ]
+
+    try:
+        result = subprocess.run(command, capture_output=True, text=True)
+        stdout = result.stdout
+        stderr = result.stderr
+        if result.returncode != 0:
+            stdout += (
+                "\n(check_amenity_and_scores_quality exited with "
+                f"{result.returncode}; treating as warning)\n"
+            )
+        return StepResult(
+            name="Amenity & score QA (non-blocking)",
+            command=command,
+            exit_code=0,
+            stdout=stdout,
+            stderr=stderr,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        return StepResult(
+            name="Amenity & score QA (non-blocking)",
+            command=command,
+            exit_code=0,
+            stdout="",
+            stderr=str(exc),
+        )
+
+
 def run_step(step: Step, index: int, total: int, log_path: Path) -> StepResult:
     banner = f"=== STEP {index}/{total}: {step.name} ==="
     print(banner)
@@ -267,6 +305,10 @@ def build_steps(config_path: str) -> list[Step]:
         ),
         geocode_step,
         Step(name="Geo QA (non-blocking)", runner=geo_qa_runner),
+        Step(
+            name="Amenity & score QA (non-blocking)",
+            runner=amenity_score_qa_runner,
+        ),
         Step(name="API health check", runner=api_import_check),
     ]
 
