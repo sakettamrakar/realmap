@@ -21,8 +21,10 @@ export async function searchProjects(
         params: {
           ...params,
           min_overall_score: params.min_overall_score ?? undefined,
-          name_contains: params.name_contains || undefined,
+          q: params.q || undefined,
           district: params.district || undefined,
+          sort_by: params.sort_by || undefined,
+          sort_dir: params.sort_dir || undefined,
         },
       },
     );
