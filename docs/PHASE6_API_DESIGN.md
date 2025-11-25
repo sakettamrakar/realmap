@@ -237,6 +237,10 @@ Convenience endpoint for location context cards.
 - **Error handling**: structured errors with codes (`INVALID_FILTER`, `NOT_FOUND`, `RATE_LIMITED`).
 - **Versioning**: prefix routes with `/v1`; include `scoring_version` in responses for auditability.
 
+## Phase 6 read model
+- Prefer querying `project_search_view`, which combines `projects`, `project_scores`, `project_amenity_stats` rollups, and the best active `project_locations` record per project.
+- Targeted indexes exist on admin fields (`district`, `tehsil`, `status`, `approved_date`), score columns, and active geo points to keep map/list filters fast.
+
 ## Module layout (proposed)
 - `cg_rera_extractor.api.router`: FastAPI routers for `/projects` and `/internal`.
 - `cg_rera_extractor.api.schemas`: Pydantic models for request/response shapes.
