@@ -16,5 +16,6 @@ class ListingRecord:
     tehsil: str | None = None
     status: str | None = None
     detail_url: str = ""
+    website_url: str | None = None  # Project website URL from listing page
     run_id: str | None = None
     row_index: int | None = None

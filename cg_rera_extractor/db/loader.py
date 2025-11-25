@@ -15,6 +15,7 @@ from cg_rera_extractor.db import (
     Building,
     Project,
     ProjectDocument,
+    ProjectLocation,
     Promoter,
     QuarterlyUpdate,
     UnitType,
@@ -43,6 +44,7 @@ class LoadStats:
     bank_accounts: int = 0
     land_parcels: int = 0
     artifacts: int = 0
+    locations: int = 0
     runs_processed: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, int | list[str]]:
@@ -56,6 +58,7 @@ class LoadStats:
             "bank_accounts": self.bank_accounts,
             "land_parcels": self.land_parcels,
             "artifacts": self.artifacts,
+            "locations": self.locations,
             "runs_processed": list(self.runs_processed),
         }
 
@@ -145,6 +148,7 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
         (BankAccount, v1_project.bank_details),
         (LandParcel, []),  # Land details not directly in V1Project top-level yet
         (ProjectArtifact, []),  # Artifacts handled via previews
+        (ProjectLocation, v1_project.rera_locations),  # RERA locations from amenities
     ]
     for model, _ in child_tables:
         session.execute(delete(model).where(model.project_id == project.id))
@@ -268,6 +272,32 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
                 )
                 stats.artifacts += 1
 
+    # --- RERA Locations (from Amenities) ---
+    for rera_loc in v1_project.rera_locations:
+        meta_data = {
+            "particulars": rera_loc.particulars,
+            "image_url": rera_loc.image_url,
+            "from_date": rera_loc.from_date,
+            "to_date": rera_loc.to_date,
+            "progress_percent": rera_loc.progress_percent,
+        }
+        # Remove None values from metadata
+        meta_data = {k: v for k, v in meta_data.items() if v is not None}
+        
+        session.add(
+            ProjectLocation(
+                project_id=project.id,
+                source_type=rera_loc.source_type,
+                lat=_to_decimal(rera_loc.latitude),
+                lon=_to_decimal(rera_loc.longitude),
+                precision_level="amenity_marker" if rera_loc.source_type == "amenity" else "centroid",
+                confidence_score=None,
+                is_active=True,
+                meta_data=meta_data if meta_data else None,
+            )
+        )
+        stats.locations += 1
+
     stats.projects_upserted += 1
     return stats
 
@@ -296,6 +326,7 @@ def load_run_into_db(run_dir: str, session: Session | None = None) -> dict:
                 stats.quarterly_updates += project_stats.quarterly_updates
                 stats.bank_accounts += project_stats.bank_accounts
                 stats.artifacts += project_stats.artifacts
+                stats.locations += project_stats.locations
             except Exception as exc:
                 logger.error(f"Failed to load {path.name}: {exc}")
                 raise
@@ -332,6 +363,7 @@ def load_all_runs(base_runs_dir: str, session: Session | None = None) -> dict:
                 stats.quarterly_updates += int(run_stats.get("quarterly_updates", 0))
                 stats.bank_accounts += int(run_stats.get("bank_accounts", 0))
                 stats.artifacts += int(run_stats.get("artifacts", 0))
+                stats.locations += int(run_stats.get("locations", 0))
                 stats.runs_processed.append(run_path.name)
             except Exception as exc:
                 logger.error(f"Failed to load run {run_path.name}: {exc}")

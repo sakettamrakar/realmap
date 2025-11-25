@@ -18,6 +18,7 @@ from cg_rera_extractor.detail.storage import (
     make_project_html_path,
     make_project_key,
     save_project_html,
+    save_listing_metadata,
 )
 from cg_rera_extractor.listing.models import ListingRecord
 
@@ -179,6 +180,21 @@ def fetch_and_save_details(
             path = make_project_html_path(output_base, project_key)
             save_project_html(path, html)
             LOGGER.info("Saved detail page for %s to %s", record.reg_no, path)
+            
+            # Save listing metadata (website_url, district, etc.) alongside HTML
+            # This allows correlating listing data with detail data during processing
+            listing_meta = {
+                "reg_no": record.reg_no,
+                "project_name": record.project_name,
+                "promoter_name": record.promoter_name,
+                "district": record.district,
+                "tehsil": record.tehsil,
+                "status": record.status,
+                "website_url": record.website_url,
+                "detail_url": record.detail_url,
+            }
+            save_listing_metadata(output_base, project_key, listing_meta)
+            LOGGER.debug("Saved listing metadata for %s", record.reg_no)
 
             try:
                 LOGGER.info("Starting data extraction for current project...")

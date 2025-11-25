@@ -65,6 +65,7 @@ class V1ProjectDetails(BaseModel):
     district: Optional[str] = None
     tehsil: Optional[str] = None
     project_address: Optional[str] = None
+    project_website_url: Optional[str] = None  # Website URL from listing page
     total_units: Optional[int] = None
     total_area_sq_m: Optional[float] = None
     launch_date: Optional[str] = None
@@ -126,6 +127,19 @@ class V1QuarterlyUpdate(BaseModel):
     remarks: Optional[str] = None
 
 
+class V1ReraLocation(BaseModel):
+    """A location point captured from RERA detail page (amenities or map marker)."""
+
+    source_type: str  # e.g., "amenity", "map_marker", "project_pin"
+    latitude: float
+    longitude: float
+    particulars: Optional[str] = None  # e.g., "INTERNAL ROADS AND FOOTPATHS"
+    image_url: Optional[str] = None
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+    progress_percent: Optional[float] = None
+
+
 class PreviewArtifact(BaseModel):
     """Represents captured artifacts for a preview-enabled field."""
 
@@ -150,6 +164,7 @@ class V1Project(BaseModel):
     bank_details: list[V1BankDetails] = Field(default_factory=list)
     documents: list[V1Document] = Field(default_factory=list)
     quarterly_updates: list[V1QuarterlyUpdate] = Field(default_factory=list)
+    rera_locations: list[V1ReraLocation] = Field(default_factory=list)  # Amenity/map lat/lon
     raw_data: V1RawData
     validation_messages: list[str] = Field(default_factory=list)
     previews: dict[str, PreviewArtifact] = Field(default_factory=dict)
@@ -169,6 +184,7 @@ __all__ = [
     "V1BankDetails",
     "V1Document",
     "V1QuarterlyUpdate",
+    "V1ReraLocation",
     "V1RawData",
     "V1Project",
     "PreviewArtifact",

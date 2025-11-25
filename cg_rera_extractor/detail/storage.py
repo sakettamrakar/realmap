@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import re
+from typing import Optional
 
 
 _NON_WORD_RE = re.compile(r"[^A-Za-z0-9]+")
@@ -31,6 +33,15 @@ def make_project_html_path(output_base: str, project_key: str) -> str:
     return str(raw_dir / filename)
 
 
+def make_project_listing_meta_path(output_base: str, project_key: str) -> str:
+    """Return path for storing listing metadata (website_url, etc.) for a project."""
+
+    sanitized = _sanitize_reg_no(project_key)
+    raw_dir = Path(output_base) / "raw_html"
+    filename = f"project_{sanitized}.listing.json"
+    return str(raw_dir / filename)
+
+
 def make_preview_dir(output_base: str, project_key: str, field_key: str | None = None) -> Path:
     """Return the directory where preview artifacts for a field should live."""
 
@@ -46,4 +57,26 @@ def save_project_html(path: str, html: str) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(html, encoding="utf-8")
+
+
+def save_listing_metadata(output_base: str, project_key: str, metadata: dict) -> None:
+    """Save listing metadata (website_url, district, tehsil, etc.) for a project."""
+
+    path = make_project_listing_meta_path(output_base, project_key)
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def load_listing_metadata(output_base: str, project_key: str) -> Optional[dict]:
+    """Load listing metadata for a project, if it exists."""
+
+    path = make_project_listing_meta_path(output_base, project_key)
+    target = Path(path)
+    if not target.exists():
+        return None
+    try:
+        return json.loads(target.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
 

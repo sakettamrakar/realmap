@@ -27,6 +27,7 @@ _HEADER_ALIASES: dict[str, set[str]] = {
     "tehsil": {"tehsil", "tahsil"},
     "status": {"status"},
     "detail_url": {"details", "detail", "view", "view details"},
+    "website_url": {"website", "web", "site"},
 }
 
 
@@ -79,6 +80,37 @@ def _extract_detail_url(
             return urljoin(base_url, href)
     if fallback_href:
         return urljoin(base_url, fallback_href)
+    return None
+
+
+def _extract_website_url(cells, index: int | None) -> str | None:
+    """Extract the project website URL from the website column.
+    
+    The website link is typically a cell with an <a> containing <i class="fa fa-globe">.
+    """
+    # First check the mapped column
+    candidates = []
+    if index is not None and index < len(cells):
+        candidates.append(cells[index])
+    
+    # If no mapped column, search all cells for globe icon
+    if not candidates:
+        candidates = cells
+    
+    for cell in candidates:
+        # Look for anchor with fa-globe icon (typical CG RERA pattern)
+        links = cell.find_all("a")
+        for link in links:
+            href = (link.get("href") or "").strip()
+            if not href or href.startswith("javascript:"):
+                continue
+            # Check for globe icon child
+            globe_icon = link.find("i", class_=lambda c: c and "fa-globe" in c)
+            if globe_icon:
+                return href
+            # If we're checking a specific website column, accept any http link
+            if index is not None and (href.startswith("http://") or href.startswith("https://")):
+                return href
     return None
 
 
@@ -137,6 +169,7 @@ def parse_listing_html(
         detail_url = _extract_detail_url(
             cells, header_map.get("detail_url"), base_url, view_details_selector
         )
+        website_url = _extract_website_url(cells, header_map.get("website_url"))
         if not (reg_no and project_name and detail_url):
             continue
         record = ListingRecord(
@@ -147,6 +180,7 @@ def parse_listing_html(
             tehsil=_get_cell_text(cells, header_map.get("tehsil")),
             status=_get_cell_text(cells, header_map.get("status")),
             detail_url=detail_url,
+            website_url=website_url,
             row_index=row_index,
         )
         records.append(record)

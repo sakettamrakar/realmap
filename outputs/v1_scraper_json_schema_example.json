@@ -13,6 +13,7 @@
     "district": "Raipur",
     "tehsil": "Raipur",
     "project_address": "Plot 12, VIP Road, Raipur",
+    "project_website_url": "http://www.sunriseheights.com/",
     "total_units": 120,
     "total_area_sq_m": 10234.5,
     "launch_date": "2022-04-01",
@@ -75,6 +76,34 @@
       "status": "On track",
       "completion_percent": 45.0,
       "remarks": "Super structure in progress"
+    }
+  ],
+  "rera_locations": [
+    {
+      "source_type": "amenity",
+      "latitude": 21.284063,
+      "longitude": 81.698346,
+      "particulars": "INTERNAL ROADS AND FOOTPATHS",
+      "image_url": "../Content/ProjectDocuments/Application_2/AminitiesPHOTO_1.jpg",
+      "from_date": "01 Apr 2022",
+      "to_date": "30 Jun 2022",
+      "progress_percent": 100.0
+    },
+    {
+      "source_type": "amenity",
+      "latitude": 21.284211,
+      "longitude": 81.698741,
+      "particulars": "WATER SUPPLY",
+      "image_url": "../Content/ProjectDocuments/Application_2/AminitiesPHOTO_2.jpg",
+      "from_date": "01 Apr 2022",
+      "to_date": "30 Jun 2022",
+      "progress_percent": 100.0
+    },
+    {
+      "source_type": "amenity_centroid",
+      "latitude": 21.284556,
+      "longitude": 81.698474,
+      "particulars": "Computed centroid of amenity locations"
     }
   ],
   "raw_data": {

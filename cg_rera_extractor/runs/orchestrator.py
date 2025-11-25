@@ -22,14 +22,16 @@ from cg_rera_extractor.browser.search_page_flow import (
     manual_filter_fallback,
 )
 from cg_rera_extractor.detail.preview_capture import load_preview_metadata
+from cg_rera_extractor.detail.storage import load_listing_metadata
 from cg_rera_extractor.browser.session import PlaywrightBrowserSession
 from cg_rera_extractor.config.models import AppConfig, RunMode
 from cg_rera_extractor.detail.fetcher import fetch_and_save_details
 from cg_rera_extractor.listing.models import ListingRecord
 from cg_rera_extractor.listing.scraper import parse_listing_html
+from cg_rera_extractor.parsing.amenity_extractor import extract_amenity_locations, compute_centroid
 from cg_rera_extractor.parsing.mapper import map_raw_to_v1
 from cg_rera_extractor.parsing.raw_extractor import extract_raw_from_html
-from cg_rera_extractor.parsing.schema import PreviewArtifact
+from cg_rera_extractor.parsing.schema import PreviewArtifact, V1ReraLocation
 from cg_rera_extractor.quality import normalize_v1_project, validate_v1_project
 from cg_rera_extractor.runs.status import RunStatus
 
@@ -511,6 +513,41 @@ def _process_saved_html(
             _write_json(raw_path, raw.model_dump(mode="json"))
 
             v1_project = map_raw_to_v1(raw, state_code=state_code)
+            
+            # Load listing metadata (website_url, etc.) if available
+            listing_meta = load_listing_metadata(str(dirs["run_dir"]), project_key)
+            if listing_meta:
+                website_url = listing_meta.get("website_url")
+                if website_url:
+                    updated_details = v1_project.project_details.model_copy(
+                        update={"project_website_url": website_url}
+                    )
+                    v1_project = v1_project.model_copy(
+                        update={"project_details": updated_details}
+                    )
+                    LOGGER.debug("Populated website_url=%s for %s", website_url, project_key)
+            
+            # Extract amenity locations with lat/lon from detail page
+            amenity_locations = extract_amenity_locations(html)
+            if amenity_locations:
+                LOGGER.info(
+                    "Extracted %d amenity locations from %s", len(amenity_locations), html_file.name
+                )
+                # Add amenity centroid as a "project_centroid" location
+                centroid = compute_centroid(amenity_locations)
+                if centroid:
+                    centroid_loc = V1ReraLocation(
+                        source_type="amenity_centroid",
+                        latitude=centroid[0],
+                        longitude=centroid[1],
+                        particulars="Computed centroid of amenity locations",
+                    )
+                    amenity_locations.append(centroid_loc)
+                # Merge into v1_project.rera_locations
+                v1_project = v1_project.model_copy(
+                    update={"rera_locations": amenity_locations}
+                )
+            
             v1_project = normalize_v1_project(v1_project)
             validation_messages = validate_v1_project(v1_project)
             if validation_messages:
