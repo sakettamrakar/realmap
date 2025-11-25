@@ -60,19 +60,36 @@ const MapEvents = ({ onBoundsChange }: { onBoundsChange: (bbox: BBox) => void })
   return null;
 };
 
-const createIcon = (
+// Icon cache for performance - avoids creating new icons on every render
+const iconCache = new Map<string, L.DivIcon>();
+
+const getIconCacheKey = (
+  bucket: string,
+  precision: "exact" | "approximate",
+  isSelected: boolean,
+  isHovered: boolean,
+): string => `${bucket}-${precision}-${isSelected}-${isHovered}`;
+
+const getIcon = (
   bucket: string,
   options: { precision: "exact" | "approximate"; isSelected: boolean; isHovered: boolean },
-) =>
-  L.divIcon({
-    className: classNames("map-pin", `pin-${bucket}`, {
-      "pin-selected": options.isSelected,
-      "pin-hovered": options.isHovered,
-      "pin-approximate": options.precision === "approximate",
-      "pin-exact": options.precision === "exact",
-    }),
-    iconSize: [18, 18],
-  });
+): L.DivIcon => {
+  const cacheKey = getIconCacheKey(bucket, options.precision, options.isSelected, options.isHovered);
+  let icon = iconCache.get(cacheKey);
+  if (!icon) {
+    icon = L.divIcon({
+      className: classNames("map-pin", `pin-${bucket}`, {
+        "pin-selected": options.isSelected,
+        "pin-hovered": options.isHovered,
+        "pin-approximate": options.precision === "approximate",
+        "pin-exact": options.precision === "exact",
+      }),
+      iconSize: [18, 18],
+    });
+    iconCache.set(cacheKey, icon);
+  }
+  return icon;
+};
 
 const createClusterIcon = (cluster: any) => {
   const count = cluster.getChildCount();
@@ -133,7 +150,7 @@ const PinsLayer = ({
       {pins.map((pin) => {
         const bucket = scoreBucket(pin.overall_score);
         const precision = isExactLocation(pin) ? "exact" : "approximate";
-        const icon = createIcon(bucket, {
+        const icon = getIcon(bucket, {
           precision,
           isSelected: selectedProjectId === pin.project_id,
           isHovered: hoveredProjectId === pin.project_id,
@@ -242,14 +259,11 @@ const ProjectMapView = ({
           <div className="legend-row">
             <span className="legend-title">Location quality</span>
             <div className="legend-quality">
-              <span className="legend-pin legend-pin-exact" aria-label="Exact location" />
+              <span className="legend-pin legend-pin-exact" aria-hidden="true" />
               <span>● Exact location</span>
             </div>
             <div className="legend-quality">
-              <span
-                className="legend-pin legend-pin-approx"
-                aria-label="Approximate location"
-              />
+              <span className="legend-pin legend-pin-approx" aria-hidden="true" />
               <span>○ Approximate location</span>
             </div>
           </div>

@@ -441,4 +441,115 @@ describe("ProjectSearchPanel", () => {
       expect(onFiltersChange).toHaveBeenCalledWith({ sortDir: "asc" });
     });
   });
+
+  describe("Hover Behavior", () => {
+    beforeEach(() => {
+      Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    it("triggers onHoverProject when hovering a project card", () => {
+      const onHoverProject = vi.fn();
+
+      render(
+        <ProjectSearchPanel
+          filters={sampleFilters}
+          onFiltersChange={vi.fn()}
+          projects={sampleProjects}
+          loading={false}
+          onSelectProject={vi.fn()}
+          onHoverProject={onHoverProject}
+          selectedProjectId={null}
+          hoveredProjectId={null}
+          total={1}
+          page={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+          onResetFilters={vi.fn()}
+          defaultFilters={sampleFilters}
+        />,
+      );
+
+      const projectCard = screen.getByText("Skyline Heights").closest("button");
+      expect(projectCard).toBeInTheDocument();
+
+      fireEvent.mouseEnter(projectCard!);
+      expect(onHoverProject).toHaveBeenCalledWith(1);
+
+      fireEvent.mouseLeave(projectCard!);
+      expect(onHoverProject).toHaveBeenCalledWith(null);
+    });
+
+    it("applies hovered class when hoveredProjectId matches project", () => {
+      render(
+        <ProjectSearchPanel
+          filters={sampleFilters}
+          onFiltersChange={vi.fn()}
+          projects={sampleProjects}
+          loading={false}
+          onSelectProject={vi.fn()}
+          onHoverProject={vi.fn()}
+          selectedProjectId={null}
+          hoveredProjectId={1}
+          total={1}
+          page={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+          onResetFilters={vi.fn()}
+          defaultFilters={sampleFilters}
+        />,
+      );
+
+      const projectCard = screen.getByText("Skyline Heights").closest("button");
+      expect(projectCard).toHaveClass("hovered");
+    });
+
+    it("scrolls project into view when hoveredProjectId changes", () => {
+      const scrollIntoViewMock = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+      const { rerender } = render(
+        <ProjectSearchPanel
+          filters={sampleFilters}
+          onFiltersChange={vi.fn()}
+          projects={sampleProjects}
+          loading={false}
+          onSelectProject={vi.fn()}
+          onHoverProject={vi.fn()}
+          selectedProjectId={null}
+          hoveredProjectId={null}
+          total={1}
+          page={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+          onResetFilters={vi.fn()}
+          defaultFilters={sampleFilters}
+        />,
+      );
+
+      // Initially no scroll
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+      // Trigger hover by changing hoveredProjectId
+      rerender(
+        <ProjectSearchPanel
+          filters={sampleFilters}
+          onFiltersChange={vi.fn()}
+          projects={sampleProjects}
+          loading={false}
+          onSelectProject={vi.fn()}
+          onHoverProject={vi.fn()}
+          selectedProjectId={null}
+          hoveredProjectId={1}
+          total={1}
+          page={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+          onResetFilters={vi.fn()}
+          defaultFilters={sampleFilters}
+        />,
+      );
+
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "smooth", block: "nearest" });
+    });
+  });
 });
