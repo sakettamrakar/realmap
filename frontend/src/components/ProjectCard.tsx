@@ -8,12 +8,14 @@ interface Props {
   onSelect: (projectId: number) => void;
   onHover?: (projectId: number | null) => void;
   hovered?: boolean;
+  isShortlisted?: boolean;
+  onToggleShortlist?: (project: ProjectSummary, wasShortlisted: boolean) => void;
 }
 
 const formatScore = (score?: number | null) =>
   score === undefined || score === null ? "–" : score.toFixed(2);
 
-const ProjectCard = ({ project, selected, onSelect, onHover, hovered }: Props) => {
+const ProjectCard = ({ project, selected, onSelect, onHover, hovered, isShortlisted, onToggleShortlist }: Props) => {
   return (
     <button
       className={classNames("project-card", { selected, hovered })}
