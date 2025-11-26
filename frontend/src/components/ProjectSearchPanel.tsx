@@ -11,6 +11,7 @@ const sortOptions: {
 }[] = [
     { value: "overall_score", label: "Best overall score", defaultDir: "desc" },
     { value: "location_score", label: "Best location score", defaultDir: "desc" },
+    { value: "value_score", label: "Best value for money", defaultDir: "desc" },
     { value: "registration_date", label: "Latest registration", defaultDir: "desc" },
     { value: "price", label: "Lowest price", defaultDir: "asc" },
     { value: "name", label: "Name A–Z", defaultDir: "asc" },

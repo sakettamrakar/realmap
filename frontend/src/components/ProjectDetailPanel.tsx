@@ -215,6 +215,65 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
                   </div>
                   <p className="score-hint">Nearby schools, hospitals, daily needs</p>
                 </div>
+                {scores?.value_score != null && (
+                  <div className={`score-card score-${scoreBucket(scores?.value_score)}`}>
+                    <p className="eyebrow">Value Score</p>
+                    <p className="score-value">{formatScore(scores?.value_score)}</p>
+                    <div className="score-bar">
+                      <div
+                        className="score-bar-fill"
+                        style={{ width: getScoreBarWidth(scores?.value_score) }}
+                      />
+                    </div>
+                    <p className="score-hint">
+                      {scores?.value_bucket === 'excellent' ? 'Excellent value – high score, competitive price' :
+                       scores?.value_bucket === 'good' ? 'Good value – quality matches price' :
+                       scores?.value_bucket === 'fair' ? 'Fair value – typical for this price range' :
+                       scores?.value_bucket === 'poor' ? 'Lower value – price may be high for the score' :
+                       'Combines score + price (higher score + lower price = better value)'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Why this score? section */}
+              <div className="why-this-score" style={{ marginTop: '20px', padding: '16px', background: '#fafafa', borderRadius: '8px', border: '1px solid #eee' }}>
+                <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95em', fontWeight: 600 }}>Why this score?</h5>
+                {project.score_explanation && scores?.score_status === 'ok' ? (
+                  <>
+                    <p style={{ margin: '0 0 12px 0', color: '#555', fontSize: '0.9em' }}>
+                      {project.score_explanation.summary}
+                    </p>
+                    {project.score_explanation.positives.length > 0 && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <p className="eyebrow" style={{ marginBottom: '4px', color: '#2e7d32' }}>Strengths</p>
+                        <ul className="explanation-list explanation-positives" style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85em' }}>
+                          {project.score_explanation.positives.map((item, idx) => (
+                            <li key={idx} style={{ color: '#333', marginBottom: '2px' }}>
+                              <span style={{ color: '#43a047' }}>✓</span> {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {project.score_explanation.negatives.length > 0 && (
+                      <div>
+                        <p className="eyebrow" style={{ marginBottom: '4px', color: '#c62828' }}>Areas for improvement</p>
+                        <ul className="explanation-list explanation-negatives" style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85em' }}>
+                          {project.score_explanation.negatives.map((item, idx) => (
+                            <li key={idx} style={{ color: '#333', marginBottom: '2px' }}>
+                              <span style={{ color: '#e53935' }}>✗</span> {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p style={{ margin: 0, color: '#888', fontSize: '0.9em', fontStyle: 'italic' }}>
+                    We don't have enough data to fully explain this score yet.
+                  </p>
+                )}
               </div>
             </section>
 

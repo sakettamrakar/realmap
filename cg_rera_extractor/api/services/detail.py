@@ -5,6 +5,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session, selectinload
 
+from cg_rera_extractor.amenities.value_scoring import compute_value_score, get_value_bucket
+from cg_rera_extractor.analysis.explain import explain_project_score
 from cg_rera_extractor.db import Project, ProjectAmenityStats, ProjectScores
 
 from .search import _nearby_counts, _onsite_amenities, _resolve_location, _score_to_float, _get_latest_price
@@ -61,6 +63,20 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
 
     price_info = _get_latest_price(project)
     
+    # Compute value_score if we have the necessary data
+    # Use stored value if available, otherwise compute on the fly
+    value_score = None
+    if scores and scores.value_score is not None:
+        value_score = _score_to_float(scores.value_score)
+    elif scores and scores.overall_score is not None and price_info.get("min_price_total"):
+        value_score = compute_value_score(
+            _score_to_float(scores.overall_score),
+            price_info.get("min_price_total"),
+            price_info.get("max_price_total"),
+        )
+    
+    value_bucket = get_value_bucket(value_score)
+    
     # Build unit types list from new table or fallback to old?
     # Let's use new table if available, else old.
     unit_types = []
@@ -106,6 +122,8 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
             "overall_score": _score_to_float(scores.overall_score) if scores else None,
             "location_score": _score_to_float(scores.location_score) if scores else None,
             "amenity_score": _score_to_float(scores.amenity_score) if scores else None,
+            "value_score": value_score,
+            "value_bucket": value_bucket,
             "score_status": scores.score_status if scores else None,
             "score_status_reason": scores.score_status_reason if scores else None,
             "scoring_version": scores.score_version if scores else None,
@@ -123,6 +141,7 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
             "amenity_notes": None,
             "issues": [],
         },
+        "score_explanation": explain_project_score(project.id, db),
     }
 
     return payload

@@ -11,6 +11,8 @@ export interface ProjectSummary {
   overall_score?: number;
   location_score?: number;
   amenity_score?: number;
+  value_score?: number;
+  value_bucket?: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown';
   units?: number;
   area_sqft?: number;
   registration_date?: string;
@@ -47,6 +49,23 @@ export interface UnitType {
   area_range?: [number | null, number | null];
 }
 
+export interface ScoreFactorsDetail {
+  strong?: string[];
+  weak?: string[];
+}
+
+export interface ScoreExplanationFactors {
+  onsite?: ScoreFactorsDetail;
+  location?: ScoreFactorsDetail;
+}
+
+export interface ScoreExplanation {
+  summary: string;
+  positives: string[];
+  negatives: string[];
+  factors?: ScoreExplanationFactors;
+}
+
 export interface ProjectDetail {
   project: {
     project_id: number;
@@ -72,6 +91,8 @@ export interface ProjectDetail {
     overall_score?: number;
     location_score?: number;
     amenity_score?: number;
+    value_score?: number;
+    value_bucket?: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown';
     score_status?: 'ok' | 'partial' | 'insufficient_data';
     score_status_reason?: string | string[] | Record<string, unknown>;
     scoring_version?: string;
@@ -97,6 +118,7 @@ export interface ProjectDetail {
   };
   qa?: Record<string, unknown>;
   raw?: Record<string, unknown>;
+  score_explanation?: ScoreExplanation;
 }
 
 export interface ProjectMapPin {
@@ -126,7 +148,7 @@ export interface SearchProjectsParams {
   min_amenity_score?: number;
   min_price?: number;
   max_price?: number;
-  sort_by?: "overall_score" | "location_score" | "registration_date" | "name" | "price";
+  sort_by?: "overall_score" | "location_score" | "registration_date" | "name" | "price" | "value_score";
   sort_dir?: "asc" | "desc";
   page?: number;
   page_size?: number;

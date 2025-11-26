@@ -5,6 +5,7 @@ import ProjectMapView from "./components/ProjectMapView";
 import ProjectDetailPanel from "./components/ProjectDetailPanel";
 import ShortlistPanel from "./components/ShortlistPanel";
 import CompareModal from "./components/CompareModal";
+import ProjectInspector from "./components/ProjectInspector";
 import useDebouncedValue from "./hooks/useDebouncedValue";
 import type { Filters } from "./types/filters";
 import type { BBox, ProjectDetail, ProjectMapPin, ProjectSummary } from "./types/projects";
@@ -56,6 +57,8 @@ function App() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
+
+  const [showInspector, setShowInspector] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -223,6 +226,11 @@ function App() {
     };
   }, [selectedProjectId]);
 
+  // Render Project Inspector when active
+  if (showInspector) {
+    return <ProjectInspector onBack={() => setShowInspector(false)} />;
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -235,6 +243,9 @@ function App() {
             </p>
           </div>
           <div className="header-actions">
+            <button className="pill pill-admin" onClick={() => setShowInspector(true)} type="button">
+              🔧 Inspector
+            </button>
             <div className="header-pill">Data refreshed daily</div>
             <button className="pill" onClick={() => setIsShortlistOpen(true)} type="button">
               Shortlist ({shortlist.length})

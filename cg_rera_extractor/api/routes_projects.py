@@ -35,7 +35,7 @@ def search_projects_endpoint(
     max_price: float | None = Query(None, ge=0),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
-    sort_by: str = Query("overall_score", pattern="^(overall_score|location_score|amenity_score|registration_date|distance|price)$"),
+    sort_by: str = Query("overall_score", pattern="^(overall_score|location_score|amenity_score|value_score|registration_date|distance|price)$"),
     sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     db=Depends(get_db),
 ):

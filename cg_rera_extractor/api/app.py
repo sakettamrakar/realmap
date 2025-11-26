@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from cg_rera_extractor.api.deps import get_db
 from cg_rera_extractor.api.routes_projects import router as projects_router
+from cg_rera_extractor.api.routes_admin import router as admin_router
 from cg_rera_extractor.api.schemas import ProjectDetail, ProjectSummary
 from cg_rera_extractor.db import Project
 
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(projects_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

@@ -25,6 +25,36 @@ const formatPrice = (price: number) => {
   return price.toLocaleString("en-IN");
 };
 
+const getValueBadgeClass = (bucket?: string) => {
+  switch (bucket) {
+    case "excellent":
+      return "value-badge value-excellent";
+    case "good":
+      return "value-badge value-good";
+    case "fair":
+      return "value-badge value-fair";
+    case "poor":
+      return "value-badge value-poor";
+    default:
+      return "value-badge value-unknown";
+  }
+};
+
+const getValueLabel = (bucket?: string) => {
+  switch (bucket) {
+    case "excellent":
+      return "Excellent Value";
+    case "good":
+      return "Good Value";
+    case "fair":
+      return "Fair Value";
+    case "poor":
+      return "Poor Value";
+    default:
+      return "";
+  }
+};
+
 const ProjectCard = ({ project, selected, onSelect, onHover, hovered, isShortlisted, onToggleShortlist }: Props) => {
   return (
     <button
@@ -87,6 +117,16 @@ const ProjectCard = ({ project, selected, onSelect, onHover, hovered, isShortlis
           <p className="eyebrow">Amenities</p>
           <p className="value">{formatScore(project.amenity_score)}</p>
         </div>
+        {project.value_bucket && project.value_bucket !== "unknown" && (
+          <div>
+            <p className="eyebrow">Value</p>
+            <p className="value">
+              <span className={getValueBadgeClass(project.value_bucket)}>
+                {getValueLabel(project.value_bucket)}
+              </span>
+            </p>
+          </div>
+        )}
         {project.distance_km != null && (
           <div>
             <p className="eyebrow">From reference</p>

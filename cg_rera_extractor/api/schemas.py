@@ -117,6 +117,8 @@ class ProjectSearchItem(BaseModel):
     overall_score: float | None = None
     location_score: float | None = None
     amenity_score: float | None = None
+    value_score: float | None = None
+    value_bucket: str | None = None
     units: int | None = None
     area_sqft: float | None = None
     registration_date: date | None = None
@@ -160,6 +162,29 @@ class ProjectMapResponse(BaseModel):
     items: list[ProjectMapPin]
 
 
+class ScoreFactorsDetail(BaseModel):
+    """Strong and weak factors for a score category."""
+    
+    strong: list[str] = Field(default_factory=list)
+    weak: list[str] = Field(default_factory=list)
+
+
+class ScoreExplanationFactors(BaseModel):
+    """Factors broken down by category."""
+    
+    onsite: ScoreFactorsDetail | None = None
+    location: ScoreFactorsDetail | None = None
+
+
+class ScoreExplanation(BaseModel):
+    """Explanation of why a project received its score."""
+    
+    summary: str
+    positives: list[str] = Field(default_factory=list)
+    negatives: list[str] = Field(default_factory=list)
+    factors: ScoreExplanationFactors | None = None
+
+
 class ProjectDetailV2(BaseModel):
     """Phase 6 project detail payload."""
 
@@ -169,3 +194,4 @@ class ProjectDetailV2(BaseModel):
     amenities: dict[str, Any]
     pricing: dict[str, Any] | None = None
     qa: dict[str, Any]
+    score_explanation: ScoreExplanation | None = None

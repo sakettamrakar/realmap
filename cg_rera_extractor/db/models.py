@@ -340,6 +340,9 @@ class ProjectScores(Base):
     score_status: Mapped[str | None] = mapped_column(String(32))
     score_status_reason: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     
+    # Value-for-money score combining quality and price
+    value_score: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    
     score_version: Mapped[str | None] = mapped_column(String(32))
     last_computed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
 

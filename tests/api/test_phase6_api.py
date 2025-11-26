@@ -128,8 +128,14 @@ def test_project_detail_endpoint(client: TestClient, session_local: sessionmaker
     payload = response.json()
 
     assert payload["project"]["project_id"] == project_id
-    assert payload["scores"]["overall_score"] == 0.75
+    assert payload["scores"]["overall_score"] == 75.0  # Scores are returned in 0-100 range
     assert "onsite_list" in payload["amenities"]
+    
+    # Verify score_explanation is present
+    assert "score_explanation" in payload
+    assert "summary" in payload["score_explanation"]
+    assert "positives" in payload["score_explanation"]
+    assert "negatives" in payload["score_explanation"]
 
 
 def test_map_endpoint_bbox(client: TestClient, session_local: sessionmaker) -> None:

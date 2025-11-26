@@ -6,6 +6,7 @@ from typing import Iterable
 
 from sqlalchemy.orm import Session, selectinload
 
+from cg_rera_extractor.amenities.value_scoring import compute_value_score, get_value_bucket
 from cg_rera_extractor.db import Project, ProjectAmenityStats
 
 
@@ -274,6 +275,15 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         if params.sort_by == "price":
             p = _get_latest_price(project)
             return p.get("min_price_total") or float("inf") # Sort by min price
+        if params.sort_by == "value_score":
+            # Compute value_score for sorting
+            p = _get_latest_price(project)
+            overall = _score_to_float(score.overall_score) if score else None
+            if score and score.value_score is not None:
+                return _score_to_float(score.value_score) or 0
+            elif overall is not None and p.get("min_price_total"):
+                return compute_value_score(overall, p.get("min_price_total"), p.get("max_price_total")) or 0
+            return 0
             
         return _score_to_float(score.overall_score) if score else 0
 
@@ -291,6 +301,18 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         highlight, onsite_counts = _onsite_amenities(project.amenity_stats)
         nearby_counts = _nearby_counts(project.amenity_stats)
         price_info = _get_latest_price(project)
+        
+        # Compute value_score - use stored value or compute on the fly
+        value_score = None
+        if scores and scores.value_score is not None:
+            value_score = _score_to_float(scores.value_score)
+        elif scores and scores.overall_score is not None and price_info.get("min_price_total"):
+            value_score = compute_value_score(
+                _score_to_float(scores.overall_score),
+                price_info.get("min_price_total"),
+                price_info.get("max_price_total"),
+            )
+        value_bucket = get_value_bucket(value_score)
 
         payload.append(
             {
@@ -306,6 +328,8 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 "overall_score": _score_to_float(scores.overall_score) if scores else None,
                 "location_score": _score_to_float(scores.location_score) if scores else None,
                 "amenity_score": _score_to_float(scores.amenity_score) if scores else None,
+                "value_score": value_score,
+                "value_bucket": value_bucket,
                 "score_status": scores.score_status if scores else None,
                 "score_status_reason": scores.score_status_reason if scores else None,
                 "units": None,
