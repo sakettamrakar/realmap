@@ -12,9 +12,6 @@ interface Props {
   onToggleShortlist?: (project: ProjectSummary, wasShortlisted: boolean) => void;
 }
 
-const formatScore = (score?: number | null) =>
-  score === undefined || score === null ? "–" : score.toFixed(2);
-
 const formatPrice = (price: number) => {
   if (price >= 10000000) {
     return `${(price / 10000000).toFixed(2)} Cr`;
@@ -40,111 +37,124 @@ const getValueBadgeClass = (bucket?: string) => {
   }
 };
 
-const getValueLabel = (bucket?: string) => {
-  switch (bucket) {
-    case "excellent":
-      return "Excellent Value";
-    case "good":
-      return "Good Value";
-    case "fair":
-      return "Fair Value";
-    case "poor":
-      return "Poor Value";
-    default:
-      return "";
-  }
-};
+const ProjectCard = ({
+  project,
+  selected,
+  onSelect,
+  onHover,
+  hovered,
+  isShortlisted,
+  onToggleShortlist,
+}: Props) => {
+  const locationText = [project.village_or_locality, project.tehsil, project.district]
+    .filter(Boolean)
+    .join(", ");
 
-const ProjectCard = ({ project, selected, onSelect, onHover, hovered, isShortlisted, onToggleShortlist }: Props) => {
+  const typeText = project.project_type || "Project";
+  const subTitle = `${typeText} in ${locationText || "Chhattisgarh"}`;
+
+  const nearbyChips = [];
+  if (project.nearby_counts?.schools) {
+    nearbyChips.push(`${project.nearby_counts.schools} Schools`);
+  }
+  if (project.nearby_counts?.hospitals) {
+    nearbyChips.push(`${project.nearby_counts.hospitals} Hospitals`);
+  }
+  if (project.nearby_counts?.transit) {
+    nearbyChips.push(`${project.nearby_counts.transit} Transit points`);
+  }
+
   return (
-    <button
-      className={classNames("project-card", { selected, hovered })}
-      onClick={() => onSelect(project.project_id)}
+    <div
+      className={classNames("project-card-new", { selected, hovered })}
       onMouseEnter={() => onHover?.(project.project_id)}
       onMouseLeave={() => onHover?.(null)}
       data-project-id={project.project_id}
     >
-      <div className="card-header">
-        <div className="card-title-group">
-          <p className="eyebrow">{project.district || "District unknown"}</p>
-          <h3>{project.name}</h3>
-          {(project.tehsil || project.project_type) && (
-            <p className="muted">
-              {[project.tehsil, project.project_type].filter(Boolean).join(" · ")}
-            </p>
-          )}
-        </div>
-        <div className="badge-stack">
-          {onToggleShortlist && (
-            <button
-              type="button"
-              className={classNames("shortlist-button", {
-                active: isShortlisted,
-              })}
-              aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleShortlist(project, Boolean(isShortlisted));
-              }}
-            >
-              {isShortlisted ? "★" : "☆"}
-            </button>
-          )}
-          <ScoreBadge score={project.overall_score} status={project.score_status} reason={project.score_status_reason} />
-          <span className="status-pill">{project.status || "Status unknown"}</span>
-        </div>
-      </div>
+      <div className="card-content" onClick={() => onSelect(project.project_id)}>
+        <div className="card-main">
+          <div className="card-header-row">
+            <div>
+              <h3 className="card-title">{project.name}</h3>
+              <p className="card-subtitle">{subTitle}</p>
+            </div>
+            <div className="card-score-block">
+              <ScoreBadge
+                score={project.overall_score}
+                status={project.score_status}
+                reason={project.score_status_reason}
+                amenityScore={project.amenity_score}
+                locationScore={project.location_score}
+              />
+            </div>
+          </div>
 
-      <div className="card-meta-grid">
-        <div>
-          <p className="eyebrow">Price</p>
-          <p className="value">
+          <div className="card-price-row">
             {project.min_price_total ? (
-              <>
+              <span className="price-tag">
                 ₹{formatPrice(project.min_price_total)}
-                {project.max_price_total && project.max_price_total !== project.min_price_total ? `–${formatPrice(project.max_price_total)}` : ""}
-              </>
-            ) : (
-              <span className="muted">N/A</span>
-            )}
-          </p>
-        </div>
-        <div>
-          <p className="eyebrow">Location</p>
-          <p className="value">{formatScore(project.location_score)}</p>
-        </div>
-        <div>
-          <p className="eyebrow">Amenities</p>
-          <p className="value">{formatScore(project.amenity_score)}</p>
-        </div>
-        {project.value_bucket && project.value_bucket !== "unknown" && (
-          <div>
-            <p className="eyebrow">Value</p>
-            <p className="value">
-              <span className={getValueBadgeClass(project.value_bucket)}>
-                {getValueLabel(project.value_bucket)}
+                {project.max_price_total &&
+                  project.max_price_total !== project.min_price_total
+                  ? ` – ${formatPrice(project.max_price_total)}`
+                  : ""}
               </span>
-            </p>
+            ) : (
+              <span className="price-tag muted">Price on Request</span>
+            )}
+            {project.value_bucket && project.value_bucket !== "unknown" && (
+              <span className={getValueBadgeClass(project.value_bucket)}>
+                {project.value_bucket === "excellent" ? "High Value" :
+                  project.value_bucket === "good" ? "Good Value" :
+                    project.value_bucket === "fair" ? "Fair Value" : "Low Value"}
+              </span>
+            )}
           </div>
-        )}
-        {project.distance_km != null && (
-          <div>
-            <p className="eyebrow">From reference</p>
-            <p className="value">{project.distance_km.toFixed(1)} km</p>
+
+          <div className="card-meta-row">
+            <span className="meta-item">
+              <span className="icon">✓</span> RERA Verified
+            </span>
+            <span className="meta-item">
+              • {project.status || "Status Unknown"}
+            </span>
           </div>
-        )}
+
+          {nearbyChips.length > 0 && (
+            <div className="card-poi-row">
+              <span className="poi-label">Nearby:</span>
+              {nearbyChips.slice(0, 3).map((chip, i) => (
+                <span key={i} className="poi-chip">
+                  {chip}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {project.highlight_amenities && project.highlight_amenities.length > 0 && (
-        <div className="tag-row">
-          {project.highlight_amenities.slice(0, 4).map((amenity) => (
-            <span key={amenity} className="pill pill-muted">
-              {amenity}
-            </span>
-          ))}
-        </div>
-      )}
-    </button>
+      <div className="card-actions">
+        <button
+          className="action-btn primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(project.project_id);
+          }}
+        >
+          View Details
+        </button>
+        {onToggleShortlist && (
+          <button
+            className={classNames("action-btn secondary", { active: isShortlisted })}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleShortlist(project, Boolean(isShortlisted));
+            }}
+          >
+            {isShortlisted ? "Shortlisted ★" : "Shortlist ☆"}
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
 

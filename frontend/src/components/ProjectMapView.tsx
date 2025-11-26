@@ -29,9 +29,13 @@ interface Props {
 
 const scoreBucket = (score?: number) => {
   if (score === undefined || score === null) return "unknown";
-  if (score >= 0.75) return "high";
-  if (score >= 0.5) return "medium";
-  return "low";
+  // Normalize if 0-1
+  const val = score <= 1 ? score * 10 : score > 10 ? score / 10 : score;
+
+  if (val >= 8) return "excellent";
+  if (val >= 6) return "good";
+  if (val >= 4) return "average";
+  return "weak";
 };
 
 const isExactLocation = (pin: ProjectMapPin) =>
@@ -171,7 +175,7 @@ const PinsLayer = ({
               <div className="popup">
                 <strong>{pin.name}</strong>
                 <div className="eyebrow">
-                  Score: {pin.overall_score != null ? pin.overall_score.toFixed(2) : "—"}
+                  Score: {pin.overall_score != null ? (pin.overall_score <= 1 ? pin.overall_score * 10 : pin.overall_score).toFixed(1) : "—"}
                 </div>
               </div>
             </Tooltip>
@@ -179,7 +183,7 @@ const PinsLayer = ({
               <div className="popup">
                 <strong>{pin.name}</strong>
                 <div className="eyebrow">
-                  Score: {pin.overall_score != null ? pin.overall_score.toFixed(2) : "—"}
+                  Score: {pin.overall_score != null ? (pin.overall_score <= 1 ? pin.overall_score * 10 : pin.overall_score).toFixed(1) : "—"}
                 </div>
                 <div className="eyebrow">
                   {precision === "exact" ? "Exact location" : "Approximate location"}
@@ -279,8 +283,8 @@ const ProjectMapView = ({
             <div className="legend-items">
               <ScoreBadge score={0.8} />
               <ScoreBadge score={0.6} />
-              <ScoreBadge score={0.3} />
-              <ScoreBadge score={null} />
+              <ScoreBadge score={0.4} />
+              <ScoreBadge score={0.2} />
             </div>
           </div>
           <div className="legend-row">

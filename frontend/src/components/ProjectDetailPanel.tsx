@@ -1,456 +1,87 @@
+import { useRef, useEffect } from "react";
 import type { ProjectDetail } from "../types/projects";
+import { ProjectHero } from "./projectDetail/ProjectHero";
+import { ProjectSnapshot } from "./projectDetail/ProjectSnapshot";
+import { ScoreSummary } from "./projectDetail/ScoreSummary";
+import { AmenitiesSection } from "./projectDetail/AmenitiesSection";
+import { LocationSection } from "./projectDetail/LocationSection";
+import { PriceSection } from "./projectDetail/PriceSection";
 
 interface Props {
   project: ProjectDetail | null;
   loading?: boolean;
   onClose: () => void;
   onCenterOnProject?: (coords: { lat: number; lon: number }) => void;
+  isShortlisted?: boolean;
+  onShortlist?: () => void;
 }
 
-const formatScore = (score?: number) =>
-  score === undefined || score === null ? "N/A" : score.toFixed(0);
+const ProjectDetailPanel = ({
+  project,
+  loading,
+  onClose,
+  onCenterOnProject,
+  isShortlisted = false,
+  onShortlist = () => { }
+}: Props) => {
+  const panelRef = useRef<HTMLElement>(null);
 
-const scoreBucket = (score?: number) => {
-  if (score === undefined || score === null) return "unknown";
-  if (score >= 75) return "high";
-  if (score >= 50) return "medium";
-  return "low";
-};
-
-const getScoreBarWidth = (score?: number) =>
-  `${Math.min(Math.max((score ?? 0), 0), 100)}%`;
-
-const progressStatus = (progress?: number) => {
-  if (progress === undefined || progress === null) return "Not reported";
-  if (progress < 0.3) return "Early";
-  if (progress < 0.7) return "In progress";
-  return "Mostly complete";
-};
-
-const formatPrice = (price: number) => {
-  if (price >= 10000000) {
-    return `${(price / 10000000).toFixed(2)} Cr`;
-  }
-  if (price >= 100000) {
-    return `${(price / 100000).toFixed(2)} L`;
-  }
-  return price.toLocaleString("en-IN");
-};
-
-const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Props) => {
-  const amenities = project?.amenities;
-  const location = project?.location;
-  const scores = project?.scores;
-
-  const nearbySummaryEntries = amenities?.nearby_summary
-    ? Object.entries(amenities.nearby_summary)
-    : [];
-
-  const onsiteAmenities = (() => {
-    if (amenities?.onsite_progress) {
-      return Object.entries(amenities.onsite_progress).map(([name, progress]) => ({
-        name,
-        progress,
-      }));
+  useEffect(() => {
+    if (project && panelRef.current) {
+      panelRef.current.scrollTop = 0;
     }
-    if (amenities?.onsite_list) {
-      return amenities.onsite_list.map((name) => ({ name, progress: undefined }));
-    }
-    return [];
-  })();
-
-  const centerEnabled = Boolean(location?.lat && location?.lon && onCenterOnProject);
-
-  const topNearby = amenities?.top_nearby || {};
-
-  const nearestDistanceFor = (category: string) => {
-    const items = topNearby[category];
-    if (!items?.length) return undefined;
-    const distances = items
-      .map((item) => item.distance_km)
-      .filter((value): value is number => typeof value === "number");
-    if (distances.length === 0) return undefined;
-    return Math.min(...distances);
-  };
-
-  const locationHighlights = [
-    {
-      key: "schools",
-      label: "Schools within 3 km",
-      count: amenities?.nearby_summary?.schools?.count,
-      nearest: nearestDistanceFor("schools"),
-    },
-    {
-      key: "hospitals",
-      label: "Hospitals within 5 km",
-      count: amenities?.nearby_summary?.hospitals?.count,
-      nearest: nearestDistanceFor("hospitals"),
-    },
-    {
-      key: "grocery",
-      label: "Grocery / daily needs within 2 km",
-      count: amenities?.nearby_summary?.grocery?.count,
-      nearest: nearestDistanceFor("grocery"),
-    },
-  ];
+  }, [project]);
 
   if (!project && !loading) return null;
 
   return (
-    <aside className="detail-panel">
-      <div className="detail-header">
-        <div>
-          <p className="eyebrow">Project detail</p>
-          <h3>{project?.project.name || "Loading..."}</h3>
-        </div>
-        <div className="detail-header-actions">
-          <button
-            className="pill"
-            disabled={!centerEnabled}
-            aria-label={centerEnabled ? "Center map on this project" : "Center map on this project (location unavailable)"}
-            onClick={() =>
-              centerEnabled &&
-              onCenterOnProject?.({ lat: location!.lat as number, lon: location!.lon as number })
-            }
-          >
-            Center map on this project
-          </button>
-          <button className="pill pill-muted" onClick={onClose}>
-            Close
-          </button>
-        </div>
+    <aside className={`detail-panel ${project ? 'open' : ''}`} ref={panelRef}>
+      <div className="detail-header-sticky">
+        <button className="close-btn" onClick={onClose}>
+          ← Back
+        </button>
+        {project && (
+          <div className="sticky-title">
+            <span className="name">{project.project.name}</span>
+            {project.scores?.overall_score && (
+              <span className="score">Score: {project.scores.overall_score.toFixed(0)}</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="detail-body">
-        {loading && <p>Loading project details…</p>}
+        {loading && <div className="loading-state">Loading project details...</div>}
 
         {!loading && project && (
           <div className="detail-content">
-            <section className="detail-section">
-              <div className="section-header">
-                <h4>Project Summary</h4>
-                <p className="eyebrow">Core RERA details</p>
-              </div>
-              <div className="definition-grid">
-                <div className="definition">
-                  <span>RERA Registration Number</span>
-                  <strong>{project.project.rera_number || "—"}</strong>
-                </div>
-                <div className="definition">
-                  <span>Developer</span>
-                  <strong>{project.project.developer || "—"}</strong>
-                </div>
-                <div className="definition">
-                  <span>District / Tehsil</span>
-                  <strong>
-                    {(location?.district || "—") + (location?.tehsil ? ` / ${location.tehsil}` : "")}
-                  </strong>
-                </div>
-                <div className="definition">
-                  <span>Status</span>
-                  <strong>{project.project.status || "—"}</strong>
-                </div>
-                <div className="definition">
-                  <span>Project Type</span>
-                  <strong>{project.project.project_type || "—"}</strong>
-                </div>
-                <div className="definition">
-                  <span>RERA Registration Date</span>
-                  <strong>{project.project.registration_date || "—"}</strong>
-                </div>
-                <div className="definition">
-                  <span>Proposed Completion</span>
-                  <strong>{project.project.expected_completion || "—"}</strong>
-                </div>
-              </div>
-            </section>
+            <ProjectHero
+              project={project}
+              onShowMap={() => {
+                if (project.location?.lat && project.location?.lon) {
+                  onCenterOnProject?.({ lat: project.location.lat, lon: project.location.lon });
+                }
+              }}
+              onShortlist={onShortlist}
+              isShortlisted={isShortlisted}
+            />
 
-            <section className="detail-section">
-              <div className="section-header">
-                <h4>Scores</h4>
-                <p className="eyebrow">Quality signals for the project and its surroundings</p>
-                {scores?.score_status && scores.score_status !== 'ok' && (
-                  <div style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px', fontSize: '0.9em' }}>
-                    <strong>Status: </strong>
-                    <span style={{ textTransform: 'capitalize' }}>{scores.score_status.replace('_', ' ')}</span>
-                    {scores.score_status_reason && (
-                      <span className="reason" style={{ marginLeft: '8px', color: '#666' }}>
-                        — {Array.isArray(scores.score_status_reason) ? scores.score_status_reason.join(', ') : JSON.stringify(scores.score_status_reason)}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="score-grid">
-                <div className={`score-card score-${scoreBucket(scores?.overall_score)}`}>
-                  <p className="eyebrow">Overall Score</p>
-                  <p className="score-value">{formatScore(scores?.overall_score)}</p>
-                  <div className="score-bar">
-                    <div
-                      className="score-bar-fill"
-                      style={{ width: getScoreBarWidth(scores?.overall_score) }}
-                    />
-                  </div>
-                  <p className="score-hint">High-level blend of amenity and location quality</p>
-                </div>
-                <div className={`score-card score-${scoreBucket(scores?.amenity_score)}`}>
-                  <p className="eyebrow">Amenity Score</p>
-                  <p className="score-value">{formatScore(scores?.amenity_score)}</p>
-                  <div className="score-bar">
-                    <div
-                      className="score-bar-fill"
-                      style={{ width: getScoreBarWidth(scores?.amenity_score) }}
-                    />
-                  </div>
-                  <p className="score-hint">Internal project infra (clubhouse, water, roads…)</p>
-                </div>
-                <div className={`score-card score-${scoreBucket(scores?.location_score)}`}>
-                  <p className="eyebrow">Location Score</p>
-                  <p className="score-value">{formatScore(scores?.location_score)}</p>
-                  <div className="score-bar">
-                    <div
-                      className="score-bar-fill"
-                      style={{ width: getScoreBarWidth(scores?.location_score) }}
-                    />
-                  </div>
-                  <p className="score-hint">Nearby schools, hospitals, daily needs</p>
-                </div>
-                {scores?.value_score != null && (
-                  <div className={`score-card score-${scoreBucket(scores?.value_score)}`}>
-                    <p className="eyebrow">Value Score</p>
-                    <p className="score-value">{formatScore(scores?.value_score)}</p>
-                    <div className="score-bar">
-                      <div
-                        className="score-bar-fill"
-                        style={{ width: getScoreBarWidth(scores?.value_score) }}
-                      />
-                    </div>
-                    <p className="score-hint">
-                      {scores?.value_bucket === 'excellent' ? 'Excellent value – high score, competitive price' :
-                       scores?.value_bucket === 'good' ? 'Good value – quality matches price' :
-                       scores?.value_bucket === 'fair' ? 'Fair value – typical for this price range' :
-                       scores?.value_bucket === 'poor' ? 'Lower value – price may be high for the score' :
-                       'Combines score + price (higher score + lower price = better value)'}
-                    </p>
-                  </div>
-                )}
-              </div>
+            <ProjectSnapshot project={project} />
 
-              {/* Why this score? section */}
-              <div className="why-this-score" style={{ marginTop: '20px', padding: '16px', background: '#fafafa', borderRadius: '8px', border: '1px solid #eee' }}>
-                <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95em', fontWeight: 600 }}>Why this score?</h5>
-                {project.score_explanation && scores?.score_status === 'ok' ? (
-                  <>
-                    <p style={{ margin: '0 0 12px 0', color: '#555', fontSize: '0.9em' }}>
-                      {project.score_explanation.summary}
-                    </p>
-                    {project.score_explanation.positives.length > 0 && (
-                      <div style={{ marginBottom: '12px' }}>
-                        <p className="eyebrow" style={{ marginBottom: '4px', color: '#2e7d32' }}>Strengths</p>
-                        <ul className="explanation-list explanation-positives" style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85em' }}>
-                          {project.score_explanation.positives.map((item, idx) => (
-                            <li key={idx} style={{ color: '#333', marginBottom: '2px' }}>
-                              <span style={{ color: '#43a047' }}>✓</span> {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {project.score_explanation.negatives.length > 0 && (
-                      <div>
-                        <p className="eyebrow" style={{ marginBottom: '4px', color: '#c62828' }}>Areas for improvement</p>
-                        <ul className="explanation-list explanation-negatives" style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85em' }}>
-                          {project.score_explanation.negatives.map((item, idx) => (
-                            <li key={idx} style={{ color: '#333', marginBottom: '2px' }}>
-                              <span style={{ color: '#e53935' }}>✗</span> {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p style={{ margin: 0, color: '#888', fontSize: '0.9em', fontStyle: 'italic' }}>
-                    We don't have enough data to fully explain this score yet.
-                  </p>
-                )}
-              </div>
-            </section>
+            <ScoreSummary
+              scores={project.scores}
+              explanation={project.score_explanation}
+            />
 
-            <section className="detail-section">
-              <div className="section-header">
-                <h4>Pricing</h4>
-                <p className="eyebrow">Current price band and inventory</p>
+            <div className="detail-grid-row">
+              <div className="detail-col-main">
+                <AmenitiesSection amenities={project.amenities} />
+                <LocationSection location={project.location} amenities={project.amenities} />
               </div>
-              <div className="definition-grid">
-                <div className="definition">
-                  <span>Price Range</span>
-                  <strong>
-                    {project.pricing?.min_price_total ? (
-                      <>
-                        ₹{formatPrice(project.pricing.min_price_total)}
-                        {project.pricing.max_price_total && project.pricing.max_price_total !== project.pricing.min_price_total
-                          ? ` – ${formatPrice(project.pricing.max_price_total)}`
-                          : ""}
-                      </>
-                    ) : (
-                      "N/A"
-                    )}
-                  </strong>
-                </div>
-                <div className="definition">
-                  <span>Price per Sqft</span>
-                  <strong>
-                    {project.pricing?.min_price_per_sqft ? (
-                      <>
-                        ₹{project.pricing.min_price_per_sqft.toLocaleString("en-IN")}
-                        {project.pricing.max_price_per_sqft && project.pricing.max_price_per_sqft !== project.pricing.min_price_per_sqft
-                          ? ` – ${project.pricing.max_price_per_sqft.toLocaleString("en-IN")}`
-                          : ""} / sqft
-                      </>
-                    ) : (
-                      "N/A"
-                    )}
-                  </strong>
-                </div>
+              <div className="detail-col-side">
+                <PriceSection pricing={project.pricing} />
               </div>
-              {project.pricing?.unit_types && project.pricing.unit_types.length > 0 && (
-                <div className="amenity-table" style={{ marginTop: '16px' }}>
-                  <div className="amenity-row amenity-row-header">
-                    <span>Unit Type</span>
-                    <span>Configuration</span>
-                    <span>Area (Sqft)</span>
-                  </div>
-                  {project.pricing.unit_types.map((ut, idx) => (
-                    <div key={idx} className="amenity-row">
-                      <span className="amenity-name">{ut.label}</span>
-                      <span>{ut.bedrooms ? `${ut.bedrooms} BHK` : "—"}</span>
-                      <span>
-                        {ut.area_range?.[0] ? (
-                          <>
-                            {Math.round(ut.area_range[0])}
-                            {ut.area_range[1] && ut.area_range[1] !== ut.area_range[0] ? ` – ${Math.round(ut.area_range[1])}` : ""}
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="detail-section">
-              <div className="section-header">
-                <h4>On-site Amenities</h4>
-                <p className="eyebrow">Based on RERA / builder disclosures</p>
-              </div>
-              {onsiteAmenities.length > 0 ? (
-                <div className="amenity-table">
-                  <div className="amenity-row amenity-row-header">
-                    <span>Amenity</span>
-                    <span>Progress</span>
-                    <span>Status</span>
-                    <span>RERA Preview</span>
-                  </div>
-                  {onsiteAmenities.map((amenity) => {
-                    const statusText = progressStatus(amenity.progress);
-                    const images = amenities?.onsite_images?.[amenity.name] || [];
-                    const nearestImage = images[0];
-
-                    return (
-                      <div key={amenity.name} className="amenity-row">
-                        <span className="amenity-name">{amenity.name}</span>
-                        <span className="amenity-progress">
-                          {amenity.progress != null ? `${Math.round(amenity.progress * 100)}%` : "—"}
-                        </span>
-                        <span>
-                          <span className={`status-tag status-${statusText.replace(/\s+/g, "-").toLowerCase()}`}>
-                            {statusText}
-                          </span>
-                        </span>
-                        <span>
-                          {nearestImage ? (
-                            <a
-                              href={nearestImage}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="eyebrow"
-                              aria-label={`Preview ${amenity.name}`}
-                            >
-                              Preview
-                            </a>
-                          ) : (
-                            <span className="eyebrow">—</span>
-                          )}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="eyebrow">No amenity list available.</p>
-              )}
-              {amenities?.onsite_counts && (
-                <p className="eyebrow amenity-counts">
-                  Total: {amenities.onsite_counts.total ?? "—"} | Primary: {amenities.onsite_counts.primary ?? "—"} |
-                  Secondary: {amenities.onsite_counts.secondary ?? "—"}
-                </p>
-              )}
-            </section>
-
-            <section className="detail-section">
-              <div className="section-header">
-                <h4>Location Context</h4>
-                <p className="eyebrow">Counts and distances are indicative and may be approximate.</p>
-              </div>
-              <div className="location-grid">
-                {locationHighlights.map((item) => (
-                  <div key={item.key} className="location-card">
-                    <p className="eyebrow">{item.label}</p>
-                    <strong className="location-count">{item.count ?? "—"}</strong>
-                    <p className="eyebrow">Nearest: {item.nearest ? `${item.nearest.toFixed(1)} km` : "—"}</p>
-                  </div>
-                ))}
-              </div>
-
-              {nearbySummaryEntries.length > 0 ? (
-                <div className="definition-grid compact-grid">
-                  {nearbySummaryEntries.map(([category, summary]) => (
-                    <div key={category} className="definition">
-                      <span className="eyebrow">{category}</span>
-                      <strong>
-                        {summary.count ?? "—"} nearby
-                        {summary.avg_distance_km ? ` · avg ${summary.avg_distance_km.toFixed(1)} km` : ""}
-                      </strong>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="eyebrow">
-                  No nearby POI summary yet. Run the location pipeline to populate.
-                </p>
-              )}
-
-              {amenities?.top_nearby && (
-                <div className="top-nearby">
-                  {Object.entries(amenities.top_nearby).map(([category, items]) => (
-                    <div key={category}>
-                      <p className="eyebrow">Closest {category}</p>
-                      <ul>
-                        {items.map((item, idx) => (
-                          <li key={`${category}-${idx}`}>
-                            {item.name || "Unknown"}{" "}
-                            {item.distance_km ? `(${item.distance_km.toFixed(1)} km)` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+            </div>
           </div>
         )}
       </div>

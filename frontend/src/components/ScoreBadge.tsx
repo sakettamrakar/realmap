@@ -5,51 +5,77 @@ interface Props {
   status?: 'ok' | 'partial' | 'insufficient_data';
   reason?: string | string[] | Record<string, unknown>;
   className?: string;
+  amenityScore?: number | null;
+  locationScore?: number | null;
 }
+
+const normalizeScore = (score: number): number => {
+  if (score <= 1) return score * 10;
+  if (score > 10) return score / 10;
+  return score;
+};
 
 const getBucket = (score: number | null | undefined, status?: string) => {
   if (status === 'insufficient_data' || score === undefined || score === null) return "unknown";
-  // Assuming 0-100 scale based on backend logic
-  if (score >= 75) return "high";
-  if (score >= 50) return "medium";
-  return "low";
+
+  const val = normalizeScore(score);
+
+  if (val >= 8) return "excellent";
+  if (val >= 6) return "good";
+  if (val >= 4) return "average";
+  return "weak";
 };
 
 const getLabel = (bucket: string, status?: string) => {
-  if (status === 'insufficient_data') return "N/A";
+  if (status === 'insufficient_data' || status === 'partial') return "Incomplete data";
   switch (bucket) {
-    case "high":
-      return "High";
-    case "medium":
-      return "Medium";
-    case "low":
-      return "Low";
+    case "excellent":
+      return "Excellent";
+    case "good":
+      return "Good";
+    case "average":
+      return "Average";
+    case "weak":
+      return "Weak";
     default:
       return "N/A";
   }
 };
 
-const ScoreBadge = ({ score, status, reason, className }: Props) => {
+const ScoreBadge = ({ score, status, reason, className, amenityScore, locationScore }: Props) => {
   const bucket = getBucket(score, status);
   const label = getLabel(bucket, status);
+  const normalizedScore = score !== undefined && score !== null ? normalizeScore(score) : null;
 
-  let tooltip: string | undefined;
+  let tooltip = "";
   if (status === 'partial') {
     tooltip = `Partial Data${reason ? `: ${Array.isArray(reason) ? reason.join(", ") : reason}` : ""}`;
   } else if (status === 'insufficient_data') {
     tooltip = "Not enough data to compute score yet.";
   }
 
+  if (amenityScore !== undefined || locationScore !== undefined) {
+    if (tooltip) tooltip += "\n\n";
+    if (amenityScore !== undefined && amenityScore !== null) {
+      tooltip += `Amenity score: ${normalizeScore(amenityScore).toFixed(1)} / 10\n`;
+    }
+    if (locationScore !== undefined && locationScore !== null) {
+      tooltip += `Location score: ${normalizeScore(locationScore).toFixed(1)} / 10`;
+    }
+  }
+
+  const isNeutral = status === 'insufficient_data' || status === 'partial';
+
   return (
-    <span className={classNames("badge", `badge-${bucket}`, className)} title={tooltip}>
+    <span className={classNames("badge", isNeutral ? "badge-neutral" : `badge-${bucket}`, className)} title={tooltip.trim()}>
       <span className="badge-dot" />
       <span>{label}</span>
-      {bucket !== "unknown" && score !== undefined && score !== null && (
+      {!isNeutral && normalizedScore !== null && (
         <span className="badge-value">
-          {score.toFixed(0)}
-          {status === 'partial' && <span style={{ marginLeft: '4px' }}>⚠️</span>}
+          {normalizedScore.toFixed(1)}
         </span>
       )}
+      {status === 'partial' && <span style={{ marginLeft: '4px' }}>⚠️</span>}
     </span>
   );
 };

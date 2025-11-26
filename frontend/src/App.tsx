@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { searchProjects, getProject, getProjectsForMap } from "./api/projectsApi";
-import ProjectSearchPanel from "./components/ProjectSearchPanel";
+import { FiltersSidebar } from "./components/search/FiltersSidebar";
+import { ProjectListHeader } from "./components/search/ProjectListHeader";
+import ProjectCard from "./components/ProjectCard";
 import ProjectMapView from "./components/ProjectMapView";
 import ProjectDetailPanel from "./components/ProjectDetailPanel";
 import ShortlistPanel from "./components/ShortlistPanel";
@@ -18,6 +20,8 @@ const DEFAULT_FILTERS: Filters = {
   district: "",
   minOverallScore: 0,
   nameQuery: "",
+  projectTypes: [],
+  statuses: [],
   sortBy: DEFAULT_SORT_BY,
   sortDir: DEFAULT_SORT_DIR,
 };
@@ -143,6 +147,8 @@ function App() {
       try {
         const data = await searchProjects({
           district: debouncedFilters.district || undefined,
+          project_types: debouncedFilters.projectTypes,
+          statuses: debouncedFilters.statuses,
           min_overall_score: debouncedFilters.minOverallScore || undefined,
           min_price: debouncedFilters.minPrice || undefined,
           max_price: debouncedFilters.maxPrice || undefined,
@@ -238,15 +244,11 @@ function App() {
           <div>
             <p className="eyebrow text-on-dark">CG RERA Explorer</p>
             <h1>Projects • Scores • Location</h1>
-            <p className="muted text-on-dark">
-              Internal view of registered projects with quality scores and map context.
-            </p>
           </div>
           <div className="header-actions">
             <button className="pill pill-admin" onClick={() => setShowInspector(true)} type="button">
               🔧 Inspector
             </button>
-            <div className="header-pill">Data refreshed daily</div>
             <button className="pill" onClick={() => setIsShortlistOpen(true)} type="button">
               Shortlist ({shortlist.length})
             </button>
@@ -256,52 +258,116 @@ function App() {
 
       {error && <div className="banner banner-error container">{error}</div>}
 
-      <main className="app-main container">
-        <div className="layout-grid">
-          <section className="pane pane-left">
-            <ProjectSearchPanel
+      <main className="app-main container-fluid">
+        <div className="new-layout">
+          <FiltersSidebar
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onResetFilters={handleResetFilters}
+            resultsCount={searchMeta.total}
+          />
+
+          <section className="results-pane">
+            <ProjectListHeader
               filters={filters}
               onFiltersChange={handleFiltersChange}
-              projects={searchResults}
-              loading={searchLoading}
-              onSelectProject={setSelectedProjectId}
-              onHoverProject={setHoveredProjectId}
-              selectedProjectId={selectedProjectId}
-              hoveredProjectId={hoveredProjectId}
               total={searchMeta.total}
-              page={searchMeta.page}
-              pageSize={searchMeta.pageSize}
-              onPageChange={handlePageChange}
-              onResetFilters={handleResetFilters}
-              defaultFilters={DEFAULT_FILTERS}
-              shortlistIds={shortlistIds}
-              onToggleShortlist={toggleShortlist}
             />
-          </section>
 
-          <section className="pane pane-right">
-            <div className="map-wrapper">
-              <ProjectMapView
-                pins={mapPins}
-                selectedProjectId={selectedProjectId}
-                onSelectProject={setSelectedProjectId}
-                hoveredProjectId={hoveredProjectId}
-                onHoverProject={setHoveredProjectId}
-                onBoundsChange={setMapBounds}
-                loading={mapLoading}
-                initialBounds={DEFAULT_BOUNDS}
-                focus={mapFocus}
-              />
-              <ProjectDetailPanel
-                project={selectedProject}
-                loading={detailLoading}
-                onClose={() => setSelectedProjectId(null)}
-                onCenterOnProject={(coords) => setMapFocus({ ...coords, zoom: 15, timestamp: Date.now() })}
-              />
+            <div className="results-grid">
+              <div className="list-column">
+                {searchLoading && searchResults.length === 0 && (
+                  <div className="loading-state">Loading projects...</div>
+                )}
+
+                {searchResults.map((project) => (
+                  <ProjectCard
+                    key={project.project_id}
+                    project={project}
+                    selected={project.project_id === selectedProjectId}
+                    hovered={project.project_id === hoveredProjectId}
+                    onSelect={setSelectedProjectId}
+                    onHover={setHoveredProjectId}
+                    isShortlisted={shortlistIds.includes(project.project_id)}
+                    onToggleShortlist={toggleShortlist}
+                  />
+                ))}
+
+                {!searchLoading && searchResults.length === 0 && (
+                  <div className="empty-state">
+                    <p>No projects match these filters.</p>
+                    <button className="text-button" onClick={handleResetFilters}>
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
+
+                <div className="pagination-controls">
+                  <button
+                    disabled={searchMeta.page <= 1 || searchLoading}
+                    onClick={() => handlePageChange(searchMeta.page - 1)}
+                    className="ghost-button"
+                  >
+                    Previous
+                  </button>
+                  <span>Page {searchMeta.page}</span>
+                  <button
+                    disabled={
+                      searchMeta.page * searchMeta.pageSize >= searchMeta.total || searchLoading
+                    }
+                    onClick={() => handlePageChange(searchMeta.page + 1)}
+                    className="ghost-button"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+
+              <div className="map-column">
+                <div className="sticky-map">
+                  <ProjectMapView
+                    pins={mapPins}
+                    selectedProjectId={selectedProjectId}
+                    onSelectProject={setSelectedProjectId}
+                    hoveredProjectId={hoveredProjectId}
+                    onHoverProject={setHoveredProjectId}
+                    onBoundsChange={setMapBounds}
+                    loading={mapLoading}
+                    initialBounds={DEFAULT_BOUNDS}
+                    focus={mapFocus}
+                  />
+                </div>
+              </div>
             </div>
           </section>
         </div>
       </main>
+
+      <ProjectDetailPanel
+        project={selectedProject}
+        loading={detailLoading}
+        onClose={() => setSelectedProjectId(null)}
+        onCenterOnProject={(coords) => setMapFocus({ ...coords, zoom: 15, timestamp: Date.now() })}
+        isShortlisted={selectedProjectId ? shortlistIds.includes(selectedProjectId) : false}
+        onShortlist={() => {
+          if (selectedProject) {
+            const summary: ProjectSummary = {
+              project_id: selectedProject.project.project_id,
+              name: selectedProject.project.name,
+              district: selectedProject.location?.district,
+              tehsil: selectedProject.location?.tehsil,
+              project_type: selectedProject.project.project_type,
+              status: selectedProject.project.status,
+              lat: selectedProject.location?.lat,
+              lon: selectedProject.location?.lon,
+              overall_score: selectedProject.scores?.overall_score,
+              min_price_total: selectedProject.pricing?.min_price_total,
+              max_price_total: selectedProject.pricing?.max_price_total,
+            };
+            toggleShortlist(summary, shortlistIds.includes(summary.project_id));
+          }
+        }}
+      />
 
       <ShortlistPanel
         open={isShortlistOpen}

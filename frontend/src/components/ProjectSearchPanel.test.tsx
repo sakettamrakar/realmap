@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProjectSearchPanel from "./ProjectSearchPanel";
 import type { Filters } from "../types/filters";
 import type { ProjectSummary } from "../types/projects";
@@ -8,6 +8,8 @@ const sampleFilters: Filters = {
   district: "",
   minOverallScore: 0,
   nameQuery: "",
+  projectTypes: [],
+  statuses: [],
   sortBy: "overall_score",
   sortDir: "desc",
 };

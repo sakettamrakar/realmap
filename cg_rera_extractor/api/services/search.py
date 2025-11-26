@@ -23,8 +23,8 @@ class SearchParams:
         lon: float | None = None,
         radius_km: float | None = None,
         bbox: tuple[float, float, float, float] | None = None,
-        project_type: str | None = None,
-        status: str | None = None,
+        project_types: list[str] | None = None,
+        statuses: list[str] | None = None,
         amenities: list[str] | None = None,
         min_overall_score: float | None = None,
         min_location_score: float | None = None,
@@ -43,8 +43,8 @@ class SearchParams:
         self.lon = lon
         self.radius_km = radius_km
         self.bbox = bbox
-        self.project_type = project_type
-        self.status = status
+        self.project_types = project_types or []
+        self.statuses = statuses or []
         self.amenities = amenities or []
         self.min_overall_score = min_overall_score
         self.min_location_score = min_location_score
@@ -89,26 +89,6 @@ def _resolve_location(project: Project) -> tuple[float | None, float | None, str
 def _score_to_float(score: int | None) -> float | None:
     if score is None:
         return None
-    # Scores are stored as integers (0-100); convert to a 0-1 float for the API surface.
-    # Actually, schema now uses float (Numeric), so we might not need division if it's already 0-100.
-    # But previous code divided by 100. Let's assume input is 0-100.
-    # If the DB column is Numeric(5,2), it stores 75.50.
-    # The API expects 0-1 range? Or 0-100?
-    # The previous code: return round(score / 100, 3)
-    # This implies API expects 0-1.
-    # But the frontend displays 0-100 (ScoreBadge).
-    # Let's check frontend again. ProjectCard: formatScore(project.overall_score) -> fixed(2).
-    # ScoreBadge: if score >= 0.75 -> high.
-    # So frontend expects 0-1?
-    # Wait, I updated ScoreBadge to handle 0-100.
-    # So I should probably return 0-100 here.
-    # But let's stick to existing behavior for now to avoid breaking other things, 
-    # OR update it if I know for sure.
-    # The DB migration changed columns to Numeric(5,2).
-    # If I return the value directly, it's 0-100.
-    # If I divide by 100, it's 0-1.
-    # The frontend update I made handles both (checks >= 75 OR >= 0.75).
-    # So let's return the value as is (0-100) but cast to float.
     return float(score) if score is not None else None
 
 
@@ -179,8 +159,18 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         stmt = stmt.filter(Project.tehsil.ilike(params.tehsil))
     if params.name_contains:
         stmt = stmt.filter(Project.project_name.ilike(f"%{params.name_contains}%"))
-    if params.status:
-        stmt = stmt.filter(Project.status.ilike(params.status))
+    
+    if params.statuses:
+        # Case insensitive check for statuses
+        # Since we can't easily do ilike on a list, we might need to rely on exact match 
+        # or normalize in Python. Let's try exact match first as statuses are usually standardized.
+        # If they are not, we might need to normalize them.
+        stmt = stmt.filter(Project.status.in_(params.statuses))
+        
+    if params.project_types:
+        # Assuming project_type is in raw_data_json for now as it's not a column
+        # Using astext for Postgres JSONB
+        stmt = stmt.filter(Project.raw_data_json["project_type"].astext.in_(params.project_types))
 
     if params.bbox:
         min_lat, min_lon, max_lat, max_lon = params.bbox
@@ -271,7 +261,7 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         if params.sort_by == "amenity_score" and score:
             return _score_to_float(score.amenity_score) or 0
         if params.sort_by == "registration_date":
-            return project.approved_date or project.proposed_end_date or project.extended_end_date or 0
+            return project.approved_date or project.proposed_end_date or project.extended_end_date or date.min
         if params.sort_by == "price":
             p = _get_latest_price(project)
             return p.get("min_price_total") or float("inf") # Sort by min price
@@ -284,6 +274,8 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
             elif overall is not None and p.get("min_price_total"):
                 return compute_value_score(overall, p.get("min_price_total"), p.get("max_price_total")) or 0
             return 0
+        if params.sort_by == "name":
+            return project.project_name.lower()
             
         return _score_to_float(score.overall_score) if score else 0
 
@@ -320,7 +312,7 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 "name": project.project_name,
                 "district": project.district,
                 "tehsil": project.tehsil,
-                "project_type": project.project_name,  # Placeholder until explicit type is available
+                "project_type": project.raw_data_json.get("project_type") if project.raw_data_json else None,
                 "status": project.status,
                 "lat": lat,
                 "lon": lon,
@@ -347,6 +339,9 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         )
 
     return total, payload
+
+
+__all__ = ["search_projects", "SearchParams"]
 
 
 __all__ = ["search_projects", "SearchParams"]

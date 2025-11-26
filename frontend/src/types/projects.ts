@@ -5,6 +5,7 @@ export interface ProjectSummary {
   tehsil?: string;
   project_type?: string;
   status?: string;
+  village_or_locality?: string;
   lat?: number;
   lon?: number;
   geo_quality?: string;
@@ -140,8 +141,8 @@ export interface ProjectMapPin {
 export interface SearchProjectsParams {
   district?: string;
   tehsil?: string;
-  project_type?: string;
-  status?: string;
+  project_types?: string[];
+  statuses?: string[];
   q?: string;
   min_overall_score?: number;
   min_location_score?: number;

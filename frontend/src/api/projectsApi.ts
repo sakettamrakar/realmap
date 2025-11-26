@@ -20,6 +20,8 @@ export async function searchProjects(
       {
         params: {
           ...params,
+          project_types: params.project_types,
+          statuses: params.statuses,
           min_overall_score: params.min_overall_score ?? undefined,
           min_price: params.min_price ?? undefined,
           max_price: params.max_price ?? undefined,
@@ -27,6 +29,9 @@ export async function searchProjects(
           district: params.district || undefined,
           sort_by: params.sort_by || undefined,
           sort_dir: params.sort_dir || undefined,
+        },
+        paramsSerializer: {
+          indexes: null, // No brackets for arrays: key=val&key=val
         },
       },
     );
