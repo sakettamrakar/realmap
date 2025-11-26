@@ -139,14 +139,23 @@ def _get_latest_price(project: Project) -> dict[str, float | None]:
     if not active:
         return {}
         
-    # Sort by date desc, id desc
-    latest = sorted(active, key=lambda s: (s.snapshot_date, s.id), reverse=True)[0]
+    # Find latest date
+    latest_date = max(s.snapshot_date for s in active)
+    
+    # Filter for latest date
+    latest_snapshots = [s for s in active if s.snapshot_date == latest_date]
+    
+    # Aggregate
+    min_totals = [s.min_price_total for s in latest_snapshots if s.min_price_total is not None]
+    max_totals = [s.max_price_total for s in latest_snapshots if s.max_price_total is not None]
+    min_sqfts = [s.min_price_per_sqft for s in latest_snapshots if s.min_price_per_sqft is not None]
+    max_sqfts = [s.max_price_per_sqft for s in latest_snapshots if s.max_price_per_sqft is not None]
     
     return {
-        "min_price_total": float(latest.min_price_total) if latest.min_price_total else None,
-        "max_price_total": float(latest.max_price_total) if latest.max_price_total else None,
-        "min_price_per_sqft": float(latest.min_price_per_sqft) if latest.min_price_per_sqft else None,
-        "max_price_per_sqft": float(latest.max_price_per_sqft) if latest.max_price_per_sqft else None,
+        "min_price_total": float(min(min_totals)) if min_totals else None,
+        "max_price_total": float(max(max_totals)) if max_totals else None,
+        "min_price_per_sqft": float(min(min_sqfts)) if min_sqfts else None,
+        "max_price_per_sqft": float(max(max_sqfts)) if max_sqfts else None,
     }
 
 

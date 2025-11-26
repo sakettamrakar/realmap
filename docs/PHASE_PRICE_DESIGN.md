@@ -54,3 +54,5 @@ Captures price observations at a specific point in time.
 ## Future Considerations
 
 - **Value Score**: We plan to add a `value_score` to `project_scores` in the future, representing how good the deal is relative to the market and project quality.
+- **Portal Integration**: Future work will involve matching project names and localities to listings on portals like MagicBricks or 99acres to automatically ingest price data.
+- **Manual Override**: A mechanism to manually override or flag incorrect price data scraped from external sources will be essential for data quality.
