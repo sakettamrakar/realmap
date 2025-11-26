@@ -44,6 +44,8 @@ interface Props {
   onPageChange: (page: number) => void;
   onResetFilters: () => void;
   defaultFilters: Filters;
+  shortlistIds?: number[];
+  onToggleShortlist?: (project: ProjectSummary, isShortlisted: boolean) => void;
 }
 
 export function ProjectSearchPanel({
@@ -61,6 +63,8 @@ export function ProjectSearchPanel({
   onPageChange,
   onResetFilters,
   defaultFilters,
+  shortlistIds,
+  onToggleShortlist,
 }: Props) {
   const totalPages = Math.max(1, Math.ceil((total ?? 0) / (pageSize || 1)));
 

@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { searchProjects, getProject, getProjectsForMap } from "./api/projectsApi";
 import ProjectSearchPanel from "./components/ProjectSearchPanel";
 import ProjectMapView from "./components/ProjectMapView";
 import ProjectDetailPanel from "./components/ProjectDetailPanel";
+import ShortlistPanel from "./components/ShortlistPanel";
+import CompareModal from "./components/CompareModal";
 import useDebouncedValue from "./hooks/useDebouncedValue";
 import type { Filters } from "./types/filters";
 import type { BBox, ProjectDetail, ProjectMapPin, ProjectSummary } from "./types/projects";
@@ -45,6 +47,16 @@ function App() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [hoveredProjectId, setHoveredProjectId] = useState<number | null>(null);
 
+  const [shortlist, setShortlist] = useState<ProjectSummary[]>([]);
+  const [isShortlistOpen, setIsShortlistOpen] = useState(false);
+  const [compareSelection, setCompareSelection] = useState<number[]>([]);
+  const [compareWarning, setCompareWarning] = useState<string | null>(null);
+
+  const [compareProjects, setCompareProjects] = useState<ProjectDetail[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareError, setCompareError] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
 
   const handleFiltersChange = (next: Partial<Filters>) => {
@@ -59,6 +71,66 @@ function App() {
 
   const handlePageChange = (nextPage: number) => {
     setSearchMeta((prev) => ({ ...prev, page: nextPage }));
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem("realmap_shortlist");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as ProjectSummary[];
+        setShortlist(parsed);
+        setCompareSelection((prev) => prev.filter((id) => parsed.some((p) => p.project_id === id)));
+      } catch (err) {
+        console.error("Failed to read shortlist", err);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("realmap_shortlist", JSON.stringify(shortlist));
+    setCompareSelection((prev) => prev.filter((id) => shortlist.some((p) => p.project_id === id)));
+  }, [shortlist]);
+
+  const shortlistIds = useMemo(() => shortlist.map((item) => item.project_id), [shortlist]);
+
+  const toggleShortlist = (project: ProjectSummary, isShortlisted: boolean) => {
+    setShortlist((prev) => {
+      if (isShortlisted) {
+        return prev.filter((item) => item.project_id !== project.project_id);
+      }
+      const existing = prev.find((item) => item.project_id === project.project_id);
+      if (existing) return prev;
+      return [...prev, project];
+    });
+  };
+
+  const toggleCompareSelection = (projectId: number) => {
+    setCompareWarning(null);
+    setCompareSelection((prev) => {
+      if (prev.includes(projectId)) {
+        return prev.filter((id) => id !== projectId);
+      }
+      if (prev.length >= 3) {
+        setCompareWarning("You can compare up to 3 projects at a time.");
+        return prev;
+      }
+      return [...prev, projectId];
+    });
+  };
+
+  const handleOpenCompare = async () => {
+    if (compareSelection.length < 2) return;
+    setCompareOpen(true);
+    setCompareLoading(true);
+    setCompareError(null);
+    try {
+      const details = await Promise.all(compareSelection.map((id) => getProject(id)));
+      setCompareProjects(details.filter((item): item is ProjectDetail => Boolean(item)));
+    } catch (err: any) {
+      setCompareError(err?.message || "Unable to load projects to compare.");
+    } finally {
+      setCompareLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -160,7 +232,12 @@ function App() {
               Internal view of registered projects with quality scores and map context.
             </p>
           </div>
-          <div className="header-pill">Data refreshed daily</div>
+          <div className="header-actions">
+            <div className="header-pill">Data refreshed daily</div>
+            <button className="pill" onClick={() => setIsShortlistOpen(true)} type="button">
+              Shortlist ({shortlist.length})
+            </button>
+          </div>
         </div>
       </header>
 
@@ -184,6 +261,8 @@ function App() {
               onPageChange={handlePageChange}
               onResetFilters={handleResetFilters}
               defaultFilters={DEFAULT_FILTERS}
+              shortlistIds={shortlistIds}
+              onToggleShortlist={toggleShortlist}
             />
           </section>
 
@@ -210,6 +289,36 @@ function App() {
           </section>
         </div>
       </main>
+
+      <ShortlistPanel
+        open={isShortlistOpen}
+        shortlist={shortlist}
+        onClose={() => setIsShortlistOpen(false)}
+        onSelectProject={(id) => {
+          setSelectedProjectId(id);
+          setIsShortlistOpen(false);
+        }}
+        onRemove={(id) => {
+          const project = shortlist.find((item) => item.project_id === id);
+          if (project) {
+            toggleShortlist(project, true);
+          }
+        }}
+        compareSelection={compareSelection}
+        onToggleCompareSelection={toggleCompareSelection}
+        onOpenCompare={handleOpenCompare}
+        warning={compareWarning}
+      />
+
+      <CompareModal
+        open={compareOpen}
+        projects={compareProjects}
+        loading={compareLoading}
+        onClose={() => setCompareOpen(false)}
+        selectionCount={compareSelection.length}
+      />
+
+      {compareError && <div className="banner banner-error container">{compareError}</div>}
     </div>
   );
 }

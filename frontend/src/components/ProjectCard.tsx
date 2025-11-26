@@ -33,6 +33,21 @@ const ProjectCard = ({ project, selected, onSelect, onHover, hovered }: Props) =
           )}
         </div>
         <div className="badge-stack">
+          {onToggleShortlist && (
+            <button
+              type="button"
+              className={classNames("shortlist-button", {
+                active: isShortlisted,
+              })}
+              aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleShortlist(project, Boolean(isShortlisted));
+              }}
+            >
+              {isShortlisted ? "★" : "☆"}
+            </button>
+          )}
           <ScoreBadge score={project.overall_score} />
           <span className="status-pill">{project.status || "Status unknown"}</span>
         </div>
