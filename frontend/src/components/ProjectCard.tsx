@@ -6,16 +6,21 @@ interface Props {
   project: ProjectSummary;
   selected?: boolean;
   onSelect: (projectId: number) => void;
+  onHover?: (projectId: number | null) => void;
+  hovered?: boolean;
 }
 
 const formatScore = (score?: number | null) =>
   score === undefined || score === null ? "–" : score.toFixed(2);
 
-const ProjectCard = ({ project, selected, onSelect }: Props) => {
+const ProjectCard = ({ project, selected, onSelect, onHover, hovered }: Props) => {
   return (
     <button
-      className={classNames("project-card", { selected })}
+      className={classNames("project-card", { selected, hovered })}
       onClick={() => onSelect(project.project_id)}
+      onMouseEnter={() => onHover?.(project.project_id)}
+      onMouseLeave={() => onHover?.(null)}
+      data-project-id={project.project_id}
     >
       <div className="card-header">
         <div className="card-title-group">

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import ProjectCard from "./ProjectCard";
 import SectionHeader from "./SectionHeader";
 import type { Filters } from "../types/filters";
@@ -34,7 +35,9 @@ interface Props {
   projects: ProjectSummary[];
   loading?: boolean;
   onSelectProject: (projectId: number) => void;
+  onHoverProject?: (projectId: number | null) => void;
   selectedProjectId?: number | null;
+  hoveredProjectId?: number | null;
   total?: number;
   page: number;
   pageSize: number;
@@ -49,7 +52,9 @@ export function ProjectSearchPanel({
   projects,
   loading,
   onSelectProject,
+  onHoverProject,
   selectedProjectId,
+  hoveredProjectId,
   total,
   page,
   pageSize,
@@ -58,6 +63,16 @@ export function ProjectSearchPanel({
   defaultFilters,
 }: Props) {
   const totalPages = Math.max(1, Math.ceil((total ?? 0) / (pageSize || 1)));
+
+  useEffect(() => {
+    if (!hoveredProjectId) return;
+    const el = document.querySelector(
+      `[data-project-id="${hoveredProjectId}"]`,
+    ) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [hoveredProjectId]);
 
   const activeChips: { key: string; label: string; onRemove: () => void }[] = [];
 
@@ -252,7 +267,9 @@ export function ProjectSearchPanel({
             key={project.project_id}
             project={project}
             selected={project.project_id === selectedProjectId}
+            hovered={project.project_id === hoveredProjectId}
             onSelect={onSelectProject}
+            onHover={onHoverProject}
           />
         ))}
         {!loading && projects.length === 0 && (
