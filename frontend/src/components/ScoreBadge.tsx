@@ -3,6 +3,7 @@ import classNames from "classnames";
 interface Props {
   score?: number | null;
   status?: 'ok' | 'partial' | 'insufficient_data';
+  reason?: string | string[] | Record<string, unknown>;
   className?: string;
 }
 
@@ -28,12 +29,19 @@ const getLabel = (bucket: string, status?: string) => {
   }
 };
 
-const ScoreBadge = ({ score, status, className }: Props) => {
+const ScoreBadge = ({ score, status, reason, className }: Props) => {
   const bucket = getBucket(score, status);
   const label = getLabel(bucket, status);
 
+  let tooltip: string | undefined;
+  if (status === 'partial') {
+    tooltip = `Partial Data${reason ? `: ${Array.isArray(reason) ? reason.join(", ") : reason}` : ""}`;
+  } else if (status === 'insufficient_data') {
+    tooltip = "Not enough data to compute score yet.";
+  }
+
   return (
-    <span className={classNames("badge", `badge-${bucket}`, className)} title={status === 'partial' ? 'Partial Data' : undefined}>
+    <span className={classNames("badge", `badge-${bucket}`, className)} title={tooltip}>
       <span className="badge-dot" />
       <span>{label}</span>
       {bucket !== "unknown" && score !== undefined && score !== null && (
