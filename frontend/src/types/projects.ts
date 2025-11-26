@@ -28,6 +28,10 @@ export interface ProjectSummary {
     hospitals?: number;
     transit?: number;
   };
+  min_price_total?: number;
+  max_price_total?: number;
+  min_price_per_sqft?: number;
+  max_price_per_sqft?: number;
 }
 
 export interface ProjectSearchResponse {
@@ -35,6 +39,12 @@ export interface ProjectSearchResponse {
   page_size: number;
   total: number;
   items: ProjectSummary[];
+}
+
+export interface UnitType {
+  label: string;
+  bedrooms?: number;
+  area_range?: [number | null, number | null];
 }
 
 export interface ProjectDetail {
@@ -78,6 +88,13 @@ export interface ProjectDetail {
     nearby_summary?: Record<string, { count?: number; avg_distance_km?: number }>;
     top_nearby?: Record<string, { name?: string; distance_km?: number }[]>;
   };
+  pricing?: {
+    min_price_total?: number;
+    max_price_total?: number;
+    min_price_per_sqft?: number;
+    max_price_per_sqft?: number;
+    unit_types?: UnitType[];
+  };
   qa?: Record<string, unknown>;
   raw?: Record<string, unknown>;
 }
@@ -107,7 +124,9 @@ export interface SearchProjectsParams {
   min_overall_score?: number;
   min_location_score?: number;
   min_amenity_score?: number;
-  sort_by?: "overall_score" | "location_score" | "registration_date" | "name";
+  min_price?: number;
+  max_price?: number;
+  sort_by?: "overall_score" | "location_score" | "registration_date" | "name" | "price";
   sort_dir?: "asc" | "desc";
   page?: number;
   page_size?: number;

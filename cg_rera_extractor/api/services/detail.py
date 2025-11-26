@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from cg_rera_extractor.db import Project, ProjectAmenityStats, ProjectScores
 
-from .search import _nearby_counts, _onsite_amenities, _resolve_location, _score_to_float
+from .search import _nearby_counts, _onsite_amenities, _resolve_location, _score_to_float, _get_latest_price
 
 
 def _build_amenities_section(stats: list[ProjectAmenityStats]) -> dict[str, Any]:
@@ -41,6 +41,8 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
             selectinload(Project.unit_types),
             selectinload(Project.documents),
             selectinload(Project.quarterly_updates),
+            selectinload(Project.pricing_snapshots),
+            selectinload(Project.project_unit_types),
         )
         .filter(Project.id == project_id)
         .one_or_none()
@@ -56,6 +58,28 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
     amenity_section = _build_amenities_section(project.amenity_stats)
     amenity_section["onsite_list"] = highlight
     amenity_section["onsite_counts"] = onsite_counts | {"secondary": amenity_section["onsite_counts"].get("secondary", 0)}
+
+    price_info = _get_latest_price(project)
+    
+    # Build unit types list from new table or fallback to old?
+    # Let's use new table if available, else old.
+    unit_types = []
+    if project.project_unit_types:
+        for ut in project.project_unit_types:
+            if ut.is_active:
+                unit_types.append({
+                    "label": ut.unit_label,
+                    "bedrooms": ut.bedrooms,
+                    "area_range": [float(ut.carpet_area_min_sqft) if ut.carpet_area_min_sqft else None, 
+                                   float(ut.carpet_area_max_sqft) if ut.carpet_area_max_sqft else None],
+                })
+    elif project.unit_types:
+        for ut in project.unit_types:
+            unit_types.append({
+                "label": ut.type_name,
+                "bedrooms": None, # Old schema doesn't have bedrooms explicitly
+                "area_range": [float(ut.carpet_area_sqmt * 10.764) if ut.carpet_area_sqmt else None, None], # Convert sqmt to sqft
+            })
 
     payload: dict[str, Any] = {
         "project": {
@@ -82,9 +106,18 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
             "overall_score": _score_to_float(scores.overall_score) if scores else None,
             "location_score": _score_to_float(scores.location_score) if scores else None,
             "amenity_score": _score_to_float(scores.amenity_score) if scores else None,
+            "score_status": scores.score_status if scores else None,
+            "score_status_reason": scores.score_status_reason if scores else None,
             "scoring_version": scores.score_version if scores else None,
         },
         "amenities": amenity_section,
+        "pricing": {
+            "min_price_total": price_info.get("min_price_total"),
+            "max_price_total": price_info.get("max_price_total"),
+            "min_price_per_sqft": price_info.get("min_price_per_sqft"),
+            "max_price_per_sqft": price_info.get("max_price_per_sqft"),
+            "unit_types": unit_types,
+        },
         "qa": {
             "geo_notes": project.geo_normalized_address,
             "amenity_notes": None,

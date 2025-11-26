@@ -126,6 +126,10 @@ class ProjectSearchItem(BaseModel):
     score_status: str | None = None
     score_status_reason: dict[str, Any] | list[str] | str | None = None
     nearby_counts: dict[str, int] = Field(default_factory=dict)
+    min_price_total: float | None = None
+    max_price_total: float | None = None
+    min_price_per_sqft: float | None = None
+    max_price_per_sqft: float | None = None
 
 
 class ProjectSearchResponse(BaseModel):
@@ -163,4 +167,5 @@ class ProjectDetailV2(BaseModel):
     location: dict[str, Any]
     scores: dict[str, Any]
     amenities: dict[str, Any]
+    pricing: dict[str, Any] | None = None
     qa: dict[str, Any]

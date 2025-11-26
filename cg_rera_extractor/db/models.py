@@ -111,6 +111,12 @@ class Project(Base):
     locations: Mapped[list["ProjectLocation"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    project_unit_types: Mapped[list["ProjectUnitType"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    pricing_snapshots: Mapped[list["ProjectPricingSnapshot"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Promoter(Base):
@@ -370,6 +376,68 @@ class ProjectLocation(Base):
     project: Mapped[Project] = relationship(back_populates="locations")
 
 
+class ProjectUnitType(Base):
+    """Canonical unit configuration within a project."""
+
+    __tablename__ = "project_unit_types"
+    __table_args__ = (
+        Index("ix_project_unit_types_project_id", "project_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    unit_label: Mapped[str | None] = mapped_column(String(100))
+    bedrooms: Mapped[int | None] = mapped_column(Integer)
+    bathrooms: Mapped[int | None] = mapped_column(Integer)
+    carpet_area_min_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    carpet_area_max_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    super_builtup_area_min_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    super_builtup_area_max_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
+
+    project: Mapped[Project] = relationship(back_populates="project_unit_types")
+
+
+class ProjectPricingSnapshot(Base):
+    """Price observation at a specific point in time."""
+
+    __tablename__ = "project_pricing_snapshots"
+    __table_args__ = (
+        Index("ix_project_pricing_snapshots_project_date", "project_id", "snapshot_date"),
+        Index("ix_project_pricing_snapshots_min_price", "min_price_total"),
+        Index("ix_project_pricing_snapshots_max_price", "max_price_total"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)
+    unit_type_label: Mapped[str | None] = mapped_column(String(100))
+    min_price_total: Mapped[Numeric | None] = mapped_column(Numeric(14, 2))
+    max_price_total: Mapped[Numeric | None] = mapped_column(Numeric(14, 2))
+    min_price_per_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    max_price_per_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    source_type: Mapped[str | None] = mapped_column(String(50))
+    source_reference: Mapped[str | None] = mapped_column(String(1024))
+    raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    project: Mapped[Project] = relationship(back_populates="pricing_snapshots")
+
+
 __all__ = [
     "Project",
     "Promoter",
@@ -384,4 +452,6 @@ __all__ = [
     "ProjectAmenityStats",
     "ProjectScores",
     "ProjectLocation",
+    "ProjectUnitType",
+    "ProjectPricingSnapshot",
 ]

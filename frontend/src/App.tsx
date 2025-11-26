@@ -141,6 +141,8 @@ function App() {
         const data = await searchProjects({
           district: debouncedFilters.district || undefined,
           min_overall_score: debouncedFilters.minOverallScore || undefined,
+          min_price: debouncedFilters.minPrice || undefined,
+          max_price: debouncedFilters.maxPrice || undefined,
           q: debouncedFilters.nameQuery || undefined,
           sort_by: debouncedFilters.sortBy,
           sort_dir: debouncedFilters.sortDir,

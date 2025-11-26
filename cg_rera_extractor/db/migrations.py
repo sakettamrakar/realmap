@@ -188,6 +188,8 @@ def _create_phase6_read_model(conn: Connection) -> None:
         )
     )
 
+    conn.execute(text("DROP VIEW IF EXISTS project_search_view"))
+
     conn.execute(
         text(
             """
@@ -387,6 +389,159 @@ def _add_score_status_columns(conn: Connection) -> None:
     )
 
 
+def _create_price_tables(conn: Connection) -> None:
+    """Create tables for unit types and pricing snapshots."""
+    conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS project_unit_types (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                unit_label VARCHAR(100),
+                bedrooms INTEGER,
+                bathrooms INTEGER,
+                carpet_area_min_sqft NUMERIC(10, 2),
+                carpet_area_max_sqft NUMERIC(10, 2),
+                super_builtup_area_min_sqft NUMERIC(10, 2),
+                super_builtup_area_max_sqft NUMERIC(10, 2),
+                is_active BOOLEAN DEFAULT TRUE,
+                raw_data JSONB,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_unit_types_project_id
+                ON project_unit_types (project_id);
+
+            CREATE TABLE IF NOT EXISTS project_pricing_snapshots (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                snapshot_date DATE NOT NULL,
+                unit_type_label VARCHAR(100),
+                min_price_total NUMERIC(14, 2),
+                max_price_total NUMERIC(14, 2),
+                min_price_per_sqft NUMERIC(10, 2),
+                max_price_per_sqft NUMERIC(10, 2),
+                source_type VARCHAR(50),
+                source_reference VARCHAR(1024),
+                raw_data JSONB,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_pricing_snapshots_project_date
+                ON project_pricing_snapshots (project_id, snapshot_date);
+            CREATE INDEX IF NOT EXISTS ix_project_pricing_snapshots_min_price
+                ON project_pricing_snapshots (min_price_total);
+            CREATE INDEX IF NOT EXISTS ix_project_pricing_snapshots_max_price
+                ON project_pricing_snapshots (max_price_total);
+            """
+        )
+    )
+
+
+def _update_view_with_prices(conn: Connection) -> None:
+    """Update project_search_view to include latest price info."""
+    
+    conn.execute(text("DROP VIEW IF EXISTS project_search_view"))
+
+    conn.execute(
+        text(
+            """
+            CREATE OR REPLACE VIEW project_search_view AS
+            WITH canonical_location AS (
+                SELECT
+                    pl.project_id,
+                    pl.lat,
+                    pl.lon,
+                    pl.source_type,
+                    pl.precision_level,
+                    pl.confidence_score,
+                    pl.updated_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY pl.project_id
+                        ORDER BY COALESCE(pl.confidence_score, 0) DESC, pl.updated_at DESC NULLS LAST, pl.id DESC
+                    ) AS rn
+                FROM project_locations pl
+                WHERE pl.is_active IS TRUE
+            ),
+            amenity_rollup AS (
+                SELECT DISTINCT ON (pas.project_id)
+                    pas.project_id,
+                    pas.onsite_available,
+                    pas.onsite_details
+                FROM project_amenity_stats pas
+                    WHERE pas.radius_km IS NULL
+                ORDER BY pas.project_id, pas.id DESC
+            ),
+            nearby_rollup AS (
+                SELECT
+                    pas.project_id,
+                    SUM(COALESCE(pas.nearby_count, 0)) AS total_nearby_count,
+                    MIN(pas.nearby_nearest_km) AS nearest_nearby_km
+                FROM project_amenity_stats pas
+                WHERE pas.radius_km IS NOT NULL
+                GROUP BY pas.project_id
+            ),
+            latest_prices AS (
+                SELECT DISTINCT ON (pps.project_id)
+                    pps.project_id,
+                    pps.min_price_total,
+                    pps.max_price_total,
+                    pps.min_price_per_sqft,
+                    pps.max_price_per_sqft
+                FROM project_pricing_snapshots pps
+                WHERE pps.is_active IS TRUE
+                ORDER BY pps.project_id, pps.snapshot_date DESC, pps.id DESC
+            )
+            SELECT
+                p.id AS project_id,
+                p.state_code,
+                p.rera_registration_number,
+                p.project_name,
+                p.status,
+                p.district,
+                p.tehsil,
+                p.village_or_locality,
+                p.full_address,
+                COALESCE(cl.lat, p.latitude) AS lat,
+                COALESCE(cl.lon, p.longitude) AS lon,
+                COALESCE(cl.source_type, p.geo_source) AS geo_source,
+                COALESCE(cl.precision_level, p.geo_precision) AS geo_precision,
+                COALESCE(cl.confidence_score, p.geo_confidence) AS geo_confidence,
+                p.approved_date AS registration_date,
+                p.proposed_end_date,
+                p.extended_end_date,
+                ps.overall_score,
+                ps.location_score,
+                ps.amenity_score,
+                ps.score_status,
+                ps.score_status_reason,
+                ps.score_version,
+                ar.onsite_available,
+                ar.onsite_details,
+                nr.total_nearby_count,
+                nr.nearest_nearby_km,
+                lp.min_price_total,
+                lp.max_price_total,
+                lp.min_price_per_sqft,
+                lp.max_price_per_sqft
+            FROM projects p
+            LEFT JOIN canonical_location cl
+                ON cl.project_id = p.id AND cl.rn = 1
+            LEFT JOIN project_scores ps
+                ON ps.project_id = p.id
+            LEFT JOIN amenity_rollup ar
+                ON ar.project_id = p.id
+            LEFT JOIN nearby_rollup nr
+                ON nr.project_id = p.id
+            LEFT JOIN latest_prices lp
+                ON lp.project_id = p.id;
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250322_create_amenity_tables", _create_amenity_tables),
@@ -394,6 +549,8 @@ MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250415_separate_amenity_scopes", _update_amenity_schema),
     ("20250428_phase6_read_model", _create_phase6_read_model),
     ("20250510_add_score_status", _add_score_status_columns),
+    ("20250525_create_price_tables", _create_price_tables),
+    ("20250526_update_view_with_prices", _update_view_with_prices),
 ]
 
 

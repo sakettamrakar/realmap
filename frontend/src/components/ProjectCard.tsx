@@ -15,6 +15,16 @@ interface Props {
 const formatScore = (score?: number | null) =>
   score === undefined || score === null ? "–" : score.toFixed(2);
 
+const formatPrice = (price: number) => {
+  if (price >= 10000000) {
+    return `${(price / 10000000).toFixed(2)} Cr`;
+  }
+  if (price >= 100000) {
+    return `${(price / 100000).toFixed(2)} L`;
+  }
+  return price.toLocaleString("en-IN");
+};
+
 const ProjectCard = ({ project, selected, onSelect, onHover, hovered, isShortlisted, onToggleShortlist }: Props) => {
   return (
     <button
@@ -57,16 +67,25 @@ const ProjectCard = ({ project, selected, onSelect, onHover, hovered, isShortlis
 
       <div className="card-meta-grid">
         <div>
+          <p className="eyebrow">Price</p>
+          <p className="value">
+            {project.min_price_total ? (
+              <>
+                ₹{formatPrice(project.min_price_total)}
+                {project.max_price_total && project.max_price_total !== project.min_price_total ? `–${formatPrice(project.max_price_total)}` : ""}
+              </>
+            ) : (
+              <span className="muted">N/A</span>
+            )}
+          </p>
+        </div>
+        <div>
           <p className="eyebrow">Location</p>
           <p className="value">{formatScore(project.location_score)}</p>
         </div>
         <div>
           <p className="eyebrow">Amenities</p>
           <p className="value">{formatScore(project.amenity_score)}</p>
-        </div>
-        <div>
-          <p className="eyebrow">Units</p>
-          <p className="value">{project.units ?? "—"}</p>
         </div>
         {project.distance_km != null && (
           <div>

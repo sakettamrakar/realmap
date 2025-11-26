@@ -9,11 +9,12 @@ const sortOptions: {
   label: string;
   defaultDir: Filters["sortDir"];
 }[] = [
-  { value: "overall_score", label: "Best overall score", defaultDir: "desc" },
-  { value: "location_score", label: "Best location score", defaultDir: "desc" },
-  { value: "registration_date", label: "Latest registration", defaultDir: "desc" },
-  { value: "name", label: "Name A–Z", defaultDir: "asc" },
-];
+    { value: "overall_score", label: "Best overall score", defaultDir: "desc" },
+    { value: "location_score", label: "Best location score", defaultDir: "desc" },
+    { value: "registration_date", label: "Latest registration", defaultDir: "desc" },
+    { value: "price", label: "Lowest price", defaultDir: "asc" },
+    { value: "name", label: "Name A–Z", defaultDir: "asc" },
+  ];
 
 const districtOptions = [
   "",
@@ -214,6 +215,30 @@ export function ProjectSearchPanel({
       </div>
 
       <div className="filter-group">
+        <p className="group-title">Price Range (₹)</p>
+        <div className="filter-row">
+          <label className="field">
+            <span>Min Budget</span>
+            <input
+              type="number"
+              placeholder="e.g. 2500000"
+              value={filters.minPrice || ""}
+              onChange={(e) => onFiltersChange({ minPrice: e.target.value ? Number(e.target.value) : undefined })}
+            />
+          </label>
+          <label className="field">
+            <span>Max Budget</span>
+            <input
+              type="number"
+              placeholder="e.g. 10000000"
+              value={filters.maxPrice || ""}
+              onChange={(e) => onFiltersChange({ maxPrice: e.target.value ? Number(e.target.value) : undefined })}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="filter-group">
         <p className="group-title">Search</p>
         <label className="field">
           <span>Project or promoter</span>
@@ -274,6 +299,8 @@ export function ProjectSearchPanel({
             hovered={project.project_id === hoveredProjectId}
             onSelect={onSelectProject}
             onHover={onHoverProject}
+            isShortlisted={shortlistIds?.includes(project.project_id)}
+            onToggleShortlist={onToggleShortlist}
           />
         ))}
         {!loading && projects.length === 0 && (

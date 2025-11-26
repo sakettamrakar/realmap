@@ -27,6 +27,16 @@ const progressStatus = (progress?: number) => {
   return "Mostly complete";
 };
 
+const formatPrice = (price: number) => {
+  if (price >= 10000000) {
+    return `${(price / 10000000).toFixed(2)} Cr`;
+  }
+  if (price >= 100000) {
+    return `${(price / 100000).toFixed(2)} L`;
+  }
+  return price.toLocaleString("en-IN");
+};
+
 const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Props) => {
   const amenities = project?.amenities;
   const location = project?.location;
@@ -206,6 +216,70 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
                   <p className="score-hint">Nearby schools, hospitals, daily needs</p>
                 </div>
               </div>
+            </section>
+
+            <section className="detail-section">
+              <div className="section-header">
+                <h4>Pricing</h4>
+                <p className="eyebrow">Current price band and inventory</p>
+              </div>
+              <div className="definition-grid">
+                <div className="definition">
+                  <span>Price Range</span>
+                  <strong>
+                    {project.pricing?.min_price_total ? (
+                      <>
+                        ₹{formatPrice(project.pricing.min_price_total)}
+                        {project.pricing.max_price_total && project.pricing.max_price_total !== project.pricing.min_price_total
+                          ? ` – ${formatPrice(project.pricing.max_price_total)}`
+                          : ""}
+                      </>
+                    ) : (
+                      "N/A"
+                    )}
+                  </strong>
+                </div>
+                <div className="definition">
+                  <span>Price per Sqft</span>
+                  <strong>
+                    {project.pricing?.min_price_per_sqft ? (
+                      <>
+                        ₹{project.pricing.min_price_per_sqft.toLocaleString("en-IN")}
+                        {project.pricing.max_price_per_sqft && project.pricing.max_price_per_sqft !== project.pricing.min_price_per_sqft
+                          ? ` – ${project.pricing.max_price_per_sqft.toLocaleString("en-IN")}`
+                          : ""} / sqft
+                      </>
+                    ) : (
+                      "N/A"
+                    )}
+                  </strong>
+                </div>
+              </div>
+              {project.pricing?.unit_types && project.pricing.unit_types.length > 0 && (
+                <div className="amenity-table" style={{ marginTop: '16px' }}>
+                  <div className="amenity-row amenity-row-header">
+                    <span>Unit Type</span>
+                    <span>Configuration</span>
+                    <span>Area (Sqft)</span>
+                  </div>
+                  {project.pricing.unit_types.map((ut, idx) => (
+                    <div key={idx} className="amenity-row">
+                      <span className="amenity-name">{ut.label}</span>
+                      <span>{ut.bedrooms ? `${ut.bedrooms} BHK` : "—"}</span>
+                      <span>
+                        {ut.area_range?.[0] ? (
+                          <>
+                            {Math.round(ut.area_range[0])}
+                            {ut.area_range[1] && ut.area_range[1] !== ut.area_range[0] ? ` – ${Math.round(ut.area_range[1])}` : ""}
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="detail-section">

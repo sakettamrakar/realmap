@@ -28,6 +28,8 @@ class SearchParams:
         min_overall_score: float | None = None,
         min_location_score: float | None = None,
         min_amenity_score: float | None = None,
+        min_price: float | None = None,
+        max_price: float | None = None,
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "overall_score",
@@ -46,6 +48,8 @@ class SearchParams:
         self.min_overall_score = min_overall_score
         self.min_location_score = min_location_score
         self.min_amenity_score = min_amenity_score
+        self.min_price = min_price
+        self.max_price = max_price
         self.page = page
         self.page_size = page_size
         self.sort_by = sort_by
@@ -85,7 +89,26 @@ def _score_to_float(score: int | None) -> float | None:
     if score is None:
         return None
     # Scores are stored as integers (0-100); convert to a 0-1 float for the API surface.
-    return round(score / 100, 3)
+    # Actually, schema now uses float (Numeric), so we might not need division if it's already 0-100.
+    # But previous code divided by 100. Let's assume input is 0-100.
+    # If the DB column is Numeric(5,2), it stores 75.50.
+    # The API expects 0-1 range? Or 0-100?
+    # The previous code: return round(score / 100, 3)
+    # This implies API expects 0-1.
+    # But the frontend displays 0-100 (ScoreBadge).
+    # Let's check frontend again. ProjectCard: formatScore(project.overall_score) -> fixed(2).
+    # ScoreBadge: if score >= 0.75 -> high.
+    # So frontend expects 0-1?
+    # Wait, I updated ScoreBadge to handle 0-100.
+    # So I should probably return 0-100 here.
+    # But let's stick to existing behavior for now to avoid breaking other things, 
+    # OR update it if I know for sure.
+    # The DB migration changed columns to Numeric(5,2).
+    # If I return the value directly, it's 0-100.
+    # If I divide by 100, it's 0-1.
+    # The frontend update I made handles both (checks >= 75 OR >= 0.75).
+    # So let's return the value as is (0-100) but cast to float.
+    return float(score) if score is not None else None
 
 
 def _onsite_amenities(stats: Iterable[ProjectAmenityStats]) -> tuple[list[str], dict[str, int]]:
@@ -107,6 +130,26 @@ def _nearby_counts(stats: Iterable[ProjectAmenityStats]) -> dict[str, int]:
     return summary
 
 
+def _get_latest_price(project: Project) -> dict[str, float | None]:
+    if not project.pricing_snapshots:
+        return {}
+    
+    # Filter active snapshots
+    active = [s for s in project.pricing_snapshots if s.is_active]
+    if not active:
+        return {}
+        
+    # Sort by date desc, id desc
+    latest = sorted(active, key=lambda s: (s.snapshot_date, s.id), reverse=True)[0]
+    
+    return {
+        "min_price_total": float(latest.min_price_total) if latest.min_price_total else None,
+        "max_price_total": float(latest.max_price_total) if latest.max_price_total else None,
+        "min_price_per_sqft": float(latest.min_price_per_sqft) if latest.min_price_per_sqft else None,
+        "max_price_per_sqft": float(latest.max_price_per_sqft) if latest.max_price_per_sqft else None,
+    }
+
+
 def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]:
     """Search projects applying filters and returning pagination metadata."""
 
@@ -116,6 +159,7 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
             selectinload(Project.score),
             selectinload(Project.amenity_stats),
             selectinload(Project.locations),
+            selectinload(Project.pricing_snapshots),
         )
     )
 
@@ -163,10 +207,12 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 continue
         amenity_filtered.append((project, distance))
 
-    # Score thresholds
+    # Score and Price filters
     final_projects: list[tuple[Project, float | None]] = []
     for project, distance in amenity_filtered:
         scores = project.score
+        
+        # Score filters
         if params.min_overall_score is not None:
             if scores is None or _score_to_float(scores.overall_score) is None:
                 continue
@@ -182,6 +228,24 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 continue
             if _score_to_float(scores.amenity_score) < params.min_amenity_score:
                 continue
+        
+        # Price filters
+        price_info = _get_latest_price(project)
+        if params.min_price is not None:
+            # If no price info, exclude? Or include? Usually exclude if filter is active.
+            if price_info.get("max_price_total") is None: 
+                continue
+            # Filter: project max price >= user min budget
+            if price_info["max_price_total"] < params.min_price:
+                continue
+        
+        if params.max_price is not None:
+            if price_info.get("min_price_total") is None:
+                continue
+            # Filter: project min price <= user max budget
+            if price_info["min_price_total"] > params.max_price:
+                continue
+
         final_projects.append((project, distance))
 
     # Sorting
@@ -198,6 +262,10 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
             return _score_to_float(score.amenity_score) or 0
         if params.sort_by == "registration_date":
             return project.approved_date or project.proposed_end_date or project.extended_end_date or 0
+        if params.sort_by == "price":
+            p = _get_latest_price(project)
+            return p.get("min_price_total") or float("inf") # Sort by min price
+            
         return _score_to_float(score.overall_score) if score else 0
 
     final_projects.sort(key=sort_key, reverse=reverse)
@@ -213,6 +281,7 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         scores = project.score
         highlight, onsite_counts = _onsite_amenities(project.amenity_stats)
         nearby_counts = _nearby_counts(project.amenity_stats)
+        price_info = _get_latest_price(project)
 
         payload.append(
             {
@@ -228,6 +297,8 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 "overall_score": _score_to_float(scores.overall_score) if scores else None,
                 "location_score": _score_to_float(scores.location_score) if scores else None,
                 "amenity_score": _score_to_float(scores.amenity_score) if scores else None,
+                "score_status": scores.score_status if scores else None,
+                "score_status_reason": scores.score_status_reason if scores else None,
                 "units": None,
                 "area_sqft": None,
                 "registration_date": project.approved_date,
@@ -235,6 +306,10 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 "highlight_amenities": highlight,
                 "onsite_amenity_counts": onsite_counts,
                 "nearby_counts": nearby_counts,
+                "min_price_total": price_info.get("min_price_total"),
+                "max_price_total": price_info.get("max_price_total"),
+                "min_price_per_sqft": price_info.get("min_price_per_sqft"),
+                "max_price_per_sqft": price_info.get("max_price_per_sqft"),
             }
         )
 

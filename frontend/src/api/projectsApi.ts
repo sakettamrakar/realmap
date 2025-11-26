@@ -21,6 +21,8 @@ export async function searchProjects(
         params: {
           ...params,
           min_overall_score: params.min_overall_score ?? undefined,
+          min_price: params.min_price ?? undefined,
+          max_price: params.max_price ?? undefined,
           q: params.q || undefined,
           district: params.district || undefined,
           sort_by: params.sort_by || undefined,
