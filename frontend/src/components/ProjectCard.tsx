@@ -50,7 +50,7 @@ const ProjectCard = ({ project, selected, onSelect, onHover, hovered, isShortlis
               {isShortlisted ? "★" : "☆"}
             </button>
           )}
-          <ScoreBadge score={project.overall_score} />
+          <ScoreBadge score={project.overall_score} status={project.score_status} />
           <span className="status-pill">{project.status || "Status unknown"}</span>
         </div>
       </div>

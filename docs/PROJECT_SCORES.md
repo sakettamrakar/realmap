@@ -56,3 +56,18 @@ python tools/compute_project_scores.py \
 
 - `project_amenity_stats` must contain counts and nearest distances for the amenity types and radii referenced above.
 - `project_scores` should exist via migrations; the script will upsert rows and refresh `last_computed_at`.
+
+## Score Status & Missing Data
+
+To ensure trustworthiness, we explicitly track data availability:
+
+- **`score_status`**:
+  - `'ok'`: Sufficient data for both amenity (onsite) and location (nearby) components.
+  - `'partial'`: One component is missing (e.g., onsite data not yet parsed).
+  - `'insufficient_data'`: Critical data is missing for all components.
+
+- **`score_status_reason`**: A list of missing data categories (e.g., `["missing_onsite_data"]`).
+
+**Handling Missing Data:**
+- If a component (e.g., location score) cannot be computed due to missing data, its score is set to `NULL` (not 0).
+- The UI displays these as "N/A" or with a warning, rather than a misleading low score.

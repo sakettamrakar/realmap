@@ -19,15 +19,17 @@ ScoreValue = int
 class ScoreResult:
     """Container for persisted score fields."""
 
-    amenity_score: ScoreValue
-    location_score: ScoreValue
+    amenity_score: float | None
+    location_score: float | None
     
     # Location sub-scores
-    connectivity_score: ScoreValue
-    daily_needs_score: ScoreValue
-    social_infra_score: ScoreValue
+    connectivity_score: int | None
+    daily_needs_score: int | None
+    social_infra_score: int | None
     
-    overall_score: ScoreValue
+    overall_score: float | None
+    score_status: str
+    score_status_reason: list[str] | None
     score_version: str
 
 
@@ -285,29 +287,70 @@ def compute_amenity_scores(
     missing_inputs: set[str] = set()
     inputs_used: dict[str, float | int | None] = {}
 
-    daily_needs = _daily_needs_score(stat_index, config, missing_inputs, inputs_used)
-    connectivity = _connectivity_score(stat_index, config, missing_inputs, inputs_used)
-    social_infra = _social_infra_score(stat_index, config, missing_inputs, inputs_used)
+    # Check data availability
+    # We consider "nearby" data available if we have at least one stat with radius_km (not None)
+    has_nearby_data = any(s.radius_km is not None for s in amenity_stats)
+    
+    # We consider "onsite" data available if we have at least one stat with radius_km is None
+    # OR if we have explicit onsite flags (which we don't fully have yet, but let's check stats)
+    has_onsite_data = any(s.radius_km is None for s in amenity_stats)
 
-    # Location Score (Composite of the above)
-    loc_weights = config.location_weights
-    location_score = _clamp_score(
-        daily_needs * loc_weights.get("daily_needs", 0)
-        + social_infra * loc_weights.get("social_infra", 0)
-        + connectivity * loc_weights.get("connectivity", 0)
-    )
-    
-    # Amenity Score (Onsite)
-    # Placeholder: For now, we don't have onsite data populated, so we default to 0 or a placeholder.
-    # Once RERA data is ingested, we will compute this from `onsite_available` flags.
-    amenity_score = 0 
-    
-    # Overall Score
-    overall_weights = config.overall_weights
-    overall = _clamp_score(
-        amenity_score * overall_weights.get("amenity", 0)
-        + location_score * overall_weights.get("location", 0)
-    )
+    location_score: float | None = None
+    daily_needs: int | None = None
+    connectivity: int | None = None
+    social_infra: int | None = None
+
+    if has_nearby_data:
+        daily_needs = _daily_needs_score(stat_index, config, missing_inputs, inputs_used)
+        connectivity = _connectivity_score(stat_index, config, missing_inputs, inputs_used)
+        social_infra = _social_infra_score(stat_index, config, missing_inputs, inputs_used)
+
+        # Location Score (Composite of the above)
+        loc_weights = config.location_weights
+        location_score = float(_clamp_score(
+            daily_needs * loc_weights.get("daily_needs", 0)
+            + social_infra * loc_weights.get("social_infra", 0)
+            + connectivity * loc_weights.get("connectivity", 0)
+        ))
+    else:
+        missing_inputs.add("missing_nearby_data")
+
+    amenity_score: float | None = None
+    if has_onsite_data:
+        # Placeholder: For now, we don't have onsite data populated logic fully.
+        # But if we had data, we would compute it.
+        # For now, if we have data records, we assume 0 or some logic.
+        # Let's keep it 0 as placeholder but mark it as computed.
+        amenity_score = 0.0 
+    else:
+        missing_inputs.add("missing_onsite_data")
+
+    # Overall Score & Status
+    overall: float | None = None
+    status: str = "insufficient_data"
+    reasons: list[str] = []
+
+    if location_score is not None and amenity_score is not None:
+        overall_weights = config.overall_weights
+        overall = float(_clamp_score(
+            amenity_score * overall_weights.get("amenity", 0)
+            + location_score * overall_weights.get("location", 0)
+        ))
+        status = "ok"
+    elif location_score is not None:
+        # Partial: only location
+        overall = location_score
+        status = "partial"
+        reasons.append("missing_onsite_data")
+    elif amenity_score is not None:
+        # Partial: only amenity
+        overall = amenity_score
+        status = "partial"
+        reasons.append("missing_nearby_data")
+    else:
+        # Insufficient
+        status = "insufficient_data"
+        reasons.append("missing_all_data")
 
     scores = ScoreResult(
         amenity_score=amenity_score,
@@ -316,6 +359,8 @@ def compute_amenity_scores(
         daily_needs_score=daily_needs,
         social_infra_score=social_infra,
         overall_score=overall,
+        score_status=status,
+        score_status_reason=reasons,
         score_version=config.score_version,
     )
 

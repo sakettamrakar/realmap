@@ -123,6 +123,8 @@ class ProjectSearchItem(BaseModel):
     distance_km: float | None = None
     highlight_amenities: list[str] = Field(default_factory=list)
     onsite_amenity_counts: dict[str, int] = Field(default_factory=dict)
+    score_status: str | None = None
+    score_status_reason: dict[str, Any] | list[str] | str | None = None
     nearby_counts: dict[str, int] = Field(default_factory=dict)
 
 

@@ -8,17 +8,17 @@ interface Props {
 }
 
 const formatScore = (score?: number) =>
-  score === undefined || score === null ? "–" : score.toFixed(2);
+  score === undefined || score === null ? "N/A" : score.toFixed(0);
 
 const scoreBucket = (score?: number) => {
   if (score === undefined || score === null) return "unknown";
-  if (score >= 0.75) return "high";
-  if (score >= 0.5) return "medium";
+  if (score >= 75) return "high";
+  if (score >= 50) return "medium";
   return "low";
 };
 
 const getScoreBarWidth = (score?: number) =>
-  `${Math.min(Math.max((score ?? 0) * 100, 0), 100)}%`;
+  `${Math.min(Math.max((score ?? 0), 0), 100)}%`;
 
 const progressStatus = (progress?: number) => {
   if (progress === undefined || progress === null) return "Not reported";
@@ -159,6 +159,17 @@ const ProjectDetailPanel = ({ project, loading, onClose, onCenterOnProject }: Pr
               <div className="section-header">
                 <h4>Scores</h4>
                 <p className="eyebrow">Quality signals for the project and its surroundings</p>
+                {scores?.score_status && scores.score_status !== 'ok' && (
+                  <div style={{ marginTop: '8px', padding: '8px', background: '#f5f5f5', borderRadius: '4px', fontSize: '0.9em' }}>
+                    <strong>Status: </strong>
+                    <span style={{ textTransform: 'capitalize' }}>{scores.score_status.replace('_', ' ')}</span>
+                    {scores.score_status_reason && (
+                      <span className="reason" style={{ marginLeft: '8px', color: '#666' }}>
+                        — {Array.isArray(scores.score_status_reason) ? scores.score_status_reason.join(', ') : JSON.stringify(scores.score_status_reason)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="score-grid">
                 <div className={`score-card score-${scoreBucket(scores?.overall_score)}`}>

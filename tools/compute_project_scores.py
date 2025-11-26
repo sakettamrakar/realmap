@@ -6,6 +6,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from statistics import mean
+from typing import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -67,6 +68,8 @@ def _upsert_score(session: Session, project_id: int, scores: ProjectScores) -> P
         existing.daily_needs_score = scores.daily_needs_score
         existing.social_infra_score = scores.social_infra_score
         existing.overall_score = scores.overall_score
+        existing.score_status = scores.score_status
+        existing.score_status_reason = scores.score_status_reason
         existing.score_version = scores.score_version
         existing.last_computed_at = datetime.now(timezone.utc)
         return existing
@@ -104,7 +107,7 @@ def main() -> int:
     SessionLocal = get_session_local(engine)
 
     session = SessionLocal()
-    scored_overall: list[int] = []
+    scored_overall: list[float] = []
     missing_summary: defaultdict[str, int] = defaultdict(int)
     sample_logs: list[str] = []
 
@@ -153,6 +156,8 @@ def main() -> int:
                 daily_needs_score=computation.scores.daily_needs_score,
                 social_infra_score=computation.scores.social_infra_score,
                 overall_score=computation.scores.overall_score,
+                score_status=computation.scores.score_status,
+                score_status_reason=computation.scores.score_status_reason,
                 score_version=computation.scores.score_version,
                 last_computed_at=datetime.now(timezone.utc),
             )
@@ -161,7 +166,9 @@ def main() -> int:
             _upsert_score(session, project_id, scores)
             session.commit()
 
-            scored_overall.append(scores.overall_score or 0)
+            if scores.overall_score is not None:
+                scored_overall.append(float(scores.overall_score))
+            
             for missing_key in computation.missing_inputs:
                 missing_summary[missing_key] += 1
 
@@ -169,7 +176,7 @@ def main() -> int:
                 sample_logs.append(
                     (
                         f"Project {project_id} ({state_code}-{reg}): "
-                        f"overall={scores.overall_score}, loc={scores.location_score}, amenity={scores.amenity_score}; "
+                        f"status={scores.score_status}, overall={scores.overall_score}, loc={scores.location_score}, amenity={scores.amenity_score}; "
                         f"daily={scores.daily_needs_score}, social={scores.social_infra_score}, conn={scores.connectivity_score}; "
                         f"inputs={computation.inputs_used}"
                     )

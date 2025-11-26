@@ -266,12 +266,134 @@ def _create_phase6_read_model(conn: Connection) -> None:
     )
 
 
+def _add_score_status_columns(conn: Connection) -> None:
+    """Add score status columns, update types, and refresh search view."""
+    
+    # 0. Drop view first because it depends on columns we are about to change
+    conn.execute(text("DROP VIEW IF EXISTS project_search_view"))
+
+    # 1. Add new columns
+    conn.execute(
+        text(
+            """
+            ALTER TABLE project_scores
+                ADD COLUMN IF NOT EXISTS score_status VARCHAR(32),
+                ADD COLUMN IF NOT EXISTS score_status_reason JSONB;
+            """
+        )
+    )
+
+    # 2. Update score column types to NUMERIC(5, 2)
+    # Note: We cast existing values to numeric.
+    conn.execute(
+        text(
+            """
+            ALTER TABLE project_scores
+                ALTER COLUMN amenity_score TYPE NUMERIC(5, 2) USING amenity_score::numeric,
+                ALTER COLUMN location_score TYPE NUMERIC(5, 2) USING location_score::numeric,
+                ALTER COLUMN overall_score TYPE NUMERIC(5, 2) USING overall_score::numeric;
+            """
+        )
+    )
+
+    # 3. Add index on score_status
+    conn.execute(
+        text(
+            """
+            CREATE INDEX IF NOT EXISTS ix_project_scores_score_status
+                ON project_scores (score_status);
+            """
+        )
+    )
+
+    # 4. Update the view to include new columns
+    conn.execute(
+        text(
+            """
+            CREATE OR REPLACE VIEW project_search_view AS
+            WITH canonical_location AS (
+                SELECT
+                    pl.project_id,
+                    pl.lat,
+                    pl.lon,
+                    pl.source_type,
+                    pl.precision_level,
+                    pl.confidence_score,
+                    pl.updated_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY pl.project_id
+                        ORDER BY COALESCE(pl.confidence_score, 0) DESC, pl.updated_at DESC NULLS LAST, pl.id DESC
+                    ) AS rn
+                FROM project_locations pl
+                WHERE pl.is_active IS TRUE
+            ),
+            amenity_rollup AS (
+                SELECT DISTINCT ON (pas.project_id)
+                    pas.project_id,
+                    pas.onsite_available,
+                    pas.onsite_details
+                FROM project_amenity_stats pas
+                    WHERE pas.radius_km IS NULL
+                ORDER BY pas.project_id, pas.id DESC
+            ),
+            nearby_rollup AS (
+                SELECT
+                    pas.project_id,
+                    SUM(COALESCE(pas.nearby_count, 0)) AS total_nearby_count,
+                    MIN(pas.nearby_nearest_km) AS nearest_nearby_km
+                FROM project_amenity_stats pas
+                WHERE pas.radius_km IS NOT NULL
+                GROUP BY pas.project_id
+            )
+            SELECT
+                p.id AS project_id,
+                p.state_code,
+                p.rera_registration_number,
+                p.project_name,
+                p.status,
+                p.district,
+                p.tehsil,
+                p.village_or_locality,
+                p.full_address,
+                COALESCE(cl.lat, p.latitude) AS lat,
+                COALESCE(cl.lon, p.longitude) AS lon,
+                COALESCE(cl.source_type, p.geo_source) AS geo_source,
+                COALESCE(cl.precision_level, p.geo_precision) AS geo_precision,
+                COALESCE(cl.confidence_score, p.geo_confidence) AS geo_confidence,
+                p.approved_date AS registration_date,
+                p.proposed_end_date,
+                p.extended_end_date,
+                ps.overall_score,
+                ps.location_score,
+                ps.amenity_score,
+                ps.score_status,
+                ps.score_status_reason,
+                ps.score_version,
+                ar.onsite_available,
+                ar.onsite_details,
+                nr.total_nearby_count,
+                nr.nearest_nearby_km
+            FROM projects p
+            LEFT JOIN canonical_location cl
+                ON cl.project_id = p.id AND cl.rn = 1
+            LEFT JOIN project_scores ps
+                ON ps.project_id = p.id
+            LEFT JOIN amenity_rollup ar
+                ON ar.project_id = p.id
+            LEFT JOIN nearby_rollup nr
+                ON nr.project_id = p.id;
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250322_create_amenity_tables", _create_amenity_tables),
     ("20250401_create_project_locations", _create_project_locations_table),
     ("20250415_separate_amenity_scopes", _update_amenity_schema),
     ("20250428_phase6_read_model", _create_phase6_read_model),
+    ("20250510_add_score_status", _add_score_status_columns),
 ]
 
 

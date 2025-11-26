@@ -322,15 +322,18 @@ class ProjectScores(Base):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    amenity_score: Mapped[int | None] = mapped_column(Integer)
-    location_score: Mapped[int | None] = mapped_column(Integer)
+    amenity_score: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    location_score: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
     
     # Location sub-scores
     connectivity_score: Mapped[int | None] = mapped_column(Integer)
     daily_needs_score: Mapped[int | None] = mapped_column(Integer)
     social_infra_score: Mapped[int | None] = mapped_column(Integer)
     
-    overall_score: Mapped[int | None] = mapped_column(Integer)
+    overall_score: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    score_status: Mapped[str | None] = mapped_column(String(32))
+    score_status_reason: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    
     score_version: Mapped[str | None] = mapped_column(String(32))
     last_computed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
 

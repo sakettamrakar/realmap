@@ -21,6 +21,8 @@ export interface ProjectSummary {
     primary?: number;
     secondary?: number;
   };
+  score_status?: 'ok' | 'partial' | 'insufficient_data';
+  score_status_reason?: string | string[] | Record<string, unknown>;
   nearby_counts?: {
     schools?: number;
     hospitals?: number;
@@ -60,6 +62,8 @@ export interface ProjectDetail {
     overall_score?: number;
     location_score?: number;
     amenity_score?: number;
+    score_status?: 'ok' | 'partial' | 'insufficient_data';
+    score_status_reason?: string | string[] | Record<string, unknown>;
     scoring_version?: string;
   };
   amenities?: {
