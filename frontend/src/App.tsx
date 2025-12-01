@@ -8,6 +8,8 @@ import ProjectDetailPanel from "./components/ProjectDetailPanel";
 import ShortlistPanel from "./components/ShortlistPanel";
 import CompareModal from "./components/CompareModal";
 import ProjectInspector from "./components/ProjectInspector";
+import { BottomNav } from "./components/mobile/BottomNav";
+import { ComplianceProgress } from "./components/mobile/ComplianceProgress";
 import useDebouncedValue from "./hooks/useDebouncedValue";
 import type { Filters } from "./types/filters";
 import type { BBox, ProjectDetail, ProjectMapPin, ProjectSummary } from "./types/projects";
@@ -63,8 +65,21 @@ function App() {
   const [compareError, setCompareError] = useState<string | null>(null);
 
   const [showInspector, setShowInspector] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
+
+  // Mobile State
+  const [activeTab, setActiveTab] = useState<'home' | 'check' | 'compare' | 'saved'>('home');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isChecking, setIsChecking] = useState(false);
+
+  // Use shortlistIds to avoid unused variable warning and for cleaner checks
+  const shortlistIds = useMemo(() => shortlist.map((item) => Number(item.project_id)), [shortlist]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleFiltersChange = (next: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...next }));
@@ -98,306 +113,447 @@ function App() {
     setCompareSelection((prev) => prev.filter((id) => shortlist.some((p) => p.project_id === id)));
   }, [shortlist]);
 
-  const shortlistIds = useMemo(() => shortlist.map((item) => item.project_id), [shortlist]);
-
-  const toggleShortlist = (project: ProjectSummary, isShortlisted: boolean) => {
-    setShortlist((prev) => {
-      if (isShortlisted) {
-        return prev.filter((item) => item.project_id !== project.project_id);
-      }
-      const existing = prev.find((item) => item.project_id === project.project_id);
-      if (existing) return prev;
-      return [...prev, project];
-    });
-  };
-
-  const toggleCompareSelection = (projectId: number) => {
-    setCompareWarning(null);
-    setCompareSelection((prev) => {
-      if (prev.includes(projectId)) {
-        return prev.filter((id) => id !== projectId);
-      }
-      if (prev.length >= 3) {
-        setCompareWarning("You can compare up to 3 projects at a time.");
-        return prev;
-      }
-      return [...prev, projectId];
-    });
-  };
-
-  const handleOpenCompare = async () => {
-    if (compareSelection.length < 2) return;
-    setCompareOpen(true);
-    setCompareLoading(true);
-    setCompareError(null);
-    try {
-      const details = await Promise.all(compareSelection.map((id) => getProject(id)));
-      setCompareProjects(details.filter((item): item is ProjectDetail => Boolean(item)));
-    } catch (err: any) {
-      setCompareError(err?.message || "Unable to load projects to compare.");
-    } finally {
-      setCompareLoading(false);
-    }
-  };
-
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setSearchLoading(true);
-      try {
-        const data = await searchProjects({
-          district: debouncedFilters.district || undefined,
-          project_types: debouncedFilters.projectTypes,
-          statuses: debouncedFilters.statuses,
-          min_overall_score: debouncedFilters.minOverallScore || undefined,
-          min_price: debouncedFilters.minPrice || undefined,
-          max_price: debouncedFilters.maxPrice || undefined,
-          q: debouncedFilters.nameQuery || undefined,
-          sort_by: debouncedFilters.sortBy,
-          sort_dir: debouncedFilters.sortDir,
-          page: searchMeta.page,
-          page_size: PAGE_SIZE,
-        });
-        if (cancelled) return;
-        setSearchResults(data.items);
-        setSearchMeta({
-          total: data.total,
-          page: data.page,
-          pageSize: data.page_size ?? PAGE_SIZE,
-        });
-        setError(null);
-      } catch (err: any) {
-        if (cancelled) return;
-        setError(err?.message || "Unable to load projects.");
-        setSearchResults([]);
-      } finally {
-        if (!cancelled) setSearchLoading(false);
-      }
-    };
-    load();
+    let active = true;
+    setSearchLoading(true);
+    setError(null);
+
+    searchProjects({
+      ...debouncedFilters,
+      page: searchMeta.page,
+      page_size: searchMeta.pageSize,
+    })
+      .then((res) => {
+        if (!active) return;
+        setSearchResults(res.items);
+        setSearchMeta((prev) => ({ ...prev, total: res.total }));
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error("Search failed", err);
+        setError("Failed to load projects. Please try again.");
+      })
+      .finally(() => {
+        if (active) setSearchLoading(false);
+      });
+
     return () => {
-      cancelled = true;
+      active = false;
     };
-  }, [debouncedFilters, searchMeta.page]);
+  }, [debouncedFilters, searchMeta.page, searchMeta.pageSize]);
 
   useEffect(() => {
     if (!mapBounds) return;
-    let cancelled = false;
-    const load = async () => {
-      setMapLoading(true);
-      try {
-        const data = await getProjectsForMap({
-          bbox: mapBounds,
-          min_overall_score: debouncedFilters.minOverallScore || undefined,
-        });
-        if (cancelled) return;
-        setMapPins(data.items);
-      } catch (err: any) {
-        if (cancelled) return;
-        setError(err?.message || "Unable to load map pins.");
-      } finally {
-        if (!cancelled) setMapLoading(false);
-      }
-    };
-    load();
+    let active = true;
+    setMapLoading(true);
+
+    getProjectsForMap({ bbox: mapBounds })
+      .then((res) => {
+        if (!active) return;
+        setMapPins(res.items);
+      })
+      .catch((err) => {
+        console.error("Map load failed", err);
+      })
+      .finally(() => {
+        if (active) setMapLoading(false);
+      });
+
     return () => {
-      cancelled = true;
+      active = false;
     };
-  }, [mapBounds, debouncedFilters.minOverallScore]);
+  }, [mapBounds]);
 
   useEffect(() => {
     if (!selectedProjectId) {
       setSelectedProject(null);
       return;
     }
-    let cancelled = false;
-    const load = async () => {
-      setDetailLoading(true);
-      try {
-        const data = await getProject(selectedProjectId);
-        if (cancelled) return;
-        setSelectedProject(data);
-        setError(null);
-      } catch (err: any) {
-        if (cancelled) return;
-        setSelectedProject(null);
-        setError(err?.message || "Unable to load project details.");
-      } finally {
-        if (!cancelled) setDetailLoading(false);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
+    setDetailLoading(true);
+    getProject(selectedProjectId)
+      .then(setSelectedProject)
+      .catch((err) => console.error("Detail load failed", err))
+      .finally(() => setDetailLoading(false));
   }, [selectedProjectId]);
 
-  // Render Project Inspector when active
-  if (showInspector) {
-    return <ProjectInspector onBack={() => setShowInspector(false)} />;
-  }
+  const handleSelectProject = (id: number) => {
+    setSelectedProjectId(id);
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedProjectId(null);
+  };
+
+  const handleToggleShortlist = (project: ProjectSummary, wasShortlisted: boolean) => {
+    if (wasShortlisted) {
+      setShortlist((prev) => prev.filter((p) => Number(p.project_id) !== Number(project.project_id)));
+    } else {
+      setShortlist((prev) => [...prev, project]);
+    }
+  };
+
+  const handleToggleCompare = (id: number) => {
+    setCompareSelection((prev) => {
+      if (prev.includes(id)) {
+        setCompareWarning(null);
+        return prev.filter((pid) => pid !== id);
+      }
+      if (prev.length >= 3) {
+        setCompareWarning("You can compare up to 3 projects.");
+        setTimeout(() => setCompareWarning(null), 3000);
+        return prev;
+      }
+      setCompareWarning(null);
+      return [...prev, id];
+    });
+  };
+
+  const handleOpenCompare = async () => {
+    if (compareSelection.length < 2) {
+      setCompareWarning("Select at least 2 projects to compare.");
+      setTimeout(() => setCompareWarning(null), 3000);
+      return;
+    }
+    setCompareOpen(true);
+    setCompareLoading(true);
+    setCompareError(null);
+    try {
+      const details = await Promise.all(compareSelection.map((id) => getProject(id)));
+      setCompareProjects(details.filter((d): d is ProjectDetail => !!d));
+    } catch (err) {
+      console.error("Compare load failed", err);
+      setCompareError("Failed to load comparison data.");
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const handleLocateProject = (coords: { lat: number; lon: number }) => {
+    setMapFocus({ ...coords, zoom: 16, timestamp: Date.now() });
+  };
+
+  const handleCheckCompliance = () => {
+    setIsChecking(true);
+  };
+
+  const handleCheckComplete = () => {
+    setIsChecking(false);
+    setActiveTab('check');
+  };
+
+  // Mobile Tab Content Rendering
+  const renderMobileContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <div className="mobile-home-view animate-fade-in">
+            <div className="filters-section" style={{ padding: '16px', background: 'white', marginBottom: '16px' }}>
+              <FiltersSidebar
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                onResetFilters={handleResetFilters}
+                resultsCount={searchMeta.total}
+              />
+            </div>
+            <div className="project-list" style={{ padding: '0 16px 80px' }}>
+              <ProjectListHeader
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                total={searchMeta.total}
+              />
+              {searchLoading ? (
+                <div className="loading-state">Loading projects...</div>
+              ) : (
+                <div className="results-grid" style={{ gridTemplateColumns: '1fr' }}>
+                  {searchResults.map((p) => (
+                    <div key={p.project_id} className="animate-slide-up">
+                      <ProjectCard
+                        project={p}
+                        selected={selectedProjectId === p.project_id}
+                        onSelect={handleSelectProject}
+                        hovered={hoveredProjectId === p.project_id}
+                        onHover={setHoveredProjectId}
+                        isShortlisted={shortlistIds.includes(Number(p.project_id))}
+                        onToggleShortlist={handleToggleShortlist}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleCheckCompliance}
+              style={{
+                position: 'fixed',
+                bottom: '80px',
+                right: '16px',
+                background: 'var(--color-primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '999px',
+                padding: '12px 20px',
+                fontWeight: 600,
+                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                zIndex: 900
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              Check Compliance
+            </button>
+          </div>
+        );
+      case 'check':
+        return (
+          <div className="mobile-check-view animate-fade-in" style={{ height: 'calc(100vh - 120px)' }}>
+            <ProjectMapView
+              pins={mapPins}
+              selectedProjectId={selectedProjectId}
+              hoveredProjectId={hoveredProjectId}
+              onSelectProject={handleSelectProject}
+              onHoverProject={setHoveredProjectId}
+              onBoundsChange={setMapBounds}
+              loading={mapLoading}
+              initialBounds={DEFAULT_BOUNDS}
+              focus={mapFocus}
+            />
+          </div>
+        );
+      case 'compare':
+        return (
+          <div className="mobile-compare-view animate-fade-in" style={{ padding: '16px' }}>
+            <h2>Compare Projects</h2>
+            <p>Select projects to compare from the Home tab.</p>
+            <ShortlistPanel
+              open={true}
+              shortlist={shortlist}
+              onRemove={(id) => handleToggleShortlist({ project_id: id } as any, true)}
+              onSelectProject={handleSelectProject}
+              onClose={() => { }}
+              compareSelection={compareSelection}
+              onToggleCompareSelection={handleToggleCompare}
+              onOpenCompare={handleOpenCompare}
+              warning={compareWarning}
+            />
+          </div>
+        );
+      case 'saved':
+        return (
+          <div className="mobile-saved-view animate-fade-in" style={{ padding: '16px' }}>
+            <h2>Saved Projects</h2>
+            <div className="results-grid" style={{ gridTemplateColumns: '1fr', gap: '16px' }}>
+              {shortlist.map((p) => (
+                <ProjectCard
+                  key={p.project_id}
+                  project={p}
+                  selected={selectedProjectId === p.project_id}
+                  onSelect={handleSelectProject}
+                  isShortlisted={true}
+                  onToggleShortlist={handleToggleShortlist}
+                />
+              ))}
+              {shortlist.length === 0 && <p className="muted">No saved projects yet.</p>}
+            </div>
+            <button
+              onClick={handleCheckCompliance}
+              style={{
+                position: 'fixed',
+                bottom: '80px',
+                right: '16px',
+                background: 'var(--color-primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '999px',
+                padding: '12px 20px',
+                fontWeight: 600,
+                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                zIndex: 900
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              Check Compliance
+            </button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="app">
       <header className="app-header">
         <div className="container header-content">
           <div>
-            <p className="eyebrow text-on-dark">CG RERA Explorer</p>
-            <h1>Projects • Scores • Location</h1>
+            <h1>RealMap</h1>
+            <p className="text-on-dark">CG-RERA Compliance & Analytics Platform</p>
           </div>
           <div className="header-actions">
-            <button className="pill pill-admin" onClick={() => setShowInspector(true)} type="button">
-              🔧 Inspector
-            </button>
-            <button className="pill" onClick={() => setIsShortlistOpen(true)} type="button">
-              Shortlist ({shortlist.length})
-            </button>
+            {!isMobile && (
+              <>
+                <button className="header-pill" onClick={() => setIsShortlistOpen(true)}>
+                  Shortlist ({shortlist.length})
+                </button>
+                <button className="header-pill" onClick={() => setShowInspector(!showInspector)}>
+                  {showInspector ? "Hide Inspector" : "Inspector"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {error && <div className="banner banner-error container">{error}</div>}
+      {error && (
+        <div className="container banner banner-error">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
 
-      <main className="app-main container-fluid">
-        <div className="new-layout">
-          <FiltersSidebar
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            onResetFilters={handleResetFilters}
-            resultsCount={searchMeta.total}
-          />
+      {isChecking && <ComplianceProgress onComplete={handleCheckComplete} />}
 
-          <section className="results-pane">
-            <ProjectListHeader
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              total={searchMeta.total}
-            />
+      <main className="app-main container">
+        {isMobile ? (
+          <>
+            {renderMobileContent()}
+            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+          </>
+        ) : (
+          <div className="new-layout">
+            <aside className="filters-sidebar">
+              <FiltersSidebar
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                onResetFilters={handleResetFilters}
+                resultsCount={searchMeta.total}
+              />
+            </aside>
 
-            <div className="results-grid">
-              <div className="list-column">
-                {searchLoading && searchResults.length === 0 && (
-                  <div className="loading-state">Loading projects...</div>
-                )}
-
-                {searchResults.map((project) => (
-                  <ProjectCard
-                    key={project.project_id}
-                    project={project}
-                    selected={project.project_id === selectedProjectId}
-                    hovered={project.project_id === hoveredProjectId}
-                    onSelect={setSelectedProjectId}
-                    onHover={setHoveredProjectId}
-                    isShortlisted={shortlistIds.includes(project.project_id)}
-                    onToggleShortlist={toggleShortlist}
-                  />
-                ))}
-
-                {!searchLoading && searchResults.length === 0 && (
-                  <div className="empty-state">
-                    <p>No projects match these filters.</p>
-                    <button className="text-button" onClick={handleResetFilters}>
-                      Clear Filters
-                    </button>
-                  </div>
-                )}
-
-                <div className="pagination-controls">
-                  <button
-                    disabled={searchMeta.page <= 1 || searchLoading}
-                    onClick={() => handlePageChange(searchMeta.page - 1)}
-                    className="ghost-button"
-                  >
-                    Previous
-                  </button>
-                  <span>Page {searchMeta.page}</span>
-                  <button
-                    disabled={
-                      searchMeta.page * searchMeta.pageSize >= searchMeta.total || searchLoading
-                    }
-                    onClick={() => handlePageChange(searchMeta.page + 1)}
-                    className="ghost-button"
-                  >
-                    Next
-                  </button>
-                </div>
+            <div className="results-pane">
+              <div className="project-list-header">
+                <ProjectListHeader
+                  filters={filters}
+                  onFiltersChange={handleFiltersChange}
+                  total={searchMeta.total}
+                />
               </div>
 
-              <div className="map-column">
-                <div className="sticky-map">
-                  <ProjectMapView
-                    pins={mapPins}
-                    selectedProjectId={selectedProjectId}
-                    onSelectProject={setSelectedProjectId}
-                    hoveredProjectId={hoveredProjectId}
-                    onHoverProject={setHoveredProjectId}
-                    onBoundsChange={setMapBounds}
-                    loading={mapLoading}
-                    initialBounds={DEFAULT_BOUNDS}
-                    focus={mapFocus}
-                  />
+              <div className="results-grid">
+                <div className="list-column">
+                  {searchLoading && <div className="loading-state">Loading projects...</div>}
+                  {searchResults.map((p) => (
+                    <div key={p.project_id} className="animate-slide-up">
+                      <ProjectCard
+                        project={p}
+                        selected={selectedProjectId === p.project_id}
+                        onSelect={handleSelectProject}
+                        hovered={hoveredProjectId === p.project_id}
+                        onHover={setHoveredProjectId}
+                        isShortlisted={shortlistIds.includes(Number(p.project_id))}
+                        onToggleShortlist={handleToggleShortlist}
+                      />
+                    </div>
+                  ))}
+                  {searchResults.length === 0 && !searchLoading && (
+                    <div className="empty-state">
+                      No projects found matching your criteria.
+                    </div>
+                  )}
+
+                  <div className="pagination-controls">
+                    <button
+                      className="action-btn secondary"
+                      disabled={searchMeta.page <= 1}
+                      onClick={() => handlePageChange(searchMeta.page - 1)}
+                    >
+                      Previous
+                    </button>
+                    <span>
+                      Page {searchMeta.page} of {Math.ceil(searchMeta.total / searchMeta.pageSize)}
+                    </span>
+                    <button
+                      className="action-btn secondary"
+                      disabled={searchMeta.page * searchMeta.pageSize >= searchMeta.total}
+                      onClick={() => handlePageChange(searchMeta.page + 1)}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+
+                <div className="map-column">
+                  <div className="sticky-map">
+                    <ProjectMapView
+                      pins={mapPins}
+                      selectedProjectId={selectedProjectId}
+                      hoveredProjectId={hoveredProjectId}
+                      onSelectProject={handleSelectProject}
+                      onHoverProject={setHoveredProjectId}
+                      onBoundsChange={setMapBounds}
+                      loading={mapLoading}
+                      initialBounds={DEFAULT_BOUNDS}
+                      focus={mapFocus}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </section>
-        </div>
+          </div>
+        )}
       </main>
 
-      <ProjectDetailPanel
-        project={selectedProject}
-        loading={detailLoading}
-        onClose={() => setSelectedProjectId(null)}
-        onCenterOnProject={(coords) => setMapFocus({ ...coords, zoom: 15, timestamp: Date.now() })}
-        isShortlisted={selectedProjectId ? shortlistIds.includes(selectedProjectId) : false}
-        onShortlist={() => {
-          if (selectedProject) {
-            const summary: ProjectSummary = {
-              project_id: selectedProject.project.project_id,
-              name: selectedProject.project.name,
-              district: selectedProject.location?.district,
-              tehsil: selectedProject.location?.tehsil,
-              project_type: selectedProject.project.project_type,
-              status: selectedProject.project.status,
-              lat: selectedProject.location?.lat,
-              lon: selectedProject.location?.lon,
-              overall_score: selectedProject.scores?.overall_score,
-              min_price_total: selectedProject.pricing?.min_price_total,
-              max_price_total: selectedProject.pricing?.max_price_total,
-            };
-            toggleShortlist(summary, shortlistIds.includes(summary.project_id));
-          }
-        }}
-      />
+      {selectedProject && (
+        <ProjectDetailPanel
+          project={selectedProject}
+          onClose={handleCloseDetail}
+          loading={detailLoading}
+          onCenterOnProject={handleLocateProject}
+        />
+      )}
 
-      <ShortlistPanel
-        open={isShortlistOpen}
-        shortlist={shortlist}
-        onClose={() => setIsShortlistOpen(false)}
-        onSelectProject={(id) => {
-          setSelectedProjectId(id);
-          setIsShortlistOpen(false);
-        }}
-        onRemove={(id) => {
-          const project = shortlist.find((item) => item.project_id === id);
-          if (project) {
-            toggleShortlist(project, true);
-          }
-        }}
-        compareSelection={compareSelection}
-        onToggleCompareSelection={toggleCompareSelection}
-        onOpenCompare={handleOpenCompare}
-        warning={compareWarning}
-      />
+      {isShortlistOpen && !isMobile && (
+        <ShortlistPanel
+          open={isShortlistOpen}
+          shortlist={shortlist}
+          onRemove={(id) => handleToggleShortlist({ project_id: id } as any, true)}
+          onSelectProject={handleSelectProject}
+          onClose={() => setIsShortlistOpen(false)}
+          compareSelection={compareSelection}
+          onToggleCompareSelection={handleToggleCompare}
+          onOpenCompare={handleOpenCompare}
+          warning={compareWarning}
+        />
+      )}
 
-      <CompareModal
-        open={compareOpen}
-        projects={compareProjects}
-        loading={compareLoading}
-        onClose={() => setCompareOpen(false)}
-        selectionCount={compareSelection.length}
-      />
+      {compareError && (
+        <div className="container banner banner-error" style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 2000 }}>
+          {compareError}
+        </div>
+      )}
 
-      {compareError && <div className="banner banner-error container">{compareError}</div>}
+      {compareOpen && (
+        <CompareModal
+          open={compareOpen}
+          projects={compareProjects}
+          loading={compareLoading}
+          onClose={() => setCompareOpen(false)}
+          selectionCount={compareSelection.length}
+        />
+      )}
+
+      {showInspector && !isMobile && (
+        <ProjectInspector
+          onBack={() => setShowInspector(false)}
+        />
+      )}
     </div>
   );
 }

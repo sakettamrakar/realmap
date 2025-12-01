@@ -280,7 +280,8 @@ def _add_score_status_columns(conn: Connection) -> None:
             """
             ALTER TABLE project_scores
                 ADD COLUMN IF NOT EXISTS score_status VARCHAR(32),
-                ADD COLUMN IF NOT EXISTS score_status_reason JSONB;
+                ADD COLUMN IF NOT EXISTS score_status_reason JSONB,
+                ADD COLUMN IF NOT EXISTS value_score NUMERIC(5, 2);
             """
         )
     )
