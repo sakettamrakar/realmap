@@ -10,6 +10,7 @@ from cg_rera_extractor.analysis.explain import explain_project_score
 from cg_rera_extractor.db import Project, ProjectAmenityStats, ProjectScores
 
 from .search import _nearby_counts, _onsite_amenities, _resolve_location, _score_to_float, _get_latest_price
+from .jsonld import generate_project_jsonld
 
 
 def _build_amenities_section(stats: list[ProjectAmenityStats]) -> dict[str, Any]:
@@ -142,6 +143,23 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
             "issues": [],
         },
         "score_explanation": explain_project_score(project.id, db),
+        
+        # Point 17: Data Provenance
+        "provenance": {
+            "last_updated_at": project.scraped_at.isoformat() if project.scraped_at else None,
+            "source_domain": "rera.cg.gov.in",
+            "extraction_method": "scraper",
+            "confidence_score": float(project.geo_confidence) if project.geo_confidence else None,
+            "data_quality_score": project.data_quality_score,
+            "last_parsed_at": project.last_parsed_at.isoformat() if project.last_parsed_at else None,
+        },
+        
+        # Point 15: JSON-LD for SEO
+        "schema_org": generate_project_jsonld(
+            project=project,
+            scores=scores,
+            pricing=price_info,
+        ).model_dump(by_alias=True, exclude_none=True),
     }
 
     return payload

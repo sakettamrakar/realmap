@@ -1,0 +1,369 @@
+/**
+ * Styles for PriceComparisonWidget (Point 20)
+ */
+
+/* Base Widget Styles */
+.price-comparison-widget {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.widget-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.normalization-note {
+  font-size: 11px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Price Display */
+.price-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.project-price,
+.average-price {
+  text-align: center;
+}
+
+.price-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.project-price .price-value {
+  color: #2563eb;
+}
+
+.price-label {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.vs-separator {
+  font-size: 14px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Comparison Bar */
+.comparison-bar-container {
+  margin-bottom: 16px;
+}
+
+.comparison-bar {
+  position: relative;
+  height: 8px;
+  background: linear-gradient(90deg, #22c55e 0%, #fbbf24 50%, #ef4444 100%);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.bar-fill {
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  border-radius: inherit;
+}
+
+.bar-marker {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.average-marker {
+  bottom: -20px;
+}
+
+.average-marker .marker-label {
+  font-size: 10px;
+  color: #64748b;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.project-marker {
+  top: -16px;
+}
+
+.project-marker .marker-arrow {
+  color: #2563eb;
+  font-size: 14px;
+}
+
+.bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 16px;
+}
+
+/* Status Banner */
+.status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.status-banner.status-below {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.status-banner.status-average {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.status-banner.status-above {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+}
+
+.status-banner.status-premium {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.status-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.status-banner.status-below .status-icon { color: #16a34a; }
+.status-banner.status-average .status-icon { color: #64748b; }
+.status-banner.status-above .status-icon { color: #d97706; }
+.status-banner.status-premium .status-icon { color: #dc2626; }
+
+.status-content {
+  flex: 1;
+}
+
+.status-content strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.status-banner.status-below .status-content strong { color: #166534; }
+.status-banner.status-average .status-content strong { color: #475569; }
+.status-banner.status-above .status-content strong { color: #92400e; }
+.status-banner.status-premium .status-content strong { color: #991b1b; }
+
+.status-content p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.diff-badge {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.status-banner.status-below .diff-badge {
+  background: #22c55e;
+  color: white;
+}
+
+.status-banner.status-average .diff-badge {
+  background: #94a3b8;
+  color: white;
+}
+
+.status-banner.status-above .diff-badge {
+  background: #f59e0b;
+  color: white;
+}
+
+.status-banner.status-premium .diff-badge {
+  background: #ef4444;
+  color: white;
+}
+
+/* Trend Section */
+.trend-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid #f1f5f9;
+  margin-bottom: 12px;
+}
+
+.trend-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.trend-sparkline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trend-indicator {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trend-indicator.up {
+  color: #22c55e;
+}
+
+.trend-indicator.down {
+  color: #ef4444;
+}
+
+/* Widget Footer */
+.widget-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.sample-info {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.details-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.details-link:hover {
+  text-decoration: underline;
+}
+
+/* Compact Variant */
+.price-comparison-compact {
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.compact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.compact-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.compact-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.price-comparison-compact.status-below .compact-badge {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.price-comparison-compact.status-average .compact-badge {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.price-comparison-compact.status-above .compact-badge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.price-comparison-compact.status-premium .compact-badge {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.compact-diff {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Inline Variant */
+.price-comparison-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.comparison-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.price-comparison-inline.status-below .comparison-badge {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.price-comparison-inline.status-average .comparison-badge {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.price-comparison-inline.status-above .comparison-badge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.price-comparison-inline.status-premium .comparison-badge {
+  background: #fee2e2;
+  color: #991b1b;
+}

@@ -7,12 +7,29 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from cg_rera_extractor.api.deps import get_db
+from cg_rera_extractor.api.middleware import RateLimitMiddleware  # Point 30: API Governance
 from cg_rera_extractor.api.routes_projects import router as projects_router
 from cg_rera_extractor.api.routes_admin import router as admin_router
+from cg_rera_extractor.api.routes_analytics import router as analytics_router
+from cg_rera_extractor.api.routes_access import router as access_router
+from cg_rera_extractor.api.routes_discovery import router as discovery_router
+from cg_rera_extractor.api.routes_media import router as media_router
+from cg_rera_extractor.api.routes_tags import router as tags_router
 from cg_rera_extractor.api.schemas import ProjectDetail, ProjectSummary
 from cg_rera_extractor.db import Project
 
-app = FastAPI(title="CG RERA Projects API", version="0.1.0")
+app = FastAPI(
+    title="CG RERA Projects API",
+    version="1.0.0",
+    description="Real Estate Intelligence Platform API with price analytics, lead capture, and SEO support.",
+)
+
+# =============================================================================
+# MIDDLEWARE STACK (order matters - first added = outermost)
+# =============================================================================
+
+# Point 30: Rate Limiting Middleware (processes requests before CORS)
+app.add_middleware(RateLimitMiddleware)
 
 # Enable CORS for frontend development
 app.add_middleware(
@@ -23,8 +40,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register routers
 app.include_router(projects_router)
 app.include_router(admin_router)
+app.include_router(analytics_router)
+app.include_router(access_router)
+app.include_router(discovery_router)
+app.include_router(media_router)
+app.include_router(tags_router)  # Discovery & Trust Layer (Points 24-26)
 
 
 @app.get("/health")

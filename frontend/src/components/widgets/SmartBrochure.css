@@ -1,0 +1,494 @@
+/**
+ * Styles for SmartBrochure Component (Point 21)
+ */
+
+/* Card Variant */
+.smart-brochure-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.smart-brochure-card.state-locked {
+  opacity: 0.85;
+}
+
+.brochure-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.brochure-thumbnail {
+  position: relative;
+  width: 80px;
+  height: 100px;
+  flex-shrink: 0;
+}
+
+.brochure-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+
+.state-badge {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.state-badge.state-locked {
+  background: #6b7280;
+  color: white;
+}
+
+.state-badge.state-gated {
+  background: #2563eb;
+  color: white;
+}
+
+.state-badge.state-public {
+  background: #16a34a;
+  color: white;
+}
+
+.state-badge.state-ready {
+  background: #22c55e;
+  color: white;
+}
+
+.brochure-info {
+  flex: 1;
+}
+
+.brochure-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.brochure-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.brochure-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.brochure-meta span::before {
+  content: '•';
+  color: #cbd5e1;
+}
+
+.brochure-meta span:first-child::before {
+  display: none;
+}
+
+/* OCR Preview */
+.ocr-preview {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.preview-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.preview-note {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.preview-content {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+  max-height: 150px;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, black 60%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent);
+}
+
+.preview-expand {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 12px 0 0;
+  font-size: 13px;
+  color: #2563eb;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 500;
+}
+
+.preview-expand:hover {
+  text-decoration: underline;
+}
+
+/* Error State */
+.brochure-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.brochure-error span {
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.brochure-error button {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Ready State */
+.brochure-ready {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.ready-icon {
+  width: 32px;
+  height: 32px;
+  background: #22c55e;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.ready-text {
+  flex: 1;
+  font-weight: 600;
+  color: #166534;
+}
+
+.expires-note {
+  font-size: 11px;
+  color: #16a34a;
+}
+
+/* Actions */
+.brochure-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-primary {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary.state-locked {
+  background: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.btn-primary.state-gated {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-primary.state-gated:hover {
+  background: #1d4ed8;
+}
+
+.btn-primary.state-public {
+  background: #16a34a;
+  color: white;
+}
+
+.btn-primary.state-public:hover {
+  background: #15803d;
+}
+
+.btn-primary.state-ready {
+  background: #22c55e;
+  color: white;
+}
+
+.btn-primary.state-ready:hover {
+  background: #16a34a;
+}
+
+/* Lead Form */
+.lead-form {
+  padding: 4px;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.form-header h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.form-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.form-field {
+  margin-bottom: 16px;
+}
+
+.form-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.form-field input[type="text"],
+.form-field input[type="email"],
+.form-field input[type="tel"] {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-field input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-field.error input {
+  border-color: #ef4444;
+}
+
+.field-error {
+  display: block;
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.form-field.checkbox {
+  display: flex;
+  align-items: flex-start;
+}
+
+.form-field.checkbox label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: normal;
+  margin-bottom: 0;
+}
+
+.form-field.checkbox input {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.form-field.checkbox span {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 12px 20px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+.btn-submit {
+  flex: 2;
+  padding: 12px 20px;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-submit:hover {
+  background: #1d4ed8;
+}
+
+.btn-submit:disabled,
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Inline Variant */
+.smart-brochure-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.smart-brochure-inline .brochure-icon {
+  font-size: 20px;
+}
+
+.smart-brochure-inline .brochure-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.smart-brochure-inline .brochure-meta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.smart-brochure-inline .brochure-action {
+  padding: 6px 14px;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.smart-brochure-inline .brochure-action:hover {
+  background: #1d4ed8;
+}
+
+.smart-brochure-inline.state-locked .brochure-action {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Mini Variant */
+.smart-brochure-mini {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.smart-brochure-mini:hover {
+  background: #f8fafc;
+  transform: scale(1.05);
+}
+
+.smart-brochure-mini.state-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.smart-brochure-mini.state-ready {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}

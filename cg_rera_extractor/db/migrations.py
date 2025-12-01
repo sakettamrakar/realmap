@@ -543,6 +543,315 @@ def _update_view_with_prices(conn: Connection) -> None:
     )
 
 
+def _create_discovery_tables(conn: Connection) -> None:
+    """Create tables for Discovery & Trust Layer (Points 24-26)."""
+    
+    # ==========================================================================
+    # Point 24: Tags for Faceted Search
+    # ==========================================================================
+    conn.execute(
+        text(
+            """
+            -- Create tag_category enum type
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tag_category') THEN
+                    CREATE TYPE tag_category AS ENUM (
+                        'PROXIMITY',
+                        'INFRASTRUCTURE', 
+                        'INVESTMENT',
+                        'LIFESTYLE',
+                        'CERTIFICATION'
+                    );
+                END IF;
+            END$$;
+
+            -- Create tags table
+            CREATE TABLE IF NOT EXISTS tags (
+                id SERIAL PRIMARY KEY,
+                slug VARCHAR(100) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                category tag_category NOT NULL,
+                is_auto_generated BOOLEAN DEFAULT FALSE,
+                auto_rule_json JSONB,
+                icon_emoji VARCHAR(10),
+                color_hex VARCHAR(7),
+                sort_order INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE,
+                is_featured BOOLEAN DEFAULT FALSE,
+                seo_title VARCHAR(255),
+                seo_description VARCHAR(500),
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ,
+                CONSTRAINT uq_tags_slug UNIQUE (slug)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_tags_category ON tags (category);
+            CREATE INDEX IF NOT EXISTS ix_tags_is_active ON tags (is_active);
+            CREATE INDEX IF NOT EXISTS ix_tags_is_featured ON tags (is_featured);
+
+            -- Create project_tags join table
+            CREATE TABLE IF NOT EXISTS project_tags (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+                is_auto_applied BOOLEAN DEFAULT FALSE,
+                confidence_score NUMERIC(4, 3),
+                applied_by VARCHAR(100),
+                applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                computed_distance_km NUMERIC(6, 2),
+                CONSTRAINT uq_project_tag UNIQUE (project_id, tag_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_tags_project_id ON project_tags (project_id);
+            CREATE INDEX IF NOT EXISTS ix_project_tags_tag_id ON project_tags (tag_id);
+            """
+        )
+    )
+
+    # ==========================================================================
+    # Point 25: RERA Verification System
+    # ==========================================================================
+    conn.execute(
+        text(
+            """
+            -- Create rera_verification_status enum type
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rera_verification_status') THEN
+                    CREATE TYPE rera_verification_status AS ENUM (
+                        'VERIFIED',
+                        'PENDING',
+                        'REVOKED',
+                        'EXPIRED',
+                        'NOT_FOUND',
+                        'UNKNOWN'
+                    );
+                END IF;
+            END$$;
+
+            -- Create rera_verifications table
+            CREATE TABLE IF NOT EXISTS rera_verifications (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                status rera_verification_status NOT NULL DEFAULT 'UNKNOWN',
+                official_record_url VARCHAR(1024),
+                portal_screenshot_url VARCHAR(1024),
+                registered_name_on_portal VARCHAR(500),
+                promoter_name_on_portal VARCHAR(500),
+                portal_registration_date TIMESTAMPTZ,
+                portal_expiry_date TIMESTAMPTZ,
+                verified_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                verified_by VARCHAR(100),
+                verification_method VARCHAR(50),
+                has_discrepancies BOOLEAN DEFAULT FALSE,
+                discrepancy_notes TEXT,
+                raw_portal_data JSONB,
+                is_current BOOLEAN DEFAULT TRUE
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_rera_verifications_project_id ON rera_verifications (project_id);
+            CREATE INDEX IF NOT EXISTS ix_rera_verifications_status ON rera_verifications (status);
+            CREATE INDEX IF NOT EXISTS ix_rera_verifications_is_current ON rera_verifications (is_current);
+            """
+        )
+    )
+
+    # ==========================================================================
+    # Point 26: Landmarks & Entity Linking
+    # ==========================================================================
+    conn.execute(
+        text(
+            """
+            -- Create landmarks table
+            CREATE TABLE IF NOT EXISTS landmarks (
+                id SERIAL PRIMARY KEY,
+                slug VARCHAR(100) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                alternate_names JSONB,
+                category VARCHAR(50) NOT NULL,
+                subcategory VARCHAR(50),
+                lat NUMERIC(9, 6) NOT NULL,
+                lon NUMERIC(9, 6) NOT NULL,
+                address VARCHAR(512),
+                city VARCHAR(128),
+                district VARCHAR(128),
+                state VARCHAR(128),
+                established_year INTEGER,
+                website VARCHAR(500),
+                image_url VARCHAR(1024),
+                description TEXT,
+                importance_score INTEGER DEFAULT 50,
+                default_proximity_km NUMERIC(4, 1) DEFAULT 5.0,
+                seo_title VARCHAR(255),
+                seo_description VARCHAR(500),
+                is_active BOOLEAN DEFAULT TRUE,
+                is_verified BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ,
+                CONSTRAINT uq_landmarks_slug UNIQUE (slug)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_landmarks_category ON landmarks (category);
+            CREATE INDEX IF NOT EXISTS ix_landmarks_lat_lon ON landmarks (lat, lon);
+            CREATE INDEX IF NOT EXISTS ix_landmarks_city ON landmarks (city);
+            CREATE INDEX IF NOT EXISTS ix_landmarks_is_active ON landmarks (is_active);
+
+            -- Create project_landmarks join table
+            CREATE TABLE IF NOT EXISTS project_landmarks (
+                id SERIAL PRIMARY KEY,
+                project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                landmark_id INTEGER NOT NULL REFERENCES landmarks(id) ON DELETE CASCADE,
+                distance_km NUMERIC(6, 2) NOT NULL,
+                driving_time_mins INTEGER,
+                walking_time_mins INTEGER,
+                is_highlighted BOOLEAN DEFAULT FALSE,
+                display_order INTEGER DEFAULT 0,
+                calculated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uq_project_landmark UNIQUE (project_id, landmark_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_project_landmarks_project_id ON project_landmarks (project_id);
+            CREATE INDEX IF NOT EXISTS ix_project_landmarks_landmark_id ON project_landmarks (landmark_id);
+            CREATE INDEX IF NOT EXISTS ix_project_landmarks_distance ON project_landmarks (distance_km);
+            """
+        )
+    )
+
+
+def _update_view_with_discovery(conn: Connection) -> None:
+    """Update project_search_view to include RERA verification status and tag count."""
+    
+    conn.execute(text("DROP VIEW IF EXISTS project_search_view"))
+
+    conn.execute(
+        text(
+            """
+            CREATE OR REPLACE VIEW project_search_view AS
+            WITH canonical_location AS (
+                SELECT
+                    pl.project_id,
+                    pl.lat,
+                    pl.lon,
+                    pl.source_type,
+                    pl.precision_level,
+                    pl.confidence_score,
+                    pl.updated_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY pl.project_id
+                        ORDER BY COALESCE(pl.confidence_score, 0) DESC, pl.updated_at DESC NULLS LAST, pl.id DESC
+                    ) AS rn
+                FROM project_locations pl
+                WHERE pl.is_active IS TRUE
+            ),
+            amenity_rollup AS (
+                SELECT DISTINCT ON (pas.project_id)
+                    pas.project_id,
+                    pas.onsite_available,
+                    pas.onsite_details
+                FROM project_amenity_stats pas
+                    WHERE pas.radius_km IS NULL
+                ORDER BY pas.project_id, pas.id DESC
+            ),
+            nearby_rollup AS (
+                SELECT
+                    pas.project_id,
+                    SUM(COALESCE(pas.nearby_count, 0)) AS total_nearby_count,
+                    MIN(pas.nearby_nearest_km) AS nearest_nearby_km
+                FROM project_amenity_stats pas
+                WHERE pas.radius_km IS NOT NULL
+                GROUP BY pas.project_id
+            ),
+            latest_prices AS (
+                SELECT DISTINCT ON (pps.project_id)
+                    pps.project_id,
+                    pps.min_price_total,
+                    pps.max_price_total,
+                    pps.min_price_per_sqft,
+                    pps.max_price_per_sqft
+                FROM project_pricing_snapshots pps
+                WHERE pps.is_active IS TRUE
+                ORDER BY pps.project_id, pps.snapshot_date DESC, pps.id DESC
+            ),
+            rera_status AS (
+                SELECT DISTINCT ON (rv.project_id)
+                    rv.project_id,
+                    rv.status AS rera_verification_status,
+                    rv.verified_at AS rera_verified_at,
+                    rv.has_discrepancies AS rera_has_discrepancies
+                FROM rera_verifications rv
+                WHERE rv.is_current IS TRUE
+                ORDER BY rv.project_id, rv.verified_at DESC
+            ),
+            tag_counts AS (
+                SELECT
+                    pt.project_id,
+                    COUNT(*) AS tag_count,
+                    ARRAY_AGG(t.slug ORDER BY t.sort_order) AS tag_slugs
+                FROM project_tags pt
+                JOIN tags t ON t.id = pt.tag_id
+                WHERE t.is_active IS TRUE
+                GROUP BY pt.project_id
+            )
+            SELECT
+                p.id AS project_id,
+                p.state_code,
+                p.rera_registration_number,
+                p.project_name,
+                p.status,
+                p.district,
+                p.tehsil,
+                p.village_or_locality,
+                p.full_address,
+                COALESCE(cl.lat, p.latitude) AS lat,
+                COALESCE(cl.lon, p.longitude) AS lon,
+                COALESCE(cl.source_type, p.geo_source) AS geo_source,
+                COALESCE(cl.precision_level, p.geo_precision) AS geo_precision,
+                COALESCE(cl.confidence_score, p.geo_confidence) AS geo_confidence,
+                p.approved_date AS registration_date,
+                p.proposed_end_date,
+                p.extended_end_date,
+                ps.overall_score,
+                ps.location_score,
+                ps.amenity_score,
+                ps.score_status,
+                ps.score_status_reason,
+                ps.score_version,
+                ar.onsite_available,
+                ar.onsite_details,
+                nr.total_nearby_count,
+                nr.nearest_nearby_km,
+                lp.min_price_total,
+                lp.max_price_total,
+                lp.min_price_per_sqft,
+                lp.max_price_per_sqft,
+                -- Discovery columns (Points 24-26)
+                rs.rera_verification_status,
+                rs.rera_verified_at,
+                rs.rera_has_discrepancies,
+                tc.tag_count,
+                tc.tag_slugs
+            FROM projects p
+            LEFT JOIN canonical_location cl
+                ON cl.project_id = p.id AND cl.rn = 1
+            LEFT JOIN project_scores ps
+                ON ps.project_id = p.id
+            LEFT JOIN amenity_rollup ar
+                ON ar.project_id = p.id
+            LEFT JOIN nearby_rollup nr
+                ON nr.project_id = p.id
+            LEFT JOIN latest_prices lp
+                ON lp.project_id = p.id
+            LEFT JOIN rera_status rs
+                ON rs.project_id = p.id
+            LEFT JOIN tag_counts tc
+                ON tc.project_id = p.id;
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250322_create_amenity_tables", _create_amenity_tables),
@@ -552,6 +861,8 @@ MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250510_add_score_status", _add_score_status_columns),
     ("20250525_create_price_tables", _create_price_tables),
     ("20250526_update_view_with_prices", _update_view_with_prices),
+    ("20250601_create_discovery_tables", _create_discovery_tables),
+    ("20250602_update_view_with_discovery", _update_view_with_discovery),
 ]
 
 

@@ -1,12 +1,19 @@
-"""Utilities for loading V1 scraper outputs into the database."""
+"""
+Utilities for loading V1 scraper outputs into the database.
+
+Point 27 & 29 Integration:
+- QA validation gates during ingestion
+- DataProvenance records for audit trail
+- IngestionAudit tracking for run-level metrics
+"""
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -25,8 +32,15 @@ from cg_rera_extractor.db import (
     get_engine,
     get_session_local,
 )
+from cg_rera_extractor.db.models import DataProvenance, IngestionAudit
 from cg_rera_extractor.geo import AddressParts, normalize_address
 from cg_rera_extractor.parsing.schema import V1Project
+from cg_rera_extractor.quality.validation import (
+    run_qa_validation,
+    QAResult,
+    QAStatus,
+    PriceSanityConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +59,10 @@ class LoadStats:
     land_parcels: int = 0
     artifacts: int = 0
     locations: int = 0
+    provenance_records: int = 0  # Point 29: Provenance tracking
+    qa_passed: int = 0           # Point 27: QA tracking
+    qa_warnings: int = 0
+    qa_failed: int = 0
     runs_processed: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, int | list[str]]:
@@ -59,6 +77,10 @@ class LoadStats:
             "land_parcels": self.land_parcels,
             "artifacts": self.artifacts,
             "locations": self.locations,
+            "provenance_records": self.provenance_records,
+            "qa_passed": self.qa_passed,
+            "qa_warnings": self.qa_warnings,
+            "qa_failed": self.qa_failed,
             "runs_processed": list(self.runs_processed),
         }
 
@@ -91,13 +113,135 @@ def _ensure_session(session: Session | None) -> tuple[Session, Callable[[], None
     return db_session, db_session.close
 
 
-def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
+# =============================================================================
+# POINT 27: QA Validation Gate
+# =============================================================================
+
+
+def _run_qa_gate(
+    v1_project: V1Project,
+    config: PriceSanityConfig | None = None,
+) -> QAResult:
+    """
+    Run QA validation on a project before loading.
+    
+    Point 27: QA gate that validates data quality.
+    """
+    details = v1_project.project_details
+    
+    # Build project data dict for validation
+    project_data: dict[str, Any] = {
+        "rera_registration_number": details.registration_number,
+        "project_name": details.project_name,
+        "district": details.district,
+        "project_status": details.project_status,
+        "promoter_name": (
+            v1_project.promoter_details[0].name 
+            if v1_project.promoter_details else None
+        ),
+        "approved_date": details.launch_date,
+        "proposed_end_date": details.expected_completion_date,
+    }
+    
+    # Extract pricing from unit types if available
+    if v1_project.unit_types:
+        prices = [ut.price_in_inr for ut in v1_project.unit_types if ut.price_in_inr]
+        if prices:
+            project_data["min_price_total"] = min(prices)
+            project_data["max_price_total"] = max(prices)
+    
+    return run_qa_validation(project_data, config=config or PriceSanityConfig())
+
+
+# =============================================================================
+# POINT 29: Provenance Record Creation
+# =============================================================================
+
+
+def _create_provenance_record(
+    session: Session,
+    project_id: int,
+    v1_project: V1Project,
+    run_id: str | None,
+    html_snapshot_path: str | None = None,
+    network_log_ref: str | None = None,
+) -> DataProvenance:
+    """
+    Create a DataProvenance record for audit trail.
+    
+    Point 29: Content Provenance implementation.
+    """
+    metadata = v1_project.metadata
+    
+    # Calculate extraction confidence based on field completeness
+    total_fields = 10
+    filled_fields = sum([
+        bool(v1_project.project_details.registration_number),
+        bool(v1_project.project_details.project_name),
+        bool(v1_project.project_details.district),
+        bool(v1_project.project_details.project_status),
+        bool(v1_project.promoter_details),
+        bool(v1_project.building_details),
+        bool(v1_project.unit_types),
+        bool(v1_project.documents),
+        bool(v1_project.project_details.project_address),
+        bool(v1_project.project_details.launch_date),
+    ])
+    confidence_score = Decimal(str(filled_fields / total_fields))
+    
+    provenance = DataProvenance(
+        project_id=project_id,
+        snapshot_url=metadata.source_url,
+        source_domain=metadata.source_domain or "rera.cg.gov.in",
+        extraction_method=f"v1_json_parser_{metadata.scraper_version or '1.0'}",
+        parser_version=metadata.scraper_version,
+        confidence_score=confidence_score,
+        network_log_ref=network_log_ref,
+        html_snapshot_path=html_snapshot_path,
+        run_id=run_id,
+        scraped_at=datetime.now(timezone.utc),
+        fields_extracted=filled_fields,
+        fields_expected=total_fields,
+    )
+    
+    session.add(provenance)
+    return provenance
+
+
+def _load_project(
+    session: Session,
+    v1_project: V1Project,
+    run_id: str | None = None,
+    html_snapshot_path: str | None = None,
+    qa_config: PriceSanityConfig | None = None,
+) -> LoadStats:
     stats = LoadStats()
     details = v1_project.project_details
 
     if not details.registration_number:
         logger.debug(f"Skipping project: empty registration_number (name='{details.project_name}')")
         return stats
+
+    # =========================================================================
+    # POINT 27: Run QA Validation Gate
+    # =========================================================================
+    qa_result = _run_qa_gate(v1_project, config=qa_config)
+    
+    if qa_result.status == QAStatus.PASSED:
+        stats.qa_passed += 1
+    elif qa_result.status == QAStatus.WARNING:
+        stats.qa_warnings += 1
+        logger.warning(
+            f"QA warnings for {details.registration_number}: "
+            f"{[f.message for f in qa_result.flags]}"
+        )
+    elif qa_result.status == QAStatus.FAILED:
+        stats.qa_failed += 1
+        logger.error(
+            f"QA failed for {details.registration_number}: "
+            f"{[f.message for f in qa_result.flags if f.severity == 'error']}"
+        )
+        # Continue loading but mark the project
 
     stmt = select(Project).where(
         Project.state_code == v1_project.metadata.state_code,
@@ -137,7 +281,26 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
     )
     project.normalized_address = normalized.normalized_address
 
+    # =========================================================================
+    # POINT 27: Store QA flags on project
+    # =========================================================================
+    project.qa_flags = qa_result.to_dict()
+    project.qa_status = qa_result.status.value
+    project.qa_last_checked_at = qa_result.checked_at
+
     session.flush()
+
+    # =========================================================================
+    # POINT 29: Create DataProvenance record
+    # =========================================================================
+    _create_provenance_record(
+        session=session,
+        project_id=project.id,
+        v1_project=v1_project,
+        run_id=run_id,
+        html_snapshot_path=html_snapshot_path,
+    )
+    stats.provenance_records += 1
 
     child_tables: list[tuple[type, Iterable]] = [
         (Promoter, v1_project.promoter_details),
@@ -302,22 +465,59 @@ def _load_project(session: Session, v1_project: V1Project) -> LoadStats:
     return stats
 
 
-def load_run_into_db(run_dir: str, session: Session | None = None) -> dict:
-    """Load all V1 JSON files from a single run directory into the DB."""
+def load_run_into_db(
+    run_dir: str,
+    session: Session | None = None,
+    qa_config: PriceSanityConfig | None = None,
+) -> dict:
+    """
+    Load all V1 JSON files from a single run directory into the DB.
+    
+    Point 27 & 29 Integration:
+    - Creates IngestionAudit record for run tracking
+    - Runs QA validation gates on each project
+    - Creates DataProvenance records for audit trail
+    """
 
     working_session, cleanup = _ensure_session(session)
     stats = LoadStats()
+    run_path = Path(run_dir)
+    run_id = run_path.name
+    
+    # =========================================================================
+    # POINT 28: Create IngestionAudit record for this run
+    # =========================================================================
+    audit = IngestionAudit(
+        run_id=run_id,
+        run_type="incremental",
+        started_at=datetime.now(timezone.utc),
+        status="running",
+        config_snapshot={"source_dir": str(run_dir)},
+    )
+    working_session.add(audit)
+    working_session.flush()
+    
     try:
-        run_path = Path(run_dir)
         json_dir = run_path / "scraped_json"
         v1_files = sorted(json_dir.glob("*.v1.json"))
 
         logger.info(f"Loading {len(v1_files)} projects from {run_path.name}")
+        audit.projects_attempted = len(v1_files)
 
         for path in v1_files:
+            # Determine HTML snapshot path if it exists
+            html_path = run_path / "raw_html" / path.name.replace(".v1.json", ".html")
+            html_snapshot_path = str(html_path) if html_path.exists() else None
+            
             try:
                 v1_project = V1Project.model_validate_json(path.read_text())
-                project_stats = _load_project(working_session, v1_project)
+                project_stats = _load_project(
+                    working_session,
+                    v1_project,
+                    run_id=run_id,
+                    html_snapshot_path=html_snapshot_path,
+                    qa_config=qa_config,
+                )
                 stats.projects_upserted += project_stats.projects_upserted
                 stats.promoters += project_stats.promoters
                 stats.buildings += project_stats.buildings
@@ -327,23 +527,56 @@ def load_run_into_db(run_dir: str, session: Session | None = None) -> dict:
                 stats.bank_accounts += project_stats.bank_accounts
                 stats.artifacts += project_stats.artifacts
                 stats.locations += project_stats.locations
+                stats.provenance_records += project_stats.provenance_records
+                stats.qa_passed += project_stats.qa_passed
+                stats.qa_warnings += project_stats.qa_warnings
+                stats.qa_failed += project_stats.qa_failed
             except Exception as exc:
                 logger.error(f"Failed to load {path.name}: {exc}")
                 raise
+
+        # Update audit record with success metrics
+        audit.status = "completed"
+        audit.completed_at = datetime.now(timezone.utc)
+        audit.projects_succeeded = stats.projects_upserted
+        audit.projects_failed = stats.qa_failed
+        audit.qa_flags_summary = {
+            "qa_passed": stats.qa_passed,
+            "qa_warnings": stats.qa_warnings,
+            "qa_failed": stats.qa_failed,
+        }
+        if audit.completed_at and audit.started_at:
+            audit.duration_seconds = int(
+                (audit.completed_at - audit.started_at).total_seconds()
+            )
 
         working_session.commit()
         logger.info(f"Successfully loaded run {run_path.name}: {stats.to_dict()}")
         return stats.to_dict()
     except Exception as exc:
         logger.error(f"Error loading run {run_dir}: {exc}")
+        audit.status = "failed"
+        audit.error_log = {"error": str(exc)}
+        audit.completed_at = datetime.now(timezone.utc)
+        working_session.commit()  # Commit the audit record even on failure
         working_session.rollback()
         raise
     finally:
         cleanup()
 
 
-def load_all_runs(base_runs_dir: str, session: Session | None = None) -> dict:
-    """Iterate over all ``run_*`` directories and load them into the DB."""
+def load_all_runs(
+    base_runs_dir: str,
+    session: Session | None = None,
+    qa_config: PriceSanityConfig | None = None,
+) -> dict:
+    """
+    Iterate over all ``run_*`` directories and load them into the DB.
+    
+    Point 27 & 29 Integration:
+    - Aggregates QA statistics across all runs
+    - Creates provenance records for all projects
+    """
 
     working_session, cleanup = _ensure_session(session)
     stats = LoadStats()
@@ -354,7 +587,11 @@ def load_all_runs(base_runs_dir: str, session: Session | None = None) -> dict:
 
         for run_path in run_dirs:
             try:
-                run_stats = load_run_into_db(str(run_path), session=working_session)
+                run_stats = load_run_into_db(
+                    str(run_path),
+                    session=working_session,
+                    qa_config=qa_config,
+                )
                 stats.projects_upserted += int(run_stats.get("projects_upserted", 0))
                 stats.promoters += int(run_stats.get("promoters", 0))
                 stats.buildings += int(run_stats.get("buildings", 0))
@@ -364,6 +601,10 @@ def load_all_runs(base_runs_dir: str, session: Session | None = None) -> dict:
                 stats.bank_accounts += int(run_stats.get("bank_accounts", 0))
                 stats.artifacts += int(run_stats.get("artifacts", 0))
                 stats.locations += int(run_stats.get("locations", 0))
+                stats.provenance_records += int(run_stats.get("provenance_records", 0))
+                stats.qa_passed += int(run_stats.get("qa_passed", 0))
+                stats.qa_warnings += int(run_stats.get("qa_warnings", 0))
+                stats.qa_failed += int(run_stats.get("qa_failed", 0))
                 stats.runs_processed.append(run_path.name)
             except Exception as exc:
                 logger.error(f"Failed to load run {run_path.name}: {exc}")

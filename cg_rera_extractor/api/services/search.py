@@ -32,6 +32,11 @@ class SearchParams:
         min_amenity_score: float | None = None,
         min_price: float | None = None,
         max_price: float | None = None,
+        # Point 24: Tag filtering
+        tags: list[str] | None = None,
+        tags_match_all: bool = False,
+        # Point 25: RERA verification filter
+        rera_verified_only: bool = False,
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "overall_score",
@@ -52,6 +57,11 @@ class SearchParams:
         self.min_amenity_score = min_amenity_score
         self.min_price = min_price
         self.max_price = max_price
+        # Point 24: Tag filtering
+        self.tags = tags or []
+        self.tags_match_all = tags_match_all
+        # Point 25: RERA verification filter
+        self.rera_verified_only = rera_verified_only
         self.page = page
         self.page_size = page_size
         self.sort_by = sort_by
@@ -249,6 +259,42 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
 
         final_projects.append((project, distance))
 
+    # Point 24: Tag filtering
+    if params.tags:
+        from cg_rera_extractor.api.services.discovery import get_projects_by_tags
+        
+        # Get project IDs matching tag filter
+        tag_project_ids = set(get_projects_by_tags(
+            db, 
+            params.tags, 
+            match_all=params.tags_match_all
+        ))
+        
+        # Filter to only projects with matching tags
+        final_projects = [
+            (p, d) for p, d in final_projects 
+            if p.id in tag_project_ids
+        ]
+
+    # Point 25: RERA verified filter
+    if params.rera_verified_only:
+        from cg_rera_extractor.db.models_discovery import ReraVerification
+        from cg_rera_extractor.db.enums import ReraVerificationStatus
+        from sqlalchemy import select
+        
+        # Get verified project IDs
+        verified_query = (
+            select(ReraVerification.project_id)
+            .where(ReraVerification.is_current == True)
+            .where(ReraVerification.status == ReraVerificationStatus.VERIFIED)
+        )
+        verified_ids = set(row[0] for row in db.execute(verified_query))
+        
+        final_projects = [
+            (p, d) for p, d in final_projects
+            if p.id in verified_ids
+        ]
+
     # Sorting
     reverse = params.sort_dir.lower() != "asc"
 
@@ -288,6 +334,37 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
     page_items = final_projects[start:end]
 
     payload: list[dict] = []
+    
+    # Pre-fetch tag data for all projects in page (efficient batch query)
+    page_project_ids = [p.id for p, _ in page_items]
+    project_tags_map: dict[int, list[str]] = {}
+    project_verification_map: dict[int, str] = {}
+    
+    if page_project_ids:
+        from cg_rera_extractor.db.models_discovery import ProjectTag, ReraVerification, Tag
+        from sqlalchemy import select
+        
+        # Batch fetch tags
+        tags_query = (
+            select(ProjectTag.project_id, Tag.slug)
+            .join(Tag, Tag.id == ProjectTag.tag_id)
+            .where(ProjectTag.project_id.in_(page_project_ids))
+            .where(Tag.is_active == True)
+        )
+        for project_id, tag_slug in db.execute(tags_query):
+            if project_id not in project_tags_map:
+                project_tags_map[project_id] = []
+            project_tags_map[project_id].append(tag_slug)
+        
+        # Batch fetch RERA verification status
+        verification_query = (
+            select(ReraVerification.project_id, ReraVerification.status)
+            .where(ReraVerification.project_id.in_(page_project_ids))
+            .where(ReraVerification.is_current == True)
+        )
+        for project_id, status in db.execute(verification_query):
+            project_verification_map[project_id] = status.value if hasattr(status, 'value') else str(status)
+    
     for project, distance in page_items:
         lat, lon, quality = _resolve_location(project)
         scores = project.score
@@ -336,6 +413,9 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 "max_price_total": price_info.get("max_price_total"),
                 "min_price_per_sqft": price_info.get("min_price_per_sqft"),
                 "max_price_per_sqft": price_info.get("max_price_per_sqft"),
+                # Point 24-25: Discovery data
+                "tags": project_tags_map.get(project.id, []),
+                "rera_verification_status": project_verification_map.get(project.id),
             }
         )
 

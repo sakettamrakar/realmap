@@ -1,0 +1,243 @@
+/**
+ * Styles for Area Transparency Components (Point 19)
+ */
+
+/* Base area label styles */
+.area-label-badge,
+.area-label-inline,
+.area-label-full {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+}
+
+/* Badge variant */
+.area-label-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  gap: 4px;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.area-label-badge .area-value {
+  font-weight: 600;
+}
+
+.area-label-badge .area-unit {
+  color: inherit;
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.area-label-badge .area-type {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+/* Inline variant */
+.area-label-inline {
+  gap: 6px;
+}
+
+.area-type-badge {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: help;
+  position: relative;
+}
+
+/* Full variant */
+.area-label-full {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.area-label-full .area-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.area-label-full .area-type-label {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+  position: relative;
+}
+
+.info-icon {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+/* Area type colors */
+.area-carpet,
+.area-carpet .area-type,
+.area-carpet .area-type-badge {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.area-carpet .area-type,
+.area-carpet .area-type-badge {
+  background: #166534;
+  color: white;
+}
+
+.area-builtup,
+.area-builtup .area-type,
+.area-builtup .area-type-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+
+.area-builtup .area-type,
+.area-builtup .area-type-badge {
+  background: #1e40af;
+  color: white;
+}
+
+.area-super-builtup,
+.area-super-builtup .area-type,
+.area-super-builtup .area-type-badge {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.area-super-builtup .area-type,
+.area-super-builtup .area-type-badge {
+  background: #92400e;
+  color: white;
+}
+
+.area-unknown,
+.area-unknown .area-type,
+.area-unknown .area-type-badge {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+.area-unknown .area-type,
+.area-unknown .area-type-badge {
+  background: #6b7280;
+  color: white;
+}
+
+/* Tooltip styles */
+.area-tooltip,
+.area-tooltip-popup,
+.area-tooltip-box {
+  position: absolute;
+  z-index: 1000;
+  background: #1e293b;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  width: 280px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  animation: tooltipFadeIn 0.2s ease;
+}
+
+.area-tooltip-popup {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.area-tooltip-popup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1e293b;
+}
+
+.area-tooltip-box {
+  top: calc(100% + 8px);
+  left: 0;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.tooltip-content {
+  opacity: 0.9;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Comparison Warning Banner */
+.area-comparison-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.area-comparison-warning .warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.area-comparison-warning .warning-content {
+  flex: 1;
+}
+
+.area-comparison-warning .warning-content strong {
+  display: block;
+  color: #9a3412;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.area-comparison-warning .warning-content p {
+  margin: 0;
+  color: #c2410c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.area-comparison-warning .warning-content p strong {
+  display: inline;
+  color: inherit;
+  font-size: inherit;
+  margin: 0;
+}

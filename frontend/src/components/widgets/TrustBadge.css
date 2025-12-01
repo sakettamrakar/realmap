@@ -1,0 +1,105 @@
+/**
+ * Trust Badge Styles (Point 25)
+ */
+
+.trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-weight: 500;
+  background-color: var(--badge-bg);
+  color: var(--badge-color);
+  border: 1px solid var(--badge-color);
+  transition: all 0.15s ease;
+}
+
+.trust-badge:hover {
+  filter: brightness(0.95);
+}
+
+/* Size variants */
+.trust-badge--sm {
+  font-size: 11px;
+  padding: 1px 6px;
+}
+
+.trust-badge--md {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+.trust-badge--lg {
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+/* Icon */
+.trust-badge__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+}
+
+/* Label */
+.trust-badge__label {
+  white-space: nowrap;
+}
+
+/* Warning indicator */
+.trust-badge__warning {
+  font-size: 0.9em;
+  margin-left: 2px;
+}
+
+/* External link */
+.trust-badge__link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.trust-badge__link:hover {
+  opacity: 1;
+}
+
+.trust-badge__link-icon {
+  font-size: 0.9em;
+}
+
+/* Status-specific colors (fallback) */
+.trust-badge--verified {
+  --badge-color: #10B981;
+  --badge-bg: #ECFDF5;
+}
+
+.trust-badge--pending {
+  --badge-color: #F59E0B;
+  --badge-bg: #FFFBEB;
+}
+
+.trust-badge--revoked,
+.trust-badge--expired,
+.trust-badge--not_found {
+  --badge-color: #EF4444;
+  --badge-bg: #FEF2F2;
+}
+
+.trust-badge--unknown {
+  --badge-color: #6B7280;
+  --badge-bg: #F3F4F6;
+}
+
+/* Verified icon for inline use */
+.verified-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-left: 4px;
+}

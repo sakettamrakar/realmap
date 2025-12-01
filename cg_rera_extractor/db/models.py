@@ -77,6 +77,22 @@ class Project(Base):
     scraped_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
     data_quality_score: Mapped[int | None] = mapped_column(Integer)
     last_parsed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
+    
+    # ==========================================================================
+    # POINT 27: Automated QA Gates & Price Sanity Checks
+    # ==========================================================================
+    qa_flags: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        doc="QA validation flags: {price_outlier, missing_critical, bounds_exceeded, locality_mismatch}"
+    )
+    qa_status: Mapped[str | None] = mapped_column(
+        String(32),
+        doc="Overall QA status: passed, warning, failed, pending"
+    )
+    qa_last_checked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        doc="Timestamp of last QA validation"
+    )
 
     promoters: Mapped[list["Promoter"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -115,6 +131,9 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan"
     )
     pricing_snapshots: Mapped[list["ProjectPricingSnapshot"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    provenance_records: Mapped[list["DataProvenance"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
 
@@ -343,6 +362,27 @@ class ProjectScores(Base):
     # Value-for-money score combining quality and price
     value_score: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
     
+    # Enhancement #7: Lifestyle score from amenity taxonomy
+    lifestyle_score: Mapped[Numeric | None] = mapped_column(
+        Numeric(4, 2), doc="0-10 score based on amenity taxonomy weights"
+    )
+    
+    # Enhancement #10: Granular Ratings System
+    safety_score: Mapped[Numeric | None] = mapped_column(
+        Numeric(4, 2), doc="0-10 safety rating (gated, CCTV, guards, etc.)"
+    )
+    environment_score: Mapped[Numeric | None] = mapped_column(
+        Numeric(4, 2), doc="0-10 environment rating (green cover, air quality, noise)"
+    )
+    investment_potential_score: Mapped[Numeric | None] = mapped_column(
+        Numeric(4, 2), doc="0-10 investment potential (price trends, appreciation)"
+    )
+    
+    # Structured ratings JSON for extensibility
+    structured_ratings: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, doc="Full breakdown: {connectivity, lifestyle, safety, environment, investment_potential}"
+    )
+    
     score_version: Mapped[str | None] = mapped_column(String(32))
     last_computed_at: Mapped[date | None] = mapped_column(DateTime(timezone=True))
 
@@ -394,10 +434,29 @@ class ProjectUnitType(Base):
     unit_label: Mapped[str | None] = mapped_column(String(100))
     bedrooms: Mapped[int | None] = mapped_column(Integer)
     bathrooms: Mapped[int | None] = mapped_column(Integer)
+    # Enhancement #8: Add balcony_count
+    balcony_count: Mapped[int | None] = mapped_column(Integer)
+    
+    # Enhancement #3: Explicit Area Normalization - all three area types
     carpet_area_min_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
     carpet_area_max_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    builtup_area_min_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    builtup_area_max_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
     super_builtup_area_min_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
     super_builtup_area_max_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    # Enhancement #3: Canonical area unit
+    canonical_area_unit: Mapped[str | None] = mapped_column(
+        String(10), default="SQFT", doc="SQFT or SQM"
+    )
+    
+    # Enhancement #8: Maintenance fee
+    maintenance_fee_monthly: Mapped[Numeric | None] = mapped_column(
+        Numeric(10, 2), doc="Monthly maintenance fee per unit"
+    )
+    maintenance_fee_per_sqft: Mapped[Numeric | None] = mapped_column(
+        Numeric(8, 2), doc="Maintenance fee per sqft"
+    )
+    
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
@@ -408,6 +467,164 @@ class ProjectUnitType(Base):
     )
 
     project: Mapped[Project] = relationship(back_populates="project_unit_types")
+
+
+# =============================================================================
+# POINT 29: Content Provenance (Audit Trail)
+# =============================================================================
+
+
+class DataProvenance(Base):
+    """
+    Audit trail for scraped data - tracks extraction source, method, and confidence.
+    
+    Point 29 Implementation: Content Provenance
+    - snapshot_url: Original scraped URL
+    - extraction_method: Parser version used (e.g., 'v1_json_parser_2.1')
+    - confidence_score: Extraction confidence (0.0-1.0)
+    - network_log_ref: Reference to HAR file for replay
+    """
+
+    __tablename__ = "data_provenance"
+    __table_args__ = (
+        Index("ix_data_provenance_project_id", "project_id"),
+        Index("ix_data_provenance_scraped_at", "scraped_at"),
+        Index("ix_data_provenance_extraction_method", "extraction_method"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    # Source tracking
+    snapshot_url: Mapped[str | None] = mapped_column(
+        String(2048), doc="Original URL that was scraped"
+    )
+    source_domain: Mapped[str | None] = mapped_column(
+        String(255), doc="Domain of the source (e.g., 'rera.cg.gov.in')"
+    )
+    
+    # Extraction metadata
+    extraction_method: Mapped[str] = mapped_column(
+        String(128), nullable=False, doc="Parser version (e.g., 'v1_json_parser_2.1')"
+    )
+    parser_version: Mapped[str | None] = mapped_column(
+        String(64), doc="Specific parser version number"
+    )
+    confidence_score: Mapped[Numeric | None] = mapped_column(
+        Numeric(4, 3), doc="Extraction confidence 0.000-1.000"
+    )
+    
+    # Network trace reference (Point 28 integration)
+    network_log_ref: Mapped[str | None] = mapped_column(
+        String(1024), doc="Path to HAR file or network trace archive"
+    )
+    html_snapshot_path: Mapped[str | None] = mapped_column(
+        String(1024), doc="Path to saved HTML snapshot"
+    )
+    
+    # Run context
+    run_id: Mapped[str | None] = mapped_column(
+        String(128), doc="Scraper run identifier"
+    )
+    scraped_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    
+    # Validation at extraction time
+    extraction_warnings: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, doc="Warnings/issues during extraction"
+    )
+    fields_extracted: Mapped[int | None] = mapped_column(
+        Integer, doc="Count of fields successfully extracted"
+    )
+    fields_expected: Mapped[int | None] = mapped_column(
+        Integer, doc="Count of fields expected from schema"
+    )
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    project: Mapped[Project] = relationship(back_populates="provenance_records")
+
+
+# =============================================================================
+# POINT 28: Network Trace Replayability
+# =============================================================================
+
+
+class IngestionAudit(Base):
+    """
+    Full ingestion audit record with network trace references.
+    
+    Point 28 Implementation: Network Trace Replayability
+    - Captures full HTTP context per scrape session
+    - Links to HAR files for debugging failed extractions
+    - Stores request/response metadata for replay capability
+    """
+
+    __tablename__ = "ingestion_audits"
+    __table_args__ = (
+        Index("ix_ingestion_audits_run_id", "run_id"),
+        Index("ix_ingestion_audits_status", "status"),
+        Index("ix_ingestion_audits_started_at", "started_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    
+    # Run identification
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    run_type: Mapped[str | None] = mapped_column(
+        String(64), doc="Type: full_crawl, incremental, retry, manual"
+    )
+    
+    # Configuration snapshot
+    config_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, doc="Scraper config used for this run"
+    )
+    
+    # Execution tracking
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="running",
+        doc="running, completed, failed, partial"
+    )
+    
+    # Network trace storage
+    har_file_path: Mapped[str | None] = mapped_column(
+        String(1024), doc="Path to HAR archive for this run"
+    )
+    network_log_size_bytes: Mapped[int | None] = mapped_column(
+        Integer, doc="Size of network trace data"
+    )
+    
+    # Statistics
+    projects_attempted: Mapped[int | None] = mapped_column(Integer, default=0)
+    projects_succeeded: Mapped[int | None] = mapped_column(Integer, default=0)
+    projects_failed: Mapped[int | None] = mapped_column(Integer, default=0)
+    projects_skipped: Mapped[int | None] = mapped_column(Integer, default=0)
+    
+    # QA summary (Point 27 integration)
+    qa_flags_summary: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, doc="Aggregated QA flags from this run"
+    )
+    
+    # Error tracking
+    error_log: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, doc="Structured error log for failures"
+    )
+    
+    # Resource usage
+    total_requests: Mapped[int | None] = mapped_column(Integer)
+    total_bytes_downloaded: Mapped[int | None] = mapped_column(Integer)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer)
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class ProjectPricingSnapshot(Base):
@@ -430,6 +647,21 @@ class ProjectPricingSnapshot(Base):
     max_price_total: Mapped[Numeric | None] = mapped_column(Numeric(14, 2))
     min_price_per_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
     max_price_per_sqft: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    
+    # Enhancement #4: Price Per Sqft by Area Type
+    price_per_sqft_carpet_min: Mapped[Numeric | None] = mapped_column(
+        Numeric(10, 2), doc="Min price per sqft based on carpet area"
+    )
+    price_per_sqft_carpet_max: Mapped[Numeric | None] = mapped_column(
+        Numeric(10, 2), doc="Max price per sqft based on carpet area"
+    )
+    price_per_sqft_sbua_min: Mapped[Numeric | None] = mapped_column(
+        Numeric(10, 2), doc="Min price per sqft based on super builtup area"
+    )
+    price_per_sqft_sbua_max: Mapped[Numeric | None] = mapped_column(
+        Numeric(10, 2), doc="Max price per sqft based on super builtup area"
+    )
+    
     source_type: Mapped[str | None] = mapped_column(String(50))
     source_reference: Mapped[str | None] = mapped_column(String(1024))
     raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -457,4 +689,7 @@ __all__ = [
     "ProjectLocation",
     "ProjectUnitType",
     "ProjectPricingSnapshot",
+    # Point 28 & 29: Ops Standard
+    "DataProvenance",
+    "IngestionAudit",
 ]
