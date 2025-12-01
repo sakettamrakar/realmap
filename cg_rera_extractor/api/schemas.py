@@ -153,6 +153,7 @@ class ProjectMapPin(BaseModel):
     overall_score: float | None = None
     project_type: str | None = None
     status: str | None = None
+    min_price_total: float | None = None
     size_hint: dict[str, float | None]
 
 

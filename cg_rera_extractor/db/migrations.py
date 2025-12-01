@@ -852,6 +852,61 @@ def _update_view_with_discovery(conn: Connection) -> None:
     )
 
 
+def _add_qa_columns(conn: Connection) -> None:
+    """Add QA and Ops columns to projects table."""
+    conn.execute(
+        text(
+            """
+            ALTER TABLE projects
+                ADD COLUMN IF NOT EXISTS qa_flags JSONB,
+                ADD COLUMN IF NOT EXISTS qa_status VARCHAR(32),
+                ADD COLUMN IF NOT EXISTS qa_last_checked_at TIMESTAMPTZ;
+            """
+        )
+    )
+
+
+def _add_granular_scores(conn: Connection) -> None:
+    """Add granular score columns to project_scores."""
+    print("Running _add_granular_scores migration...")
+    conn.execute(
+        text(
+            """
+            ALTER TABLE project_scores
+                ADD COLUMN IF NOT EXISTS lifestyle_score NUMERIC(4, 2),
+                ADD COLUMN IF NOT EXISTS safety_score NUMERIC(4, 2),
+                ADD COLUMN IF NOT EXISTS environment_score NUMERIC(4, 2),
+                ADD COLUMN IF NOT EXISTS investment_potential_score NUMERIC(4, 2),
+                ADD COLUMN IF NOT EXISTS structured_ratings JSONB;
+            """
+        )
+    )
+
+
+def _add_granular_price_and_unit_columns(conn: Connection) -> None:
+    """Add granular price and unit columns."""
+    print("Running _add_granular_price_and_unit_columns migration...")
+    conn.execute(
+        text(
+            """
+            ALTER TABLE project_pricing_snapshots
+                ADD COLUMN IF NOT EXISTS price_per_sqft_carpet_min NUMERIC(10, 2),
+                ADD COLUMN IF NOT EXISTS price_per_sqft_carpet_max NUMERIC(10, 2),
+                ADD COLUMN IF NOT EXISTS price_per_sqft_sbua_min NUMERIC(10, 2),
+                ADD COLUMN IF NOT EXISTS price_per_sqft_sbua_max NUMERIC(10, 2);
+                
+            ALTER TABLE project_unit_types
+                ADD COLUMN IF NOT EXISTS balcony_count INTEGER,
+                ADD COLUMN IF NOT EXISTS builtup_area_min_sqft NUMERIC(10, 2),
+                ADD COLUMN IF NOT EXISTS builtup_area_max_sqft NUMERIC(10, 2),
+                ADD COLUMN IF NOT EXISTS canonical_area_unit VARCHAR(10) DEFAULT 'SQFT',
+                ADD COLUMN IF NOT EXISTS maintenance_fee_monthly NUMERIC(10, 2),
+                ADD COLUMN IF NOT EXISTS maintenance_fee_per_sqft NUMERIC(8, 2);
+            """
+        )
+    )
+
+
 MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250305_add_geo_columns", _add_geo_columns),
     ("20250322_create_amenity_tables", _create_amenity_tables),
@@ -863,16 +918,14 @@ MIGRATIONS: list[tuple[str, MigrationFunc]] = [
     ("20250526_update_view_with_prices", _update_view_with_prices),
     ("20250601_create_discovery_tables", _create_discovery_tables),
     ("20250602_update_view_with_discovery", _update_view_with_discovery),
+    ("20250615_add_qa_columns", _add_qa_columns),
+    ("20250620_add_granular_scores", _add_granular_scores),
+    ("20250625_add_granular_price_and_unit_columns", _add_granular_price_and_unit_columns),
 ]
 
 
 def apply_migrations(engine: Engine, *, migrations: Iterable[tuple[str, MigrationFunc]] | None = None) -> list[str]:
-    """Apply all known migrations.
-
-    Each migration is expected to be idempotent (using ``IF NOT EXISTS``) so that
-    the runner can be safely re-executed. Returns the ordered list of migration
-    identifiers that were invoked.
-    """
+    """Apply all known migrations."""
 
     applied: list[str] = []
     to_run = list(migrations) if migrations is not None else MIGRATIONS

@@ -3,9 +3,7 @@ import classNames from "classnames";
 import {
   MapContainer,
   Marker,
-  Popup,
   TileLayer,
-  Tooltip,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -68,28 +66,41 @@ const MapEvents = ({ onBoundsChange }: { onBoundsChange: (bbox: BBox) => void })
 // Icon cache for performance - avoids creating new icons on every render
 const iconCache = new Map<string, L.DivIcon>();
 
-const getIconCacheKey = (
-  bucket: string,
-  precision: "exact" | "approximate",
-  isSelected: boolean,
-  isHovered: boolean,
-): string => `${bucket}-${precision}-${isSelected}-${isHovered}`;
+const formatPrice = (price?: number) => {
+  if (!price) return null;
+  if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
+  if (price >= 100000) return `₹${(price / 100000).toFixed(1)}L`;
+  return `₹${price.toLocaleString()}`;
+};
 
 const getIcon = (
   bucket: string,
+  price: number | undefined,
   options: { precision: "exact" | "approximate"; isSelected: boolean; isHovered: boolean },
 ): L.DivIcon => {
-  const cacheKey = getIconCacheKey(bucket, options.precision, options.isSelected, options.isHovered);
+  const priceText = formatPrice(price);
+  const isPill = !!priceText;
+
+  const cacheKey = `${bucket}-${options.precision}-${options.isSelected}-${options.isHovered}-${priceText || 'noprice'}`;
   let icon = iconCache.get(cacheKey);
+
   if (!icon) {
+    const classes = classNames("map-pin-marker", {
+      "pin-selected": options.isSelected,
+      "pin-hovered": options.isHovered,
+      "pin-pill": isPill,
+      [`pin-${bucket}`]: !isPill && bucket,
+    });
+
+    const html = isPill
+      ? `<div class="${classes}"><span>${priceText}</span></div>`
+      : `<div class="${classes}"></div>`;
+
     icon = L.divIcon({
-      className: classNames("map-pin", `pin-${bucket}`, {
-        "pin-selected": options.isSelected,
-        "pin-hovered": options.isHovered,
-        "pin-approximate": options.precision === "approximate",
-        "pin-exact": options.precision === "exact",
-      }),
-      iconSize: [18, 18],
+      className: "custom-div-icon",
+      html: html,
+      iconSize: isPill ? [60, 28] : [14, 14],
+      iconAnchor: isPill ? [30, 28] : [7, 7],
     });
     iconCache.set(cacheKey, icon);
   }
@@ -155,41 +166,28 @@ const PinsLayer = ({
       {pins.map((pin) => {
         const bucket = scoreBucket(pin.overall_score);
         const precision = isExactLocation(pin) ? "exact" : "approximate";
-        const icon = getIcon(bucket, {
+        const icon = getIcon(bucket, pin.min_price_total, {
           precision,
           isSelected: selectedProjectId === pin.project_id,
           isHovered: hoveredProjectId === pin.project_id,
         });
+
+        // Bring selected/hovered pins to front
+        const zIndexOffset = (selectedProjectId === pin.project_id || hoveredProjectId === pin.project_id) ? 1000 : 0;
+
         return (
           <Marker
             key={pin.project_id}
             position={[pin.lat, pin.lon]}
             icon={icon}
+            zIndexOffset={zIndexOffset}
             eventHandlers={{
               click: () => onSelectProject(pin.project_id),
               mouseover: () => onHoverProject(pin.project_id),
               mouseout: () => onHoverProject(null),
             }}
           >
-            <Tooltip direction="top" offset={[0, -4]} sticky>
-              <div className="popup">
-                <strong>{pin.name}</strong>
-                <div className="eyebrow">
-                  Score: {pin.overall_score != null ? (pin.overall_score <= 1 ? pin.overall_score * 10 : pin.overall_score).toFixed(1) : "—"}
-                </div>
-              </div>
-            </Tooltip>
-            <Popup>
-              <div className="popup">
-                <strong>{pin.name}</strong>
-                <div className="eyebrow">
-                  Score: {pin.overall_score != null ? (pin.overall_score <= 1 ? pin.overall_score * 10 : pin.overall_score).toFixed(1) : "—"}
-                </div>
-                <div className="eyebrow">
-                  {precision === "exact" ? "Exact location" : "Approximate location"}
-                </div>
-              </div>
-            </Popup>
+            {/* Tooltip removed as price is now visible */}
           </Marker>
         );
       })}

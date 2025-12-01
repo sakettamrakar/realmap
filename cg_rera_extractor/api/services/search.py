@@ -6,9 +6,11 @@ from datetime import date
 from typing import Iterable
 
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import select
 
 from cg_rera_extractor.amenities.value_scoring import compute_value_score, get_value_bucket
 from cg_rera_extractor.db import Project, ProjectAmenityStats
+from cg_rera_extractor.db.models import ProjectScores
 
 
 class SearchParams:
@@ -155,9 +157,9 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
     """Search projects applying filters and returning pagination metadata."""
 
     stmt = (
-        db.query(Project)
+        select(Project)
         .options(
-            selectinload(Project.score),
+            selectinload(Project.score.of_type(ProjectScores)),
             selectinload(Project.amenity_stats),
             selectinload(Project.locations),
             selectinload(Project.pricing_snapshots),
@@ -165,34 +167,28 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
     )
 
     if params.district:
-        stmt = stmt.filter(Project.district.ilike(params.district))
+        stmt = stmt.where(Project.district.ilike(params.district))
     if params.tehsil:
-        stmt = stmt.filter(Project.tehsil.ilike(params.tehsil))
+        stmt = stmt.where(Project.tehsil.ilike(params.tehsil))
     if params.name_contains:
-        stmt = stmt.filter(Project.project_name.ilike(f"%{params.name_contains}%"))
+        stmt = stmt.where(Project.project_name.ilike(f"%{params.name_contains}%"))
     
     if params.statuses:
-        # Case insensitive check for statuses
-        # Since we can't easily do ilike on a list, we might need to rely on exact match 
-        # or normalize in Python. Let's try exact match first as statuses are usually standardized.
-        # If they are not, we might need to normalize them.
-        stmt = stmt.filter(Project.status.in_(params.statuses))
+        stmt = stmt.where(Project.status.in_(params.statuses))
         
     if params.project_types:
-        # Assuming project_type is in raw_data_json for now as it's not a column
-        # Using astext for Postgres JSONB
-        stmt = stmt.filter(Project.raw_data_json["project_type"].astext.in_(params.project_types))
+        stmt = stmt.where(Project.raw_data_json["project_type"].astext.in_(params.project_types))
 
     if params.bbox:
         min_lat, min_lon, max_lat, max_lon = params.bbox
-        stmt = stmt.filter(
+        stmt = stmt.where(
             Project.latitude.is_not(None),
             Project.longitude.is_not(None),
             Project.latitude.between(min_lat, max_lat),
             Project.longitude.between(min_lon, max_lon),
         )
 
-    projects = stmt.all()
+    projects = db.execute(stmt).scalars().all()
 
     filtered: list[tuple[Project, float | None]] = []
     for project in projects:
@@ -280,7 +276,6 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
     if params.rera_verified_only:
         from cg_rera_extractor.db.models_discovery import ReraVerification
         from cg_rera_extractor.db.enums import ReraVerificationStatus
-        from sqlalchemy import select
         
         # Get verified project IDs
         verified_query = (
@@ -342,7 +337,6 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
     
     if page_project_ids:
         from cg_rera_extractor.db.models_discovery import ProjectTag, ReraVerification, Tag
-        from sqlalchemy import select
         
         # Batch fetch tags
         tags_query = (
@@ -420,9 +414,6 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
         )
 
     return total, payload
-
-
-__all__ = ["search_projects", "SearchParams"]
 
 
 __all__ = ["search_projects", "SearchParams"]

@@ -26,6 +26,9 @@ const DEFAULT_FILTERS: Filters = {
   statuses: [],
   sortBy: DEFAULT_SORT_BY,
   sortDir: DEFAULT_SORT_DIR,
+  tags: [],
+  tagsMatchAll: false,
+  reraVerifiedOnly: false,
 };
 
 const DEFAULT_BOUNDS: BBox = {
@@ -176,6 +179,15 @@ function App() {
       .finally(() => setDetailLoading(false));
   }, [selectedProjectId]);
 
+  useEffect(() => {
+    if (hoveredProjectId) {
+      const el = document.getElementById(`project-card-${hoveredProjectId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+  }, [hoveredProjectId]);
+
   const handleSelectProject = (id: number) => {
     setSelectedProjectId(id);
   };
@@ -266,7 +278,11 @@ function App() {
               ) : (
                 <div className="results-grid" style={{ gridTemplateColumns: '1fr' }}>
                   {searchResults.map((p) => (
-                    <div key={p.project_id} className="animate-slide-up">
+                    <div
+                      key={p.project_id}
+                      id={`mobile-project-card-${p.project_id}`}
+                      className="animate-slide-up"
+                    >
                       <ProjectCard
                         project={p}
                         selected={selectedProjectId === p.project_id}
@@ -450,7 +466,11 @@ function App() {
                 <div className="list-column">
                   {searchLoading && <div className="loading-state">Loading projects...</div>}
                   {searchResults.map((p) => (
-                    <div key={p.project_id} className="animate-slide-up">
+                    <div
+                      key={p.project_id}
+                      id={`project-card-${p.project_id}`}
+                      className="animate-slide-up"
+                    >
                       <ProjectCard
                         project={p}
                         selected={selectedProjectId === p.project_id}

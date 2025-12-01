@@ -130,6 +130,7 @@ export interface ProjectMapPin {
   overall_score?: number;
   project_type?: string;
   status?: string;
+  min_price_total?: number;
   geo_source?: string;
   geo_precision?: string;
   size_hint?: {

@@ -20,7 +20,11 @@ def fetch_map_projects(
 ) -> list[dict]:
     """Return pins constrained by a bounding box or center/radius."""
 
-    stmt = db.query(Project).options(selectinload(Project.score), selectinload(Project.locations))
+    stmt = db.query(Project).options(
+        selectinload(Project.score),
+        selectinload(Project.locations),
+        selectinload(Project.pricing_snapshots)
+    )
 
     if status:
         stmt = stmt.filter(Project.status.ilike(status))
@@ -51,6 +55,15 @@ def fetch_map_projects(
             distance = _haversine_km(center_lat, center_lon, lat, lon)
             if distance > radius_km:
                 continue
+        
+        # Calculate min price
+        min_price = None
+        if project.pricing_snapshots:
+            active_snapshots = [s for s in project.pricing_snapshots if s.is_active]
+            if active_snapshots:
+                prices = [float(s.min_price_total) for s in active_snapshots if s.min_price_total is not None]
+                if prices:
+                    min_price = min(prices)
 
         pins.append(
             {
@@ -61,6 +74,7 @@ def fetch_map_projects(
                 "overall_score": overall_score,
                 "project_type": project.project_name,
                 "status": project.status,
+                "min_price_total": min_price,
                 "size_hint": {"units": None, "area_sqft": None},
             }
         )

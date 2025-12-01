@@ -9,6 +9,8 @@ from .migrations import apply_migrations
 # Import models so that Base.metadata is populated before create_all is invoked.
 # pylint: disable=unused-import
 from . import models  # noqa: F401
+from . import models_discovery  # noqa: F401
+from . import models_enhanced  # noqa: F401
 
 
 def init_db(engine: Engine | None = None, *, run_migrations: bool = True) -> None:
