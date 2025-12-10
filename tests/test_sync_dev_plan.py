@@ -1,6 +1,5 @@
 """Tests for syncing DEV_PLAN tasks to Jira."""
 
-from pathlib import Path
 
 from tools import sync_dev_plan_to_jira as sync
 

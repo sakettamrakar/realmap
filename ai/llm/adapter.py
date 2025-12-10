@@ -1,8 +1,7 @@
 import os
 import time
 import logging
-import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 # Set up logging

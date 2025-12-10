@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from pathlib import Path
 
 # Parse verbose flag early to configure logging before other imports
@@ -63,7 +62,7 @@ def main() -> int:
     # Print database info
     db_url = ensure_database_url()
     print(f"\n{'='*70}")
-    print(f"Database Loader")
+    print("Database Loader")
     print(f"{'='*70}")
     print(f"Database target: {describe_database_target(db_url)}")
     print(f"Runs directory:  {base_dir.resolve()}")
@@ -89,7 +88,7 @@ def main() -> int:
 
         # Print summary
         print(f"\n{'='*70}")
-        print(f"Load Summary")
+        print("Load Summary")
         print(f"{'='*70}")
         print(f"Projects upserted:    {stats.get('projects_upserted', 0):,}")
         print(f"Promoters inserted:   {stats.get('promoters', 0):,}")
@@ -104,7 +103,7 @@ def main() -> int:
             for run in runs_processed:
                 print(f"  • {run}")
         
-        print(f"\n✓ Load completed successfully!")
+        print("\n✓ Load completed successfully!")
         print(f"{'='*70}\n")
         return 0
 

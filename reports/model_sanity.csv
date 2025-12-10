@@ -1,3 +1,3 @@
-project_id,project_name,score_value,confidence,explanation,tokens_used,model_name,status
-2,GT LIFE SPACES,0,0,Scoring unavailable: ai_unavailable,0,unknown,SUCCESS
-1,OVERSEAS pALM RESORTS,0,0,Scoring unavailable: ai_unavailable,0,unknown,SUCCESS
+project_id,project_name,district,status,lat,lon,has_amenities,has_promoters,score_value,confidence,explanation,risks,strengths,tokens_used,model_name,model_version,error
+1,OVERSEAS pALM RESORTS,,,21.238091,81.633699,False,False,0,0,Scoring unavailable: ai_unavailable,,,0,llama-cpp,1.0,ai_unavailable
+2,GT LIFE SPACES,Raipur,Ongoing,21.198634,81.96599,False,True,0,0,Scoring unavailable: ai_unavailable,,,0,llama-cpp,1.0,ai_unavailable

@@ -31,7 +31,6 @@ from cg_rera_extractor.api.services.discovery import (
     get_all_tags,
     get_faceted_tags,
     get_landmark_by_slug,
-    get_landmarks_by_category,
     get_project_discovery_data,
     get_project_landmarks,
     get_project_tags,

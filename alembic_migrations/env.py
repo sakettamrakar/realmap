@@ -16,7 +16,6 @@ if config.config_file_name is not None:
 
 from cg_rera_extractor.db.base import Base  # Import your Base
 from cg_rera_extractor.db.models import *  # Import all models so they are registered with Base
-import os
 from dotenv import load_dotenv
 
 load_dotenv()

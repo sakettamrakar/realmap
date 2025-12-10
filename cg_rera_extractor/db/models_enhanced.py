@@ -21,7 +21,6 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
     Integer,
@@ -35,7 +34,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from .base import Base
-from .enums import AreaUnit, ProjectPhase, AmenityCategoryType, UnitStatus
+from .enums import ProjectPhase, UnitStatus
 
 
 # =============================================================================

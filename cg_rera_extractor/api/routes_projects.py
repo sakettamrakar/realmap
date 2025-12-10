@@ -208,7 +208,7 @@ def unified_project_lookup(
     ```
     """
     from sqlalchemy.orm import selectinload
-    from cg_rera_extractor.db import Project, Building
+    from cg_rera_extractor.db import Project
     from cg_rera_extractor.api.schemas_api import (
         ProjectHierarchy,
         TowerHierarchy,

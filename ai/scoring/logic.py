@@ -2,7 +2,6 @@ import json
 import logging
 from typing import Dict, Any
 from ai.llm.adapter import run
-from ai.schemas import AIScoreResponse
 
 logger = logging.getLogger("ai.scoring")
 

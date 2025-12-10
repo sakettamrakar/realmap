@@ -123,7 +123,6 @@ def check_brochure_availability(
     }
     ```
     """
-    from cg_rera_extractor.api.services.access import get_brochure_document
     from cg_rera_extractor.db import Project, ProjectDocument, ProjectArtifact
     
     # Check project exists

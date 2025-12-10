@@ -1,5 +1,5 @@
 """Database audit script for data quality analysis."""
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from cg_rera_extractor.db import get_engine
 
 engine = get_engine()

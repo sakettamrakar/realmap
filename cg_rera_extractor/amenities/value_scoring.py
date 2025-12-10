@@ -14,7 +14,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from cg_rera_extractor.db.models import ProjectPricingSnapshot

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Sequence
 
 from cg_rera_extractor.db import Project, ProjectLocation
 

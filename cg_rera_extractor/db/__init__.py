@@ -5,11 +5,9 @@ from .migrations import MIGRATIONS, apply_migrations
 
 # Core models
 from .models import (
-    AmenityPOI,
     BankAccount,
     Building,
     LandParcel,
-    AmenityPOI,
     Project,
     ProjectAmenityStats,
     ProjectArtifact,

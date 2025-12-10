@@ -50,5 +50,5 @@ try:
 finally:
     try:
         session.close()
-    except:
+    except Exception:
         pass

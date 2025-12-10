@@ -9,12 +9,12 @@ This module provides service functions for:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from cg_rera_extractor.db import Project
 from cg_rera_extractor.db.models_discovery import (

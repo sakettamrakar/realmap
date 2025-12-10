@@ -21,7 +21,7 @@ def run_smoke():
     try:
         requests.get(BASE_URL, timeout=1)
         server_up = True
-    except:
+    except (requests.exceptions.RequestException, requests.exceptions.Timeout, ConnectionError):
         print("Server not running at localhost:8000. Skipping live tests.")
         results.append({"endpoint": "ALL", "status": "SKIPPED", "notes": "Server not reachable"})
 

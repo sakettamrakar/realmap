@@ -1,11 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from typing import Optional
 import os
 
-from ai.schemas import HealthCheck, AIScoreResponse, ErrorResponse
-from cg_rera_extractor.db import get_session_local
-from fastapi import Depends
+from ai.schemas import HealthCheck, AIScoreResponse
+from ai.dependencies import get_db
 
 app = FastAPI(
     title="RealMap AI Microservice",
@@ -29,7 +27,7 @@ async def health_check():
     }
 
 @app.post("/ai/score/project/{project_id}", response_model=AIScoreResponse)
-async def score_project(project_id: int, db: Session = Depends(get_session_local)):
+async def score_project(project_id: int, db: Session = Depends(get_db)):
     """
     Trigger AI scoring for a specific project.
     """
@@ -100,7 +98,7 @@ async def score_project(project_id: int, db: Session = Depends(get_session_local
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @app.get("/ai/score/{score_id}", response_model=AIScoreResponse)
-async def get_score(score_id: int, db: Session = Depends(get_session_local)):
+async def get_score(score_id: int, db: Session = Depends(get_db)):
     """Retrieve a specific score details."""
     if not AI_ENABLED:
         raise HTTPException(status_code=503, detail="AI services are currently disabled")

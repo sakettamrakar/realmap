@@ -1,5 +1,4 @@
 from llama_cpp import Llama
-import os
 
 # Updated to point to the first part of the split file
 model_path = "C:/models/ai/general/v1/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf"

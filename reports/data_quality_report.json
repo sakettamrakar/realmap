@@ -1,10 +1,126 @@
 {
+  "generated_at": "2025-12-10T21:32:09.306850",
   "sample_size": 2,
-  "null_percentages": {
-    "project_name": 0.0,
-    "district": 0.0,
-    "status": 0.0
+  "thresholds": {
+    "null_threshold_percent": 20.0,
+    "low_confidence_threshold": 0.4
   },
-  "quality_issues_count": 0,
-  "failing_projects": []
+  "action_required": true,
+  "action_reasons": [
+    "Low confidence rate (100.0%) exceeds 20% threshold",
+    "4 required fields exceed null threshold: tehsil, village_or_locality, approved_date, proposed_end_date"
+  ],
+  "null_analysis": {
+    "core": {
+      "state_code": 0.0,
+      "rera_registration_number": 0.0,
+      "project_name": 0.0,
+      "status": 0.0,
+      "district": 0.0
+    },
+    "location": {
+      "tehsil": 50.0,
+      "village_or_locality": 100.0,
+      "full_address": 0.0,
+      "latitude": 0.0,
+      "longitude": 0.0
+    },
+    "dates": {
+      "approved_date": 100.0,
+      "proposed_end_date": 100.0
+    },
+    "quality": {
+      "geocoding_status": 0.0,
+      "geo_precision": 0.0
+    }
+  },
+  "failing_fields": {
+    "tehsil": {
+      "category": "location",
+      "null_percent": 50.0,
+      "threshold": 20.0,
+      "severity": "medium"
+    },
+    "village_or_locality": {
+      "category": "location",
+      "null_percent": 100.0,
+      "threshold": 20.0,
+      "severity": "high"
+    },
+    "approved_date": {
+      "category": "dates",
+      "null_percent": 100.0,
+      "threshold": 20.0,
+      "severity": "high"
+    },
+    "proposed_end_date": {
+      "category": "dates",
+      "null_percent": 100.0,
+      "threshold": 20.0,
+      "severity": "high"
+    }
+  },
+  "type_mismatches": {
+    "summary": {},
+    "total_count": 0,
+    "details": {}
+  },
+  "normalization_issues": {
+    "summary": {},
+    "total_count": 0,
+    "details": {}
+  },
+  "model_stats": {
+    "score_stats": {
+      "count": 2,
+      "mean": 0,
+      "std": 0.0,
+      "min": 0,
+      "max": 0,
+      "median": 0.0
+    },
+    "confidence_stats": {
+      "count": 2,
+      "mean": 0,
+      "std": 0.0,
+      "min": 0,
+      "max": 0
+    },
+    "histogram": {
+      "0-20": 2,
+      "20-40": 0,
+      "40-60": 0,
+      "60-80": 0,
+      "80-100": 0
+    },
+    "low_confidence": {
+      "threshold": 0.4,
+      "count": 2,
+      "rate_percent": 100.0
+    },
+    "empty_explanations": {
+      "count": 0,
+      "rate_percent": 0.0
+    },
+    "errors": {
+      "count": 2,
+      "rate_percent": 100.0
+    }
+  },
+  "failing_projects": [
+    {
+      "project_id": 1,
+      "project_name": "OVERSEAS pALM RESORTS",
+      "issue": "low_confidence",
+      "confidence": 0,
+      "error": "ai_unavailable"
+    },
+    {
+      "project_id": 2,
+      "project_name": "GT LIFE SPACES",
+      "issue": "low_confidence",
+      "confidence": 0,
+      "error": "ai_unavailable"
+    }
+  ]
 }

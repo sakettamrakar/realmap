@@ -134,7 +134,7 @@ def main() -> int:
     
     try:
         print(f"\n{'='*70}")
-        print(f"Database Row Counts")
+        print("Database Row Counts")
         print(f"{'='*70}")
         print(f"Database: {describe_database_target(db_url)}")
         print()
@@ -189,7 +189,7 @@ def main() -> int:
             print(f"Address:           {project.full_address}")
             
             child_counts = get_project_children_counts(session, project.id)
-            print(f"\nChild Records:")
+            print("\nChild Records:")
             print(f"  Promoters:         {child_counts['promoters']:>10,}")
             print(f"  Buildings:         {child_counts['buildings']:>10,}")
             print(f"  Unit Types:        {child_counts['unit_types']:>10,}")

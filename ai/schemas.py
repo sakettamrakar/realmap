@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import List, Optional, Any, Dict
+from typing import Optional, Any, Dict
 from datetime import datetime
 
 class HealthCheck(BaseModel):

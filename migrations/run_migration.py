@@ -152,7 +152,7 @@ def run_migration():
             error_count += 1
         
         conn.commit()
-        print(f"\n=== Migration Complete ===")
+        print("\n=== Migration Complete ===")
         print(f"Success: {success_count}")
         print(f"Errors: {error_count}")
 

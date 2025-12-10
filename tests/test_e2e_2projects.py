@@ -3,16 +3,15 @@ import os
 import sys
 import pytest
 import yaml
-import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from cg_rera_extractor.cli import main as cli_main
 from cg_rera_extractor.db.base import Base
 from cg_rera_extractor.db.loader import load_run_into_db
-from cg_rera_extractor.db.models import Project, Promoter
+from cg_rera_extractor.db.models import Project
 
 # Ensure root is in path
 ROOT = Path(__file__).resolve().parents[1]

@@ -9,8 +9,6 @@ from decimal import Decimal
 from cg_rera_extractor.utils.normalize import (
     normalize_area_to_sqm,
     normalize_area_to_sqft,
-    sqm_to_sqft,
-    sqft_to_sqm,
     normalize_price,
     price_per_sqft,
     format_price_lakhs,

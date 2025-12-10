@@ -1,7 +1,6 @@
 """Helpers for handling manual CAPTCHA flows."""
 
 import logging
-import sys
 import time
 import threading
 

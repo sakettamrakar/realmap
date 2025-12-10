@@ -2,11 +2,10 @@
 import argparse
 import csv
 import logging
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from cg_rera_extractor.config.env import ensure_database_url
 from cg_rera_extractor.db import (

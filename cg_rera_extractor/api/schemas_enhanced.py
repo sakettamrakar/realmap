@@ -7,7 +7,6 @@ These should be imported alongside the existing schemas.py.
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal
 from enum import Enum
 from typing import Any
 

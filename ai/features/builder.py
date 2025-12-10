@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from cg_rera_extractor.db import get_session_local
+from cg_rera_extractor.db import get_engine, get_session_local
 from cg_rera_extractor.db.models import Project
 from ai.schemas import FeatureSnapshot
 
@@ -10,7 +10,9 @@ def build_feature_pack(project_id: int, db: Session = None) -> FeatureSnapshot:
     """
     close_db = False
     if db is None:
-        db = get_session_local()
+        engine = get_engine()
+        SessionLocal = get_session_local(engine)
+        db = SessionLocal()
         close_db = True
         
     try:

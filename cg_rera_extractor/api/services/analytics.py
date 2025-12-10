@@ -8,7 +8,6 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import func, and_
 from sqlalchemy.orm import Session
 
 from cg_rera_extractor.db import Project, ProjectPricingSnapshot

@@ -9,7 +9,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from cg_rera_extractor.db import Project, ProjectScores, Promoter
+from cg_rera_extractor.db import Project, ProjectScores
 from cg_rera_extractor.api.schemas_api import (
     SchemaOrgProduct,
     SchemaOrgOffer,

@@ -10,7 +10,6 @@ import hmac
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
 from urllib.parse import urlencode
 
 from sqlalchemy.orm import Session

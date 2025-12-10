@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from cg_rera_extractor.config.env import describe_database_target, ensure_database_url
-from cg_rera_extractor.db import Project, ProjectLocation, get_engine, get_session_local
+from cg_rera_extractor.db import Project, get_engine, get_session_local
 
 
 def main() -> int:

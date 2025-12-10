@@ -149,7 +149,7 @@ def inspect_run_results(run_id: str) -> None:
         # Show project-level breakdown
         projects = report.get("projects", [])
         if projects:
-            print(f"\nProject-Level Breakdown:")
+            print("\nProject-Level Breakdown:")
             print(f"  {'Project':<20} {'Match':<10} {'Mismatch':<10} {'Missing HTML':<15} {'Missing JSON':<15}")
             print("  " + "-" * 70)
             
@@ -268,7 +268,7 @@ def compare_single_project(run_id: str, project_key: str) -> None:
                 print(f"   HTML:  {diff['html_value']}")
             elif diff["status"] == "preview_unchecked":
                 print(f"\n❓ PREVIEW: {diff['field_key']}")
-                print(f"   Requires user interaction (Preview button)")
+                print("   Requires user interaction (Preview button)")
 
 
 def main() -> None:

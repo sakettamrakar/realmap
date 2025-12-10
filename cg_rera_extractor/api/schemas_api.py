@@ -13,11 +13,10 @@ This module defines DTOs for:
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal
 from enum import Enum
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # =============================================================================

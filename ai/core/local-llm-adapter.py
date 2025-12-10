@@ -1,6 +1,5 @@
 
 import os
-import sys
 import time
 import json
 from dotenv import load_dotenv

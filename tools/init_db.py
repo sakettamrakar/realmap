@@ -36,7 +36,7 @@ def main() -> None:
     db_config = load_db_config(args.config)
     engine = get_engine(db_config)
     
-    print(f"Initializing database schema...")
+    print("Initializing database schema...")
     print(f"Database target: {describe_database_target(db_config.url)}")
     
     init_db(engine)
@@ -45,7 +45,7 @@ def main() -> None:
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     
-    print(f"\n✓ Schema initialized successfully!")
+    print("\n✓ Schema initialized successfully!")
     print(f"\nTables created ({len(tables)} total):")
     for table_name in sorted(tables):
         print(f"  • {table_name}")

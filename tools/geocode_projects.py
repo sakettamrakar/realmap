@@ -18,7 +18,6 @@ from cg_rera_extractor.config.loader import load_config
 from cg_rera_extractor.config.models import AppConfig, DatabaseConfig, GeocoderConfig, GeocoderProvider
 from cg_rera_extractor.db import Project, ProjectLocation, get_engine, get_session_local
 from cg_rera_extractor.geo import GeocodingStatus, build_geocoding_client, generate_geocoding_candidates
-from cg_rera_extractor.geo.address_normalizer import AddressParts
 from cg_rera_extractor.geo.location_selector import apply_canonical_location, select_canonical_location
 
 

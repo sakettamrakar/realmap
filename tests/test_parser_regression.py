@@ -1,7 +1,6 @@
 """Tests for the parser regression harness."""
 
 import json
-from pathlib import Path
 
 from tools import parser_regression
 

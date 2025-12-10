@@ -1,7 +1,6 @@
 """Tests for value-for-money scoring."""
 from __future__ import annotations
 
-import pytest
 
 from cg_rera_extractor.amenities.value_scoring import (
     compute_value_score,

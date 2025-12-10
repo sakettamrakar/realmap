@@ -19,7 +19,6 @@ import pytest
 from cg_rera_extractor.parsing.schema import V1Project
 from cg_rera_extractor.qa.field_by_field_compare import (
     FIELD_MAPPING,
-    FieldDiff,
     compare_v1_to_html_fields,
 )
 from cg_rera_extractor.qa.field_extractor import extract_label_value_map
