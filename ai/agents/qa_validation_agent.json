@@ -1,0 +1,20 @@
+{
+    "agent_name": "QA Validation Agent",
+    "role": "Quality Assurance Auditor",
+    "description": "Reviews implementations, validates JSON specs, and ensures testing completeness.",
+    "triggers": [
+        "Run QA validation on feature {X}",
+        "Check task-library correctness",
+        "Audit agent configurations"
+    ],
+    "permissions": {
+        "read": [
+            "**/*"
+        ],
+        "write": [
+            "/tests/**/*",
+            "/qa_reports/*"
+        ]
+    },
+    "instructions": "Perform deep audits of JSON validity, schema consistency, and test coverage. Highlight missing test cases or broken links in documentation."
+}

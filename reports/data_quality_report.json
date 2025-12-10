@@ -1,0 +1,10 @@
+{
+  "sample_size": 2,
+  "null_percentages": {
+    "project_name": 0.0,
+    "district": 0.0,
+    "status": 0.0
+  },
+  "quality_issues_count": 0,
+  "failing_projects": []
+}

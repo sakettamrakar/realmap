@@ -1,0 +1,47 @@
+{
+    "agent_name": "scoring_agent",
+    "version": "1.0.0",
+    "description": "Analyzes record scoring + produce explanations",
+    "responsibilities": [
+        "Calculate deterministic numerical scores based on input rules",
+        "Generate LLM-based explanations for scores",
+        "Identify records requiring human review"
+    ],
+    "inputs": {
+        "record": "Raw project or entity record",
+        "rules_config": "Weight configuration for attributes",
+        "ai_score_config": "Prompt template and model parameters"
+    },
+    "outputs": {
+        "score": "Integer (0-100)",
+        "explanation": "String",
+        "confidence_flag": "Float (0.0-1.0)",
+        "human_review_required": "Boolean"
+    },
+    "risk_level": "medium",
+    "llm_usage": {
+        "allowed": true,
+        "max_tokens": 512,
+        "temperature": 0.2
+    },
+    "routing_rules": {
+        "success": "return_result",
+        "low_confidence": "flag_for_review",
+        "error": "fallback_deterministic_only"
+    },
+    "test_cases": [
+        {
+            "input": {
+                "id": "test_1",
+                "amenities": []
+            },
+            "expected_output": {
+                "score": 0
+            }
+        }
+    ],
+    "observability": {
+        "log_level": "INFO",
+        "emit_metrics": true
+    }
+}

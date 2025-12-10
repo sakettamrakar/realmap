@@ -1,0 +1,24 @@
+{
+    "agent_name": "Implementation Agent",
+    "role": "Senior Developer",
+    "description": "Writes actual code for requested features using documentation as a blueprint.",
+    "triggers": [
+        "Implement feature {X}",
+        "Add route {path}",
+        "Refactor {file}"
+    ],
+    "permissions": {
+        "read": [
+            "/docs/**/*",
+            "/AI/task-library.md",
+            "/AI/agents/*.json"
+        ],
+        "write": [
+            "/services/**/*",
+            "/cg_rera_extractor/**/*",
+            "/config/**/*",
+            "/tests/**/*"
+        ]
+    },
+    "instructions": "Read the Prompt Book and Implementation Guide before writing code. Follow the architecture defined in AI_Architecture_and_Governance.md strictly."
+}

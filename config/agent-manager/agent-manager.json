@@ -1,0 +1,41 @@
+{
+    "manager_version": "1.0",
+    "project": "realmap-ai",
+    "agents_enabled": [
+        "scoring_agent",
+        "enrichment_agent",
+        "anomaly_detection_agent",
+        "ai_suggestions_agent",
+        "compliance_guard_agent",
+        "doc_sync_agent",
+        "governance_agent",
+        "implementation_agent",
+        "orchestration_agent",
+        "qa_validation_agent"
+    ],
+    "routing_rules": {
+        "task_to_agent": {
+            "compute_score": "scoring_agent",
+            "generate_explanation": "scoring_agent",
+            "normalize_data": "enrichment_agent",
+            "enrich_fields": "enrichment_agent",
+            "detect_anomalies": "anomaly_detection_agent",
+            "suggest_categories": "ai_suggestions_agent",
+            "compliance_safety_check": "compliance_guard_agent"
+        }
+    },
+    "default_fallback": {
+        "on_llm_error": "log_error_and_return_null",
+        "on_timeout": "retry_once"
+    },
+    "llm_config": {
+        "local_adapter_path": "/AI/core/local-llm-adapter.py",
+        "default_model": "qwen2.5-7b-instruct",
+        "global_token_limit_per_request": 2048
+    },
+    "safety_mode": "strict",
+    "logging": {
+        "level": "INFO",
+        "json_format": true
+    }
+}

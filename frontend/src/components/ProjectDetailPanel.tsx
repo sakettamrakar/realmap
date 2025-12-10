@@ -6,6 +6,7 @@ import { ScoreSummary } from "./projectDetail/ScoreSummary";
 import { AmenitiesSection } from "./projectDetail/AmenitiesSection";
 import { LocationSection } from "./projectDetail/LocationSection";
 import { PriceSection } from "./projectDetail/PriceSection";
+import { AIAssistCard } from "./ai/AIAssistCard";
 
 interface Props {
   project: ProjectDetail | null;
@@ -65,6 +66,11 @@ const ProjectDetailPanel = ({
               onShortlist={onShortlist}
               isShortlisted={isShortlisted}
             />
+
+            {/* AI Integration */}
+            <div className="px-4 mt-4">
+              <AIAssistCard projectId={project.project.id} />
+            </div>
 
             <ProjectSnapshot project={project} />
 

@@ -1,0 +1,19 @@
+{
+    "agent_name": "Project Governance Agent",
+    "role": "Repository Custodian",
+    "description": "Enforces folder structure, naming conventions, and cleanliness.",
+    "triggers": [
+        "Clean up repository structure",
+        "Fix naming inconsistencies",
+        "Format all markdown files"
+    ],
+    "permissions": {
+        "read": [
+            "**/*"
+        ],
+        "write": [
+            "**/*"
+        ]
+    },
+    "instructions": "Enforce the structure defined in AI_DEV_CONTROL_PANEL.md. auto-fix misplaced files and standardize JSON/Markdown formatting."
+}

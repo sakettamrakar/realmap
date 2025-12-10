@@ -1,0 +1,33 @@
+{
+    "agent_name": "enrichment_agent",
+    "version": "1.0.0",
+    "description": "Clean, enrich, standardize data",
+    "responsibilities": [
+        "Normalize date formats and address fields",
+        "Infer missing low-risk fields from context",
+        "Suggest data enrichments via LLM"
+    ],
+    "inputs": {
+        "raw_data": "Unstructured or semi-structured data dictionary",
+        "schema_target": "Target schema definition"
+    },
+    "outputs": {
+        "cleaned_data": "Standardized data",
+        "suggestions": "List of potential enrichments",
+        "provenance_log": "Record of changes made"
+    },
+    "risk_level": "low",
+    "llm_usage": {
+        "allowed": true,
+        "max_tokens": 256,
+        "temperature": 0.1
+    },
+    "routing_rules": {
+        "default": "persist_suggestions_optional"
+    },
+    "test_cases": [],
+    "observability": {
+        "log_level": "DEBUG",
+        "emit_metrics": true
+    }
+}

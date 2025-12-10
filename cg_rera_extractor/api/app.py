@@ -15,6 +15,7 @@ from cg_rera_extractor.api.routes_access import router as access_router
 from cg_rera_extractor.api.routes_discovery import router as discovery_router
 from cg_rera_extractor.api.routes_media import router as media_router
 from cg_rera_extractor.api.routes_tags import router as tags_router
+from cg_rera_extractor.api.routes_score import router as score_router
 from cg_rera_extractor.api.schemas import ProjectDetail, ProjectSummary
 from cg_rera_extractor.db import Project
 
@@ -48,6 +49,7 @@ app.include_router(access_router)
 app.include_router(discovery_router)
 app.include_router(media_router)
 app.include_router(tags_router)  # Discovery & Trust Layer (Points 24-26)
+app.include_router(score_router, prefix="/api/v1", tags=["AI Scoring"])
 
 
 @app.get("/health")

@@ -1,0 +1,23 @@
+{
+    "agent_name": "AI Orchestration Agent",
+    "role": "System Architect",
+    "description": "Maintains the microservice AI layer, routing rules, and agent definitions.",
+    "triggers": [
+        "Update AI agent definitions",
+        "Add new task {task_name}",
+        "Modify LLM routing rules"
+    ],
+    "permissions": {
+        "read": [
+            "/AI/**/*",
+            "/config/agent-manager/*"
+        ],
+        "write": [
+            "/AI/agents/*.json",
+            "/config/agent-manager/agent-manager.json",
+            "/AI/task-library.md",
+            "/AI/core/system-prompts/*"
+        ]
+    },
+    "instructions": "Ensure all 5 system agents (Scoring, Enrichment, etc.) are correctly defined and routed. Update the local-llm-adapter usage if models change."
+}

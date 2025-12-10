@@ -1,0 +1,35 @@
+{
+    "agent_name": "compliance_guard_agent",
+    "version": "1.0.0",
+    "description": "AI governance and safety",
+    "responsibilities": [
+        "Enforce model boundaries and rate limits",
+        "Detect overreach or policy violations in LLM outputs",
+        "Reject hallucinations or unsafe content",
+        "Check logs for operational anomalies"
+    ],
+    "inputs": {
+        "llm_response": "Raw output from other agents",
+        "metadata": "Source agent and prompt info"
+    },
+    "outputs": {
+        "is_safe": "Boolean",
+        "redacted_content": "String (optional)",
+        "rejection_reason": "String"
+    },
+    "risk_level": "critical",
+    "llm_usage": {
+        "allowed": true,
+        "max_tokens": 128,
+        "temperature": 0.0
+    },
+    "routing_rules": {
+        "unsafe": "block_and_alert",
+        "safe": "pass_through"
+    },
+    "test_cases": [],
+    "observability": {
+        "log_level": "ERROR",
+        "emit_metrics": true
+    }
+}

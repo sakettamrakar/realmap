@@ -1,0 +1,34 @@
+{
+    "agent_name": "anomaly_detection_agent",
+    "version": "1.0.0",
+    "description": "Detect inconsistent, suspicious, or invalid records",
+    "responsibilities": [
+        "Perform rule-based validation checks",
+        "Detect semantic anomalies using LLM reasoning (e.g. description contradicts amenities)",
+        "Emit severity alerts"
+    ],
+    "inputs": {
+        "record": "Data record to inspect",
+        "history": "Optional historical context"
+    },
+    "outputs": {
+        "is_anomalous": "Boolean",
+        "severity": "low|medium|high|critical",
+        "issues": "List of detected issues"
+    },
+    "risk_level": "high",
+    "llm_usage": {
+        "allowed": true,
+        "max_tokens": 1024,
+        "temperature": 0.0
+    },
+    "routing_rules": {
+        "critical": "block_ingestion",
+        "warning": "tag_record"
+    },
+    "test_cases": [],
+    "observability": {
+        "log_level": "WARN",
+        "emit_metrics": true
+    }
+}

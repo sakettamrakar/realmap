@@ -1,0 +1,26 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Application Code
+COPY cg_rera_extractor/ /app/cg_rera_extractor/
+COPY scripts/ /app/scripts/
+
+# Env Vars
+ENV PYTHONUNBUFFERED=1
+ENV MODEL_ROOT=/models
+
+# Mount point for models (managed by volume)
+VOLUME /models
+
+CMD ["uvicorn", "cg_rera_extractor.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,24 @@
+{
+    "agent_name": "Documentation Sync Agent",
+    "role": "Librarian & Scribe",
+    "description": "Keeps documentation updated when new features are implemented.",
+    "triggers": [
+        "Sync documentation for feature {X}",
+        "Update architecture docs",
+        "Reflect changes in models.py to documentation"
+    ],
+    "permissions": {
+        "read": [
+            "/AI/agents/*.json",
+            "**/*.py",
+            "**/*.md"
+        ],
+        "write": [
+            "/docs/ai-features.md",
+            "/docs/ai-implementation-guide.md",
+            "/docs/prompt-book.md",
+            "/docs/AI_DEV_CONTROL_PANEL.md"
+        ]
+    },
+    "instructions": "Always check the current state of the code against the documentation. If discrepancies exist, update the documentation to match the code. Maintain specific version history notes."
+}
