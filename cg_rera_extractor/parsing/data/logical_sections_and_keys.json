@@ -5,88 +5,487 @@
       "section_title_variants": [
         "project details",
         "project information",
-        "details of project"
+        "details of project",
+        "general information",
+        "project particulars",
+        "basic details",
+        "project overview"
       ],
       "keys": {
-        "registration_number": ["registration number", "registration no", "project registration no"],
-        "project_name": ["project name", "name of project"],
-        "project_type": ["project type", "type of project"],
-        "project_status": ["project status", "current status"],
-        "district": ["district"],
-        "tehsil": ["tehsil"],
-        "project_address": ["project address", "address of project"],
-        "total_units": ["total units", "total number of units"],
-        "total_area_sq_m": ["total area (sq m)", "project area"],
-        "launch_date": ["launch date"],
-        "expected_completion_date": ["expected completion", "expected completion date", "proposed end date"]
+        "registration_number": [
+          "registration number",
+          "registration no",
+          "project registration no",
+          "rera reg no",
+          "rera registration number",
+          "reg no",
+          "project reg no"
+        ],
+        "project_name": [
+          "project name",
+          "name of project",
+          "project title",
+          "name"
+        ],
+        "project_type": [
+          "project type",
+          "type of project",
+          "nature of project",
+          "type"
+        ],
+        "project_status": [
+          "project status",
+          "current status",
+          "status"
+        ],
+        "district": [
+          "district",
+          "dist"
+        ],
+        "tehsil": [
+          "tehsil",
+          "taluka",
+          "block",
+          "sub district"
+        ],
+        "village_or_locality": [
+          "village",
+          "locality",
+          "mohalla",
+          "ward",
+          "sector",
+          "colony",
+          "village/locality",
+          "area",
+          "neighbourhood"
+        ],
+        "project_address": [
+          "project address",
+          "address of project",
+          "site address",
+          "location",
+          "address",
+          "project location"
+        ],
+        "project_website": [
+          "project website",
+          "website",
+          "web",
+          "url",
+          "website url",
+          "project url"
+        ],
+        "pincode": [
+          "pincode",
+          "pin",
+          "pin code",
+          "postal code",
+          "zip code",
+          "zip"
+        ],
+        "total_units": [
+          "total units",
+          "total number of units",
+          "no of units",
+          "number of units",
+          "units"
+        ],
+        "total_area_sq_m": [
+          "total area (sq m)",
+          "project area",
+          "total project area",
+          "land area",
+          "total land area",
+          "area in sq m",
+          "total area"
+        ],
+        "launch_date": [
+          "launch date",
+          "start date",
+          "commencement date",
+          "project start",
+          "registration date",
+          "approval date",
+          "date of approval"
+        ],
+        "expected_completion_date": [
+          "expected completion",
+          "expected completion date",
+          "proposed end date",
+          "completion date",
+          "project end date",
+          "proposed completion date",
+          "tentative completion",
+          "estimated completion"
+        ],
+        "project_phases": [
+          "number of phases",
+          "phases",
+          "no of phases",
+          "total phases"
+        ],
+        "fsi_approved": [
+          "fsi approved",
+          "fsi",
+          "floor space index",
+          "approved fsi"
+        ],
+        "far_approved": [
+          "far approved",
+          "far",
+          "floor area ratio",
+          "approved far"
+        ],
+        "has_litigation": [
+          "litigations pending",
+          "litigation",
+          "pending litigations",
+          "any litigation",
+          "legal cases"
+        ],
+        "open_space_area": [
+          "open space area",
+          "open area",
+          "recreational space",
+          "open space"
+        ],
+        "building_coverage": [
+          "building coverage",
+          "ground coverage",
+          "approved building coverage"
+        ]
       }
     },
     {
       "logical_section": "promoter_details",
       "section_title_variants": [
         "promoter information",
-        "promoter details"
+        "promoter details",
+        "developer details",
+        "builder details",
+        "promoter particulars",
+        "details of promoter",
+        "company details"
       ],
       "keys": {
-        "promoter_name": ["promoter name"],
-        "promoter_type": ["promoter type", "application type"],
-        "promoter_address": ["promoter address", "address", "registered address"],
-        "promoter_email": ["promoter email", "email"],
-        "promoter_phone": ["promoter phone", "contact number", "mobile"],
-        "promoter_pan": ["promoter pan", "pan"],
-        "promoter_cin": ["promoter cin", "cin"]
+        "promoter_name": [
+          "promoter name",
+          "name",
+          "developer name",
+          "builder name",
+          "company name",
+          "firm name",
+          "name of promoter"
+        ],
+        "promoter_type": [
+          "promoter type",
+          "application type",
+          "organisation type",
+          "org type",
+          "type of entity",
+          "entity type",
+          "type of organization",
+          "applicant type",
+          "company type"
+        ],
+        "promoter_address": [
+          "promoter address",
+          "address",
+          "registered address",
+          "office address",
+          "correspondence address",
+          "regd address",
+          "registered office address",
+          "corporate address"
+        ],
+        "promoter_email": [
+          "promoter email",
+          "email",
+          "email id",
+          "e-mail",
+          "email address",
+          "mail id"
+        ],
+        "promoter_phone": [
+          "promoter phone",
+          "contact number",
+          "mobile",
+          "mob no",
+          "phone no",
+          "telephone",
+          "contact",
+          "phone",
+          "mobile no",
+          "mobile number",
+          "contact no",
+          "tel"
+        ],
+        "promoter_pan": [
+          "promoter pan",
+          "pan",
+          "pan no",
+          "pan number",
+          "permanent account number"
+        ],
+        "promoter_cin": [
+          "promoter cin",
+          "cin",
+          "cin no",
+          "company cin",
+          "corporate identity number"
+        ],
+        "promoter_gst": [
+          "gst",
+          "gst number",
+          "gstin",
+          "gst no",
+          "gst registration",
+          "goods and services tax"
+        ],
+        "promoter_website": [
+          "promoter website",
+          "company website",
+          "website"
+        ],
+        "authorized_signatory": [
+          "authorized signatory",
+          "authorised signatory",
+          "signatory",
+          "authorized person"
+        ]
       }
     },
     {
       "logical_section": "land_details",
       "section_title_variants": [
         "land particulars",
-        "land details"
+        "land details",
+        "details of land",
+        "land information",
+        "site details",
+        "plot details"
       ],
       "keys": {
-        "land_area_sq_m": ["land area (sq m)", "land area"],
-        "land_status": ["land status", "status of land"],
-        "land_address": ["land address", "location of land"],
-        "khasra_numbers": ["khasra numbers", "survey numbers"]
+        "land_area_sq_m": [
+          "land area (sq m)",
+          "land area",
+          "total land area",
+          "site area",
+          "plot area"
+        ],
+        "land_status": [
+          "land status",
+          "status of land",
+          "ownership status",
+          "land ownership"
+        ],
+        "land_address": [
+          "land address",
+          "location of land",
+          "site location",
+          "plot location"
+        ],
+        "khasra_numbers": [
+          "khasra numbers",
+          "survey numbers",
+          "khasra no",
+          "survey no",
+          "khasra",
+          "plot survey numbers"
+        ],
+        "ward_number": [
+          "ward number",
+          "ward no",
+          "ward",
+          "zone"
+        ],
+        "mutation_number": [
+          "mutation number",
+          "mutation no",
+          "mutation"
+        ],
+        "patwari_halka": [
+          "patwari halka",
+          "halka",
+          "patwari circle"
+        ],
+        "plot_number": [
+          "plot number",
+          "plot no",
+          "plot",
+          "land plot"
+        ]
       }
     },
     {
       "logical_section": "building_details",
       "section_title_variants": [
         "building details",
-        "tower details"
+        "tower details",
+        "block details",
+        "wing details",
+        "building information",
+        "details of building",
+        "tower/building",
+        "building/tower details",
+        "structure details"
       ],
       "keys": {
-        "building_name": ["building name", "tower name"],
-        "number_of_floors": ["number of floors", "floors"],
-        "number_of_units": ["number of units", "units"],
-        "carpet_area_sq_m": ["carpet area (sq m)", "carpet area"]
+        "building_name": [
+          "building name",
+          "tower name",
+          "block name",
+          "wing name",
+          "name of building"
+        ],
+        "number_of_floors": [
+          "number of floors",
+          "floors",
+          "no of floors",
+          "total floors",
+          "storeys"
+        ],
+        "number_of_units": [
+          "number of units",
+          "units",
+          "no of units",
+          "total units in building"
+        ],
+        "carpet_area_sq_m": [
+          "carpet area (sq m)",
+          "carpet area",
+          "total carpet area"
+        ],
+        "basement_floors": [
+          "basement floors",
+          "basements",
+          "no of basements",
+          "basement"
+        ],
+        "stilt_floors": [
+          "stilt floors",
+          "stilt",
+          "stilts"
+        ],
+        "podium_floors": [
+          "podium floors",
+          "podium",
+          "podiums"
+        ],
+        "building_height": [
+          "building height",
+          "height",
+          "height in meters"
+        ],
+        "plan_approval_number": [
+          "plan approval number",
+          "building plan number",
+          "approved plan no"
+        ],
+        "parking_slots": [
+          "parking slots",
+          "parking",
+          "car parking slots",
+          "total parking"
+        ]
       }
     },
     {
       "logical_section": "unit_types",
       "section_title_variants": [
         "unit type details",
-        "unit details"
+        "unit details",
+        "flat type details",
+        "apartment details",
+        "unit configuration",
+        "unit mix"
       ],
       "keys": {
-        "unit_type_name": ["unit type"],
-        "unit_carpet_area_sq_m": ["carpet area (sq m)", "carpet area"],
-        "unit_built_up_area_sq_m": ["built-up area (sq m)", "built up area"],
-        "unit_price_in_inr": ["unit price (inr)", "unit price"]
+        "unit_type_name": [
+          "unit type",
+          "type",
+          "configuration",
+          "flat type"
+        ],
+        "unit_carpet_area_sq_m": [
+          "carpet area (sq m)",
+          "carpet area",
+          "carpet"
+        ],
+        "unit_built_up_area_sq_m": [
+          "built-up area (sq m)",
+          "built up area",
+          "built-up area",
+          "builtup area"
+        ],
+        "unit_super_built_up_area": [
+          "super built-up area",
+          "super builtup area",
+          "sbua",
+          "super area"
+        ],
+        "unit_price_in_inr": [
+          "unit price (inr)",
+          "unit price",
+          "price",
+          "rate",
+          "price per unit"
+        ],
+        "balcony_area": [
+          "balcony area",
+          "balcony"
+        ],
+        "terrace_area": [
+          "terrace area",
+          "terrace",
+          "exclusive terrace"
+        ],
+        "common_area": [
+          "common area",
+          "common"
+        ]
       }
     },
     {
       "logical_section": "bank_details",
       "section_title_variants": [
         "bank / escrow details",
-        "bank details"
+        "bank details",
+        "escrow details",
+        "bank account details",
+        "financial details",
+        "account details"
       ],
       "keys": {
-        "bank_name": ["bank name"],
-        "branch_name": ["branch", "branch name"],
-        "account_number": ["account number", "account no"],
-        "ifsc_code": ["ifsc code"]
+        "bank_name": [
+          "bank name",
+          "name of bank"
+        ],
+        "branch_name": [
+          "branch",
+          "branch name",
+          "branch address"
+        ],
+        "account_number": [
+          "account number",
+          "account no",
+          "a/c no",
+          "ac no"
+        ],
+        "ifsc_code": [
+          "ifsc code",
+          "ifsc",
+          "ifsc no"
+        ],
+        "account_type": [
+          "account type",
+          "type of account"
+        ],
+        "authorized_signatories": [
+          "authorized signatories",
+          "signatories",
+          "authorised signatories"
+        ]
       }
     },
     {
@@ -97,29 +496,96 @@
         "segment specific",
         "land documents",
         "approval from competent authoroties",
+        "approval from competent authorities",
         "project specific",
         "miscellaneous",
-        "acts & rules"
+        "acts & rules",
+        "project documents",
+        "legal documents",
+        "approvals"
       ],
       "keys": {
-        "document_name": ["document name"],
-        "document_type": ["document type"],
-        "document_url": ["document url", "url"],
-        "document_uploaded_on": ["uploaded on", "upload date"]
+        "document_name": [
+          "document name",
+          "name"
+        ],
+        "document_type": [
+          "document type",
+          "type"
+        ],
+        "document_url": [
+          "document url",
+          "url",
+          "link",
+          "download"
+        ],
+        "document_uploaded_on": [
+          "uploaded on",
+          "upload date",
+          "date"
+        ]
       }
     },
     {
       "logical_section": "quarterly_updates",
       "section_title_variants": [
         "quarterly updates",
-        "progress updates"
+        "progress updates",
+        "construction progress",
+        "project progress",
+        "quarterly progress",
+        "status updates"
       ],
       "keys": {
-        "quarter": ["quarter"],
-        "year": ["year"],
-        "status": ["status"],
-        "completion_percent": ["completion (%)", "completion percent"],
-        "remarks": ["remarks", "comment"]
+        "quarter": [
+          "quarter",
+          "qtr"
+        ],
+        "year": [
+          "year",
+          "yr"
+        ],
+        "status": [
+          "status",
+          "construction status"
+        ],
+        "completion_percent": [
+          "completion (%)",
+          "completion percent",
+          "% completion",
+          "percentage complete"
+        ],
+        "remarks": [
+          "remarks",
+          "comment",
+          "comments",
+          "notes"
+        ],
+        "foundation_percent": [
+          "foundation",
+          "foundation %",
+          "foundation complete"
+        ],
+        "plinth_percent": [
+          "plinth",
+          "plinth %",
+          "plinth complete"
+        ],
+        "superstructure_percent": [
+          "superstructure",
+          "superstructure %",
+          "structure"
+        ],
+        "mep_percent": [
+          "mep",
+          "mep %",
+          "mechanical electrical plumbing"
+        ],
+        "finishing_percent": [
+          "finishing",
+          "finishing %",
+          "internal finishing"
+        ]
       }
     }
   ]

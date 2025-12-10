@@ -93,6 +93,54 @@ class Project(Base):
         DateTime(timezone=True),
         doc="Timestamp of last QA validation"
     )
+    
+    # ==========================================================================
+    # DATA AUDIT: New columns added 2024-12-10
+    # ==========================================================================
+    project_website_url: Mapped[str | None] = mapped_column(
+        String(1024),
+        doc="Project marketing website URL"
+    )
+    number_of_phases: Mapped[int | None] = mapped_column(
+        Integer,
+        default=1,
+        doc="Number of project phases"
+    )
+    fsi_approved: Mapped[Numeric | None] = mapped_column(
+        Numeric(6, 2),
+        doc="Floor Space Index approved"
+    )
+    far_approved: Mapped[Numeric | None] = mapped_column(
+        Numeric(6, 2),
+        doc="Floor Area Ratio approved"
+    )
+    has_litigation: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        doc="Whether project has pending litigations"
+    )
+    open_space_area_sqmt: Mapped[Numeric | None] = mapped_column(
+        Numeric(14, 2),
+        doc="Open space area in square meters"
+    )
+    approved_building_coverage: Mapped[Numeric | None] = mapped_column(
+        Numeric(6, 2),
+        doc="Approved building coverage percentage"
+    )
+    total_complaints: Mapped[int | None] = mapped_column(
+        Integer,
+        default=0,
+        doc="Total complaints filed against project"
+    )
+    complaints_resolved: Mapped[int | None] = mapped_column(
+        Integer,
+        default=0,
+        doc="Number of complaints resolved"
+    )
+    locality_id: Mapped[int | None] = mapped_column(
+        Integer,
+        doc="Foreign key to localities table (normalized location)"
+    )
 
     promoters: Mapped[list["Promoter"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -151,6 +199,9 @@ class Promoter(Base):
     phone: Mapped[str | None] = mapped_column(String(50))
     address: Mapped[str | None] = mapped_column(String(512))
     website: Mapped[str | None] = mapped_column(String(255))
+    # DATA AUDIT: New columns
+    gst_number: Mapped[str | None] = mapped_column(String(20))
+    authorized_signatory: Mapped[str | None] = mapped_column(String(255))
 
     project: Mapped[Project] = relationship(back_populates="promoters")
 
@@ -167,6 +218,14 @@ class Building(Base):
     number_of_floors: Mapped[int | None] = mapped_column(Integer)
     total_units: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str | None] = mapped_column(String(100))
+    # DATA AUDIT: New columns
+    basement_floors: Mapped[int | None] = mapped_column(Integer, default=0)
+    stilt_floors: Mapped[int | None] = mapped_column(Integer, default=0)
+    podium_floors: Mapped[int | None] = mapped_column(Integer, default=0)
+    height_meters: Mapped[Numeric | None] = mapped_column(Numeric(6, 2))
+    plan_approval_number: Mapped[str | None] = mapped_column(String(100))
+    parking_slots_open: Mapped[int | None] = mapped_column(Integer, default=0)
+    parking_slots_covered: Mapped[int | None] = mapped_column(Integer, default=0)
 
     project: Mapped[Project] = relationship(back_populates="buildings")
 
@@ -213,6 +272,13 @@ class QuarterlyUpdate(Base):
     status: Mapped[str | None] = mapped_column(String(100))
     summary: Mapped[str | None] = mapped_column(String(512))
     raw_data_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # DATA AUDIT: New progress percentage columns
+    foundation_percent: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    plinth_percent: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    superstructure_percent: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    mep_percent: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    finishing_percent: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
+    overall_percent: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
 
     project: Mapped[Project] = relationship(back_populates="quarterly_updates")
 
@@ -229,6 +295,11 @@ class BankAccount(Base):
     account_number: Mapped[str | None] = mapped_column(String(100))
     ifsc_code: Mapped[str | None] = mapped_column(String(20))
     account_holder_name: Mapped[str | None] = mapped_column(String(255))
+    # DATA AUDIT: New columns
+    account_type: Mapped[str | None] = mapped_column(String(50))
+    authorized_signatories: Mapped[str | None] = mapped_column(String)
+    total_funds_received: Mapped[Numeric | None] = mapped_column(Numeric(18, 2))
+    total_funds_utilized: Mapped[Numeric | None] = mapped_column(Numeric(18, 2))
 
     project: Mapped[Project] = relationship(back_populates="bank_accounts")
 
@@ -244,6 +315,11 @@ class LandParcel(Base):
     area_sqmt: Mapped[Numeric | None] = mapped_column(Numeric(12, 2))
     owner_name: Mapped[str | None] = mapped_column(String(255))
     encumbrance_details: Mapped[str | None] = mapped_column(String(1024))
+    # DATA AUDIT: New columns
+    ward_number: Mapped[str | None] = mapped_column(String(50))
+    mutation_number: Mapped[str | None] = mapped_column(String(100))
+    patwari_halka: Mapped[str | None] = mapped_column(String(100))
+    plot_number: Mapped[str | None] = mapped_column(String(100))
 
     project: Mapped[Project] = relationship(back_populates="land_parcels")
 

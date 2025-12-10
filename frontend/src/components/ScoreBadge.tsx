@@ -27,7 +27,7 @@ const getBucket = (score: number | null | undefined, status?: string) => {
 };
 
 const getLabel = (bucket: string, status?: string) => {
-  if (status === 'insufficient_data' || status === 'partial') return "Incomplete data";
+  if (status === 'insufficient_data' || status === 'partial') return "Incomplete";
   switch (bucket) {
     case "excellent":
       return "Excellent";
@@ -41,6 +41,34 @@ const getLabel = (bucket: string, status?: string) => {
       return "N/A";
   }
 };
+
+const getBucketStyles = (bucket: string, isNeutral: boolean) => {
+  if (isNeutral) return "bg-slate-100 text-slate-600 border-slate-200";
+
+  switch (bucket) {
+    case "excellent":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200 ring-1 ring-emerald-500/10";
+    case "good":
+      return "bg-sky-50 text-sky-700 border-sky-200 ring-1 ring-sky-500/10";
+    case "average":
+      return "bg-orange-50 text-orange-700 border-orange-200 ring-1 ring-orange-500/10";
+    case "weak":
+      return "bg-rose-50 text-rose-700 border-rose-200 ring-1 ring-rose-500/10";
+    default:
+      return "bg-slate-50 text-slate-600 border-slate-200 ring-1 ring-slate-500/10";
+  }
+}
+
+const getDotColor = (bucket: string, isNeutral: boolean) => {
+  if (isNeutral) return "bg-slate-400";
+  switch (bucket) {
+    case "excellent": return "bg-emerald-500";
+    case "good": return "bg-sky-500";
+    case "average": return "bg-orange-500";
+    case "weak": return "bg-rose-500";
+    default: return "bg-slate-400";
+  }
+}
 
 const ScoreBadge = ({ score, status, reason, className, amenityScore, locationScore }: Props) => {
   const bucket = getBucket(score, status);
@@ -65,17 +93,26 @@ const ScoreBadge = ({ score, status, reason, className, amenityScore, locationSc
   }
 
   const isNeutral = status === 'insufficient_data' || status === 'partial';
+  const styles = getBucketStyles(bucket, isNeutral);
+  const dotColor = getDotColor(bucket, isNeutral);
 
   return (
-    <span className={classNames("badge", isNeutral ? "badge-neutral" : `badge-${bucket}`, className)} title={tooltip.trim()}>
-      <span className="badge-dot" />
+    <span
+      className={classNames(
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all",
+        styles,
+        className
+      )}
+      title={tooltip.trim()}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
       <span>{label}</span>
       {!isNeutral && normalizedScore !== null && (
-        <span className="badge-value">
+        <span className="ml-1 opacity-75 font-bold">
           {normalizedScore.toFixed(1)}
         </span>
       )}
-      {status === 'partial' && <span style={{ marginLeft: '4px' }}>⚠️</span>}
+      {status === 'partial' && <span className="ml-1 text-xs opacity-75">⚠️</span>}
     </span>
   );
 };

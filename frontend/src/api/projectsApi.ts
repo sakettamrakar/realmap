@@ -40,6 +40,7 @@ export async function searchProjects(
     console.error("Failed to search projects", error);
     throw new Error("Unable to load projects. Please try again.");
   }
+
 }
 
 export async function getProject(

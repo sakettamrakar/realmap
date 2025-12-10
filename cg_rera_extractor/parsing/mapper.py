@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime
 from importlib import resources
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from .schema import (
     PreviewArtifact,
@@ -86,6 +87,80 @@ def _to_float(value: str | None) -> float | None:
             except ValueError:
                 return None
     return None
+
+
+def _normalize_date(value: str | None) -> str | None:
+    """Normalize date strings to ISO format (YYYY-MM-DD).
+    
+    Handles common Indian date formats:
+    - DD/MM/YYYY
+    - DD-MM-YYYY
+    - DD.MM.YYYY
+    - YYYY-MM-DD (already ISO)
+    """
+    if not value:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    
+    # Try multiple date formats
+    date_formats = (
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+        "%Y-%m-%d",
+        "%d.%m.%Y",
+        "%d %b %Y",
+        "%d %B %Y",
+        "%Y/%m/%d",
+    )
+    
+    for fmt in date_formats:
+        try:
+            dt = datetime.strptime(value, fmt)
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    
+    # Return as-is if no format matched (for logging/debugging)
+    return None
+
+
+def _extract_pincode(address: str | None) -> str | None:
+    """Extract 6-digit Indian pincode from address string."""
+    if not address:
+        return None
+    # Look for 6-digit number that could be a pincode
+    match = re.search(r'\b(\d{6})\b', address)
+    return match.group(1) if match else None
+
+
+def _infer_doc_type(field_key: str) -> str:
+    """Infer document type from field key."""
+    key_lower = field_key.lower()
+    
+    doc_type_mapping = {
+        'registration': 'registration_certificate',
+        'building': 'building_plan',
+        'layout': 'layout_plan',
+        'fire': 'fire_noc',
+        'environment': 'environment_noc',
+        'airport': 'airport_noc',
+        'encumbrance': 'encumbrance_certificate',
+        'commencement': 'commencement_certificate',
+        'occupancy': 'occupancy_certificate',
+        'completion': 'completion_certificate',
+        'revenue': 'revenue_document',
+        'title': 'land_title_deed',
+        'brochure': 'project_brochure',
+        'photo': 'site_photo',
+    }
+    
+    for keyword, doc_type in doc_type_mapping.items():
+        if keyword in key_lower:
+            return doc_type
+    
+    return 'unknown'
 
 
 def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project:
@@ -188,6 +263,19 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
     )
 
     project_section = section_data.get("project_details", {})
+    project_address = project_section.get("project_address")
+    
+    # Extract pincode from address if not provided separately
+    pincode = project_section.get("pincode")
+    if not pincode and project_address:
+        pincode = _extract_pincode(project_address)
+    
+    # Extract village/locality
+    village_or_locality = project_section.get("village_or_locality")
+    
+    # Extract project website
+    project_website_url = project_section.get("project_website")
+    
     project_details = V1ProjectDetails(
         registration_number=raw.registration_number or project_section.get("registration_number"),
         project_name=raw.project_name or project_section.get("project_name"),
@@ -195,12 +283,19 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
         project_status=project_section.get("project_status"),
         district=project_section.get("district"),
         tehsil=project_section.get("tehsil"),
-        project_address=project_section.get("project_address"),
+        project_address=project_address,
+        project_website_url=project_website_url,
         total_units=_to_int(project_section.get("total_units")),
         total_area_sq_m=_to_float(project_section.get("total_area_sq_m")),
-        launch_date=project_section.get("launch_date"),
-        expected_completion_date=project_section.get("expected_completion_date"),
+        launch_date=_normalize_date(project_section.get("launch_date")),
+        expected_completion_date=_normalize_date(project_section.get("expected_completion_date")),
     )
+    # Store extracted fields for loader to use
+    project_details._extra = {
+        "pincode": pincode,
+        "village_or_locality": village_or_locality,
+        "project_website_url": project_website_url,
+    }
 
     promoter_details = []
     promoter_section = section_data.get("promoter_details")

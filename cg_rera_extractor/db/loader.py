@@ -113,6 +113,36 @@ def _ensure_session(session: Session | None) -> tuple[Session, Callable[[], None
     return db_session, db_session.close
 
 
+def _infer_artifact_category(field_key: str) -> str:
+    """Infer artifact category from field key for document classification.
+    
+    Categories: 'legal', 'technical', 'approvals', 'media', 'unknown'
+    """
+    key_lower = field_key.lower()
+    
+    legal_keywords = ['registration', 'encumbrance', 'title', 'revenue', 'deed', 'agreement', 'allotment']
+    technical_keywords = ['building', 'layout', 'structure', 'floor', 'plan', 'drawing', 'design']
+    approval_keywords = ['noc', 'approval', 'permission', 'certificate', 'commencement', 'occupancy', 'completion', 'fire', 'environment', 'airport']
+    media_keywords = ['photo', 'image', 'brochure', 'video', 'render', 'amenity']
+    
+    for keyword in legal_keywords:
+        if keyword in key_lower:
+            return 'legal'
+    
+    for keyword in approval_keywords:
+        if keyword in key_lower:
+            return 'approvals'
+    
+    for keyword in technical_keywords:
+        if keyword in key_lower:
+            return 'technical'
+    
+    for keyword in media_keywords:
+        if keyword in key_lower:
+            return 'media'
+    
+    return 'unknown'
+
 # =============================================================================
 # POINT 27: QA Validation Gate
 # =============================================================================
@@ -189,12 +219,16 @@ def _create_provenance_record(
     ])
     confidence_score = Decimal(str(filled_fields / total_fields))
     
+    # Use getattr with defaults for optional metadata fields
+    source_domain = getattr(metadata, 'source_domain', None) or "rera.cg.gov.in"
+    scraper_version = getattr(metadata, 'scraper_version', None) or "1.0"
+    
     provenance = DataProvenance(
         project_id=project_id,
         snapshot_url=metadata.source_url,
-        source_domain=metadata.source_domain or "rera.cg.gov.in",
-        extraction_method=f"v1_json_parser_{metadata.scraper_version or '1.0'}",
-        parser_version=metadata.scraper_version,
+        source_domain=source_domain,
+        extraction_method=f"v1_json_parser_{scraper_version}",
+        parser_version=scraper_version,
         confidence_score=confidence_score,
         network_log_ref=network_log_ref,
         html_snapshot_path=html_snapshot_path,
@@ -259,15 +293,36 @@ def _load_project(
     else:
         project.project_name = details.project_name or project.project_name
 
+    # Extract extra fields from details._extra if present
+    extra = getattr(details, '_extra', {}) or {}
+    pincode = extra.get('pincode')
+    village_or_locality = extra.get('village_or_locality')
+    project_website_url = extra.get('project_website_url') or details.project_website_url
+
     project.status = details.project_status
     project.district = details.district
     project.tehsil = details.tehsil
-    project.village_or_locality = None
+    project.village_or_locality = village_or_locality
+    project.pincode = pincode
     project.full_address = details.project_address
     project.approved_date = _parse_date(details.launch_date)
     project.proposed_end_date = _parse_date(details.expected_completion_date)
     project.extended_end_date = None
     project.raw_data_json = v1_project.model_dump()
+    
+    # Set scraped_at timestamp (AUDIT FIX: was always NULL)
+    scraped_at_str = v1_project.metadata.scraped_at
+    if scraped_at_str:
+        try:
+            project.scraped_at = datetime.fromisoformat(scraped_at_str.replace('Z', '+00:00'))
+        except (ValueError, AttributeError):
+            project.scraped_at = datetime.now(timezone.utc)
+    else:
+        project.scraped_at = datetime.now(timezone.utc)
+    
+    # Set project_website_url if schema supports it
+    if hasattr(project, 'project_website_url'):
+        project.project_website_url = project_website_url
 
     normalized = normalize_address(
         AddressParts(
@@ -309,7 +364,7 @@ def _load_project(
         (ProjectDocument, v1_project.documents),
         (QuarterlyUpdate, v1_project.quarterly_updates),
         (BankAccount, v1_project.bank_details),
-        (LandParcel, []),  # Land details not directly in V1Project top-level yet
+        (LandParcel, v1_project.land_details),  # AUDIT FIX: was hardcoded empty
         (ProjectArtifact, []),  # Artifacts handled via previews
         (ProjectLocation, v1_project.rera_locations),  # RERA locations from amenities
     ]
@@ -414,6 +469,9 @@ def _load_project(
     previews = getattr(v1_project, "previews", {})
     if not previews and v1_project.raw_data_json:
         previews = v1_project.raw_data_json.get("previews", {})
+    
+    # Get base URL for resolving relative paths
+    base_url = v1_project.metadata.source_url or ""
 
     if isinstance(previews, dict):
         for field_key, preview_data in previews.items():
@@ -423,13 +481,21 @@ def _load_project(
                 # If notes looks like a file path, use it
                 file_path = notes if notes and isinstance(notes, str) else None
                 
+                # AUDIT FIX: Resolve relative URLs to absolute
+                if file_path and file_path.startswith(".."):
+                    from urllib.parse import urljoin
+                    file_path = urljoin(base_url, file_path)
+                
+                # AUDIT FIX: Infer category from field key
+                category = _infer_artifact_category(field_key)
+                
                 session.add(
                     ProjectArtifact(
                         project_id=project.id,
-                        category="unknown",
+                        category=category,
                         artifact_type=field_key,
                         file_path=file_path,
-                        source_url=None,
+                        source_url=file_path,  # Store original URL
                         is_preview=True,
                     )
                 )

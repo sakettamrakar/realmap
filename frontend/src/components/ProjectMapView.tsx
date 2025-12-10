@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef } from "react";
-import classNames from "classnames";
 import {
   MapContainer,
   Marker,
@@ -9,8 +8,6 @@ import {
 } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L, { LatLngBounds } from "leaflet";
-import SectionHeader from "./SectionHeader";
-import ScoreBadge from "./ScoreBadge";
 import type { BBox, ProjectMapPin } from "../types/projects";
 
 interface Props {
@@ -27,7 +24,6 @@ interface Props {
 
 const scoreBucket = (score?: number) => {
   if (score === undefined || score === null) return "unknown";
-  // Normalize if 0-1
   const val = score <= 1 ? score * 10 : score > 10 ? score / 10 : score;
 
   if (val >= 8) return "excellent";
@@ -85,22 +81,40 @@ const getIcon = (
   let icon = iconCache.get(cacheKey);
 
   if (!icon) {
-    const classes = classNames("map-pin-marker", {
-      "pin-selected": options.isSelected,
-      "pin-hovered": options.isHovered,
-      "pin-pill": isPill,
-      [`pin-${bucket}`]: !isPill && bucket,
-    });
+    // Generate Tailwind colors for markers manually since Leaflet doesn't parse Tailwind classes from stringHTML
+    let bgColor = "#64748b"; // slate-500 default
+    let borderColor = "#cbd5e1"; // slate-300
+
+    if (bucket === 'excellent') { bgColor = "#10b981"; borderColor = "#34d399"; } // emerald-500
+    else if (bucket === 'good') { bgColor = "#0ea5e9"; borderColor = "#38bdf8"; } // sky-500
+    else if (bucket === 'average') { bgColor = "#f97316"; borderColor = "#fb923c"; } // orange-500
+    else if (bucket === 'weak') { bgColor = "#f43f5e"; borderColor = "#fb7185"; } // rose-500
+
+    // Override for approximate
+    if (options.precision === 'approximate') {
+      borderColor = bgColor;
+      bgColor = "#ffffff";
+    }
+
+    // Selected/Hovered state
+    if (options.isSelected) { bgColor = "#0f172a"; borderColor = "#0f172a"; } // slate-900
+
+    const style = `
+      background-color: ${bgColor}; 
+      border: 2px solid ${borderColor}; 
+      color: ${options.precision === 'approximate' && !options.isSelected ? '#0f172a' : 'white'};
+      ${options.isHovered ? 'transform: scale(1.1); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);' : ''}
+    `;
 
     const html = isPill
-      ? `<div class="${classes}"><span>${priceText}</span></div>`
-      : `<div class="${classes}"></div>`;
+      ? `<div class="flex items-center justify-center rounded-full font-bold text-[11px] px-2 shadow-sm transition-transform" style="${style} min-width: 44px; height: 24px;">${priceText}</div>`
+      : `<div class="rounded-full shadow-sm transition-transform" style="${style} width: 14px; height: 14px;"></div>`;
 
     icon = L.divIcon({
-      className: "custom-div-icon",
+      className: "bg-transparent border-none", // Remove default leaflet styles
       html: html,
-      iconSize: isPill ? [60, 28] : [14, 14],
-      iconAnchor: isPill ? [30, 28] : [7, 7],
+      iconSize: isPill ? [60, 24] : [14, 14],
+      iconAnchor: isPill ? [30, 24] : [7, 7],
     });
     iconCache.set(cacheKey, icon);
   }
@@ -112,8 +126,8 @@ const createClusterIcon = (cluster: any) => {
   const size = count < 10 ? 32 : count < 50 ? 38 : 46;
 
   return L.divIcon({
-    html: `<div><span>${count}</span></div>`,
-    className: "cluster-icon",
+    html: `<div class="flex items-center justify-center bg-sky-500 text-white rounded-full border-2 border-white shadow-lg font-bold text-sm" style="width: ${size}px; height: ${size}px;">${count}</div>`,
+    className: "bg-transparent border-none",
     iconSize: L.point(size, size, true),
   });
 };
@@ -172,7 +186,6 @@ const PinsLayer = ({
           isHovered: hoveredProjectId === pin.project_id,
         });
 
-        // Bring selected/hovered pins to front
         const zIndexOffset = (selectedProjectId === pin.project_id || hoveredProjectId === pin.project_id) ? 1000 : 0;
 
         return (
@@ -186,9 +199,7 @@ const PinsLayer = ({
               mouseover: () => onHoverProject(pin.project_id),
               mouseout: () => onHoverProject(null),
             }}
-          >
-            {/* Tooltip removed as price is now visible */}
-          </Marker>
+          />
         );
       })}
     </MarkerClusterGroup>
@@ -245,56 +256,66 @@ const ProjectMapView = ({
   );
 
   return (
-    <div className="map-panel">
-      <SectionHeader
-        eyebrow="Map View"
-        title="Projects by location"
-        subtitle="Click a pin to view details"
-        actions={loading && <div className="pill pill-muted">Loading…</div>}
-      />
-      <div className="map-card">
-        <MapContainer
-          center={mapCenter}
-          zoom={7}
-          bounds={bounds}
-          className="map"
-          scrollWheelZoom
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <MapEvents onBoundsChange={onBoundsChange} />
-          <RecenterOnFocus focus={focus} />
-          <PinsLayer
-            pins={pins}
-            onSelectProject={onSelectProject}
-            selectedProjectId={selectedProjectId}
-            hoveredProjectId={hoveredProjectId}
-            onHoverProject={onHoverProject}
-            initialBounds={initialBounds}
-          />
-        </MapContainer>
-        <div className="map-legend">
-          <div className="legend-row">
-            <span className="legend-title">Score</span>
-            <div className="legend-items">
-              <ScoreBadge score={0.8} />
-              <ScoreBadge score={0.6} />
-              <ScoreBadge score={0.4} />
-              <ScoreBadge score={0.2} />
-            </div>
+    <div className="h-full w-full flex flex-col relative bg-slate-100 rounded-2xl overflow-hidden">
+      {/* Floating Header */}
+      <div className="absolute top-4 left-4 right-4 z-[450] bg-white/90 backdrop-blur-sm rounded-xl p-3 shadow-md border border-slate-200">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm">Map View</h3>
+            <p className="text-xs text-slate-500">
+              {pins.length} projects in view
+            </p>
           </div>
-          <div className="legend-row">
-            <span className="legend-title">Location quality</span>
-            <div className="legend-quality">
-              <span className="legend-pin legend-pin-exact" aria-hidden="true" />
-              <span>● Exact location</span>
-            </div>
-            <div className="legend-quality">
-              <span className="legend-pin legend-pin-approx" aria-hidden="true" />
-              <span>○ Approximate location</span>
-            </div>
+          {loading && (
+            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-medium animate-pulse">
+              Updating...
+            </span>
+          )}
+        </div>
+      </div>
+
+      <MapContainer
+        center={mapCenter}
+        zoom={7}
+        bounds={bounds}
+        className="flex-1 w-full h-full z-0"
+        scrollWheelZoom
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapEvents onBoundsChange={onBoundsChange} />
+        <RecenterOnFocus focus={focus} />
+        <PinsLayer
+          pins={pins}
+          onSelectProject={onSelectProject}
+          selectedProjectId={selectedProjectId}
+          hoveredProjectId={hoveredProjectId}
+          onHoverProject={onHoverProject}
+          initialBounds={initialBounds}
+        />
+      </MapContainer>
+
+      {/* Legend */}
+      <div className="absolute bottom-6 right-6 z-[450] bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg border border-slate-200 max-w-[200px]">
+        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Score</h4>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <div className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-200" title="Excellent" />
+          <div className="w-3 h-3 rounded-full bg-sky-500 ring-2 ring-sky-200" title="Good" />
+          <div className="w-3 h-3 rounded-full bg-orange-500 ring-2 ring-orange-200" title="Average" />
+          <div className="w-3 h-3 rounded-full bg-rose-500 ring-2 ring-rose-200" title="Weak" />
+        </div>
+
+        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Accuracy</h4>
+        <div className="space-y-1.5 text-xs text-slate-700">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-slate-500 border-2 border-slate-300" />
+            <span>Exact</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-white border-2 border-slate-500" />
+            <span>Approximate</span>
           </div>
         </div>
       </div>
@@ -303,3 +324,5 @@ const ProjectMapView = ({
 };
 
 export default ProjectMapView;
+
+
