@@ -119,6 +119,26 @@ async def get_score(score_id: int, db: Session = Depends(get_db)):
         "created_at": row.created_at
     }
 
+@app.post("/ai/extract/rera", response_model=bool)
+async def extract_rera_doc(file_path: str, project_id: int, db: Session = Depends(get_db)):
+    """
+    Trigger RERA document extraction for a specific file.
+    """
+    if not AI_ENABLED:
+        raise HTTPException(status_code=503, detail="AI services are currently disabled")
+        
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    from ai.rera.parser import ReraPdfParser
+    
+    try:
+        parser = ReraPdfParser(use_ocr=True) # or config driven
+        result = parser.process_file(file_path, project_id=project_id, db=db)
+        return True
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)

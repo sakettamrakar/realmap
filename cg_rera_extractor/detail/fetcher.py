@@ -22,6 +22,11 @@ from cg_rera_extractor.detail.storage import (
     save_listing_metadata,
 )
 from cg_rera_extractor.listing.models import ListingRecord
+from cg_rera_extractor.utils.scraping_cache import (
+    ScrapedCache,
+    should_skip_listing,
+    mark_listing_scraped,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -243,17 +248,43 @@ def fetch_and_save_details(
     output_base: str,
     listing_page_url: str,
     state_code: str,
+    scraping_mode: str = "full",
+    cache: ScrapedCache | None = None,
 ) -> None:
-    """Fetch detail pages for each listing and persist the HTML files."""
+    """Fetch detail pages for each listing and persist the HTML files.
+    
+    Args:
+        session: Browser session for navigation
+        selectors: Search page selectors configuration
+        listings: List of listing records to process
+        output_base: Base directory for output files
+        listing_page_url: URL of the listing page
+        state_code: State code (e.g., 'CG')
+        scraping_mode: 'delta' to skip already-scraped listings, 'full' to scrape all
+        cache: Optional ScrapedCache instance for delta mode (auto-created if None)
+    """
 
     table_selector = selectors.listing_table or selectors.results_table or "table"
     row_locator = selectors.row_selector or "tr"
     total = len(listings)
-    LOGGER.info("Starting detail fetch for %d listings", total)
+    
+    # Initialize cache if needed
+    if cache is None and scraping_mode == "delta":
+        from cg_rera_extractor.utils.scraping_cache import load_cache
+        cache = load_cache()
+        LOGGER.info("Loaded scraping cache for delta mode")
+    
+    LOGGER.info("Starting detail fetch for %d listings (mode=%s)", total, scraping_mode)
 
     for idx, record in enumerate(listings, 1):
         if not record.detail_url:
             LOGGER.debug("Skipping %s - no detail URL", record.reg_no)
+            continue
+        
+        # CONDITIONAL SCRAPING: Check if listing should be skipped in delta mode
+        if cache is not None and should_skip_listing(record.reg_no, scraping_mode, cache):
+            LOGGER.info("[SKIP] %s already scraped (delta mode)", record.reg_no)
+            print(f"[{idx}/{total}] SKIPPED {record.reg_no} - already scraped")
             continue
 
         try:
@@ -377,6 +408,12 @@ def fetch_and_save_details(
             }
             save_listing_metadata(output_base, project_key, listing_meta)
             LOGGER.debug("Saved listing metadata for %s", record.reg_no)
+            
+            # CONDITIONAL SCRAPING: Mark listing as scraped in cache
+            if cache is not None:
+                mark_listing_scraped(record.reg_no, cache, persist_immediately=False)
+                LOGGER.info("[SCRAPE] %s scraped successfully", record.reg_no)
+                print(f"[{idx}/{total}] SCRAPED {record.reg_no} successfully")
 
             try:
                 LOGGER.info("Starting data extraction for current project...")
@@ -482,4 +519,11 @@ def fetch_and_save_details(
         
         
     LOGGER.info("Detail fetch complete for all %d listings", total)
+    
+    # CONDITIONAL SCRAPING: Persist cache to disk at the end
+    if cache is not None:
+        from cg_rera_extractor.utils.scraping_cache import persist_cache
+        persist_cache(cache)
+        LOGGER.info("Persisted scraping cache with %d entries", len(cache))
+
 

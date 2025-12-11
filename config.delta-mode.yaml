@@ -1,0 +1,28 @@
+# Configuration example for DELTA scraping mode
+# This demonstrates conditional scraping where already-scraped listings are skipped
+
+db:
+  url: ${DATABASE_URL}  # Uses environment variable
+
+run:
+  mode: FULL  # Run mode: DRY_RUN, LISTINGS_ONLY, or FULL
+  scraping_mode: delta  # NEW: "delta" skips already-scraped, "full" scrapes all
+  scraping_cache_file: data/scraped_cache.json  # Cache file for delta mode
+  
+  search_filters:
+    districts:
+      - Raipur
+    statuses:
+      - Registered
+    project_types: []
+  
+  output_base_dir: ./outputs/delta-run
+  state_code: CG
+  max_search_combinations: 10
+  max_total_listings: 2  # Testing with 2 listings
+
+browser:
+  driver: playwright
+  headless: false  # Set to true for background execution
+  slow_mo_ms: null
+  default_timeout_ms: 20000

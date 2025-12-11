@@ -91,6 +91,20 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
     LOGGER.info(
         "Starting run %s in %s mode. Output folder: %s", run_id, status.mode, dirs["run_dir"]
     )
+    
+    # CONDITIONAL SCRAPING: Initialize cache for delta mode
+    scraping_cache = None
+    scraping_mode = run_config.scraping_mode.value if hasattr(run_config.scraping_mode, "value") else str(run_config.scraping_mode)
+    if scraping_mode == "delta":
+        from cg_rera_extractor.utils.scraping_cache import load_cache
+        cache_file = Path(run_config.scraping_cache_file).expanduser()
+        scraping_cache = load_cache(cache_file)
+        LOGGER.info("Loaded scraping cache with %d entries for delta mode", len(scraping_cache))
+        print(f"Delta mode enabled: {len(scraping_cache)} listings already scraped")
+    else:
+        LOGGER.info("Full scraping mode: all listings will be scraped")
+        print(f"Full scraping mode: all listings will be scraped")
+    
     session: PlaywrightBrowserSession | None = None
     listings_limit = run_config.max_total_listings
 
@@ -197,8 +211,28 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                                 str(dirs["run_dir"]),
                                 search_page_config.url,
                                 run_config.state_code,
+                                scraping_mode=scraping_mode,
+                                cache=scraping_cache,
                             )
                             counts["details_fetched"] += len(listings)
+                            
+                            # After detail fetching, ensure we're back on the search results page
+                            # The last listing's go_back() might leave the page in a stale state
+                            # Refresh the page to get the current view of the search results table
+                            LOGGER.info("Refreshing search results page after detail fetching to check pagination...")
+                            try:
+                                table_selector = search_page_config.selectors.listing_table
+                                session.wait_for_selector(table_selector, timeout_ms=3000)
+                                # If table is already visible, we're good
+                                LOGGER.debug("Search table already visible, no refresh needed")
+                            except Exception:
+                                # Table not visible, try to go back or reload
+                                LOGGER.info("Search table not visible, attempting to reload page...")
+                                try:
+                                    session.go_back()
+                                    session.wait_for_selector(table_selector, timeout_ms=5000)
+                                except Exception as e:
+                                    LOGGER.warning("Could not restore search page state: %s", e)
                         except Exception as exc:
                             LOGGER.exception("Detail fetching failed for %s/%s page %d: %s", district, project_status, page_num, exc)
                             print(f"Warning: Detail fetching failed: {exc}")
@@ -439,35 +473,77 @@ def _go_to_next_page(session: PlaywrightBrowserSession, selectors: SearchPageSel
     """
     next_btn_selector = selectors.next_page_button
     if not next_btn_selector:
+        LOGGER.debug("No next page button selector configured")
         return False
         
     try:
         page = session.current_page()
+        
+        # Wait a moment for the page to stabilize
+        import time
+        time.sleep(1)
+        
+        # Check if the next button exists in the DOM
         next_btn = page.locator(next_btn_selector)
         
+        # Check if button exists
+        try:
+            count = next_btn.count()
+            if count == 0:
+                LOGGER.debug("Next button not found in DOM")
+                return False
+        except Exception as e:
+            LOGGER.debug("Could not count next button elements: %s", e)
+            return False
+        
         # Check visibility
-        if not next_btn.is_visible():
-            LOGGER.debug("Next button not visible")
+        try:
+            if not next_btn.is_visible(timeout=2000):
+                LOGGER.debug("Next button not visible")
+                return False
+        except Exception as e:
+            LOGGER.debug("Next button visibility check failed: %s", e)
             return False
             
-        # Check if disabled (DataTables adds 'disabled' class to the button)
-        class_attr = next_btn.get_attribute("class") or ""
-        if "disabled" in class_attr:
-            LOGGER.debug("Next button is disabled (end of results)")
-            return False
+        # Check if disabled (DataTables adds 'disabled' class to the button/li element)
+        try:
+            class_attr = next_btn.get_attribute("class") or ""
+            if "disabled" in class_attr.lower():
+                LOGGER.debug("Next button is disabled (class='%s')", class_attr)
+                return False
             
+            # Also check parent element (for DataTables, the <li> wrapping the <a> can be disabled)
+            parent = next_btn.locator("..")
+            parent_class = parent.get_attribute("class") or ""
+            if "disabled" in parent_class.lower():
+                LOGGER.debug("Next button parent is disabled (class='%s')", parent_class)
+                return False
+        except Exception as e:
+            LOGGER.debug("Could not check disabled state: %s", e)
+            # If we can't check, assume it's not disabled and try clicking
+        
         LOGGER.info("Navigating to next page of results...")
         print("  Clicking Next page...")
+        
+        # Click and wait for navigation/update
         next_btn.click()
         
-        # Wait for table to update. 
-        # Since we don't know if it's client-side or server-side, we wait a bit.
-        # Ideally we would wait for a specific change, but a short sleep is safer than
-        # complex logic that might flake.
-        import time
-        time.sleep(3) 
+        # Wait for table to update
+        # For DataTables with server-side pagination, the page will reload
+        # For client-side, the DOM will update
+        # We wait for the table selector to ensure it's still there after the click
+        time.sleep(3)  # Give time for page transition
         
-        return True
+        # Verify table is still present (indicates successful navigation)
+        table_selector = selectors.listing_table or "table"
+        try:
+            session.wait_for_selector(table_selector, timeout_ms=5000)
+            LOGGER.info("Successfully navigated to next page")
+            return True
+        except Exception as e:
+            LOGGER.warning("Table not found after next page click: %s", e)
+            return False
+            
     except Exception as e:
         LOGGER.warning("Failed to go to next page: %s", e)
         return False

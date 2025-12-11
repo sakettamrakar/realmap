@@ -17,6 +17,13 @@ class RunMode(str, Enum):
     FULL = "FULL"
 
 
+class ScrapingMode(str, Enum):
+    """Scraping behavior for conditional/delta scraping."""
+
+    DELTA = "delta"  # Skip already-scraped listings
+    FULL = "full"    # Scrape everything regardless of history
+
+
 class SearchFilterConfig(BaseModel):
     """Filters applied on the CG RERA listing search page."""
 
@@ -49,6 +56,8 @@ class RunConfig(BaseModel):
     """Options controlling a full extraction run."""
 
     mode: RunMode = RunMode.FULL
+    scraping_mode: ScrapingMode = ScrapingMode.FULL
+    scraping_cache_file: str = "data/scraped_cache.json"
     search_filters: SearchFilterConfig
     output_base_dir: str
     state_code: str = "CG"
@@ -149,6 +158,7 @@ __all__ = [
     "AppConfig",
     "BrowserConfig",
     "RunMode",
+    "ScrapingMode",
     "RunConfig",
     "SearchFilterConfig",
     "SearchPageConfig",

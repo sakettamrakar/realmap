@@ -184,6 +184,9 @@ class Project(Base):
     provenance_records: Mapped[list["DataProvenance"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    rera_filings: Mapped[list["ReraFiling"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Promoter(Base):
@@ -749,6 +752,47 @@ class ProjectPricingSnapshot(Base):
     project: Mapped[Project] = relationship(back_populates="pricing_snapshots")
 
 
+class ReraFiling(Base):
+    """
+    Structured extraction from RERA PDF filings.
+    
+    Stores metadata and extracted fields from documents like 'Certificate', 
+    'Quarterly Update', etc.
+    """
+
+    __tablename__ = "rera_filings"
+    __table_args__ = (
+        Index("ix_rera_filings_project_id", "project_id"),
+        Index("ix_rera_filings_doc_type", "doc_type"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    # File Metadata
+    file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    file_name: Mapped[str | None] = mapped_column(String(255))
+    doc_type: Mapped[str | None] = mapped_column(String(100)) # e.g. "Project Registration", "QPR"
+    
+    # Extraction Data
+    extracted_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    raw_text: Mapped[str | None] = mapped_column(String, doc="Full OCR extracted text")
+    
+    # AI/Model Metadata
+    model_name: Mapped[str | None] = mapped_column(String(100))
+    model_version: Mapped[str | None] = mapped_column(String(50))
+    confidence_score: Mapped[Numeric | None] = mapped_column(Numeric(4, 3))
+    
+    # Tracking
+    processed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    
+    project: Mapped[Project] = relationship(back_populates="rera_filings")
+
+
 __all__ = [
     "Project",
     "Promoter",
@@ -768,4 +812,5 @@ __all__ = [
     # Point 28 & 29: Ops Standard
     "DataProvenance",
     "IngestionAudit",
+    "ReraFiling",
 ]

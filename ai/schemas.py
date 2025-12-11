@@ -30,3 +30,8 @@ class FeatureSnapshot(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     details: Optional[str] = None
+
+class ReraExtractionResult(BaseModel):
+    proposed_completion_date: Optional[str] = None
+    litigation_count: Optional[int] = 0
+    architect_name: Optional[str] = None
