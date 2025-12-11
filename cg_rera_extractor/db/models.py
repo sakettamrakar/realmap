@@ -187,6 +187,9 @@ class Project(Base):
     rera_filings: Mapped[list["ReraFiling"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    imputations: Mapped[list["ProjectImputation"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Promoter(Base):
@@ -340,6 +343,9 @@ class ProjectArtifact(Base):
     source_url: Mapped[str | None] = mapped_column(String(1024))  # Original URL
     file_format: Mapped[str | None] = mapped_column(String(20))  # pdf, jpg
     is_preview: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Feature 3: Floor Plan OCR Data
+    floor_plan_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, doc="Structured room dimensions and layout data")
 
     project: Mapped[Project] = relationship(back_populates="artifacts")
 
@@ -791,6 +797,40 @@ class ReraFiling(Base):
     )
     
     project: Mapped[Project] = relationship(back_populates="rera_filings")
+
+
+class ProjectImputation(Base):
+    """
+    Stores predicted/imputed values for missing project data.
+    Feature 4: AI-powered Missing Data Imputation.
+    """
+    
+    __tablename__ = "project_imputations"
+    __table_args__ = (
+        Index("ix_project_imputations_project_id", "project_id"),
+        Index("ix_project_imputations_model_name", "model_name"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    # Imputed Data
+    imputed_data: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, 
+        doc="Key-value pairs of imputed fields (e.g., {'total_units': 150})"
+    )
+    
+    # Metadata
+    confidence_score: Mapped[Numeric | None] = mapped_column(Numeric(4, 3))
+    model_name: Mapped[str | None] = mapped_column(String(100), doc="Algorithm used (e.g., 'IterativeImputer_v1')")
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    
+    project: Mapped[Project] = relationship(back_populates="imputations")
 
 
 __all__ = [

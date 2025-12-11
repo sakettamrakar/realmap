@@ -19,3 +19,12 @@ alembic
 llama-cpp-python
 redis
 celery
+torch>=2.1.0 --index-url https://download.pytorch.org/whl/cu118
+transformers>=4.35.0
+accelerate>=0.24.0
+scikit-learn>=1.3.0
+pandas>=2.1.0
+opencv-python-headless>=4.8.0
+pypdf>=3.17.0
+sentence-transformers>=2.2.2
+surya-ocr>=0.4.0
