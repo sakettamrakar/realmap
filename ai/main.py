@@ -139,6 +139,53 @@ async def extract_rera_doc(file_path: str, project_id: int, db: Session = Depend
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ============ Feature 6: Chat Search ============
+from pydantic import BaseModel
+from typing import List, Optional
+
+class ChatSearchRequest(BaseModel):
+    query: str
+    limit: int = 5
+
+class ChatSearchProject(BaseModel):
+    id: int
+    name: Optional[str]
+    location: Optional[str]
+    score: float
+
+class ChatSearchResponse(BaseModel):
+    query: str
+    answer: str
+    projects: List[ChatSearchProject]
+    success: bool
+
+@app.post("/api/v1/chat/search", response_model=ChatSearchResponse)
+async def chat_search(request: ChatSearchRequest, db: Session = Depends(get_db)):
+    """
+    Natural language search for projects.
+    Feature 6: AI Chat Assistant.
+    """
+    if not AI_ENABLED:
+        raise HTTPException(status_code=503, detail="AI services are currently disabled")
+    
+    from ai.chat.assistant import ChatAssistant
+    
+    try:
+        assistant = ChatAssistant(db)
+        result = assistant.answer(request.query, limit=request.limit)
+        
+        return ChatSearchResponse(
+            query=result["query"],
+            answer=result["answer"],
+            projects=[ChatSearchProject(**p) for p in result["projects"]],
+            success=result["success"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat search failed: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
+

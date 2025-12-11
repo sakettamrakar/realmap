@@ -14,6 +14,7 @@ from sqlalchemy import (
     JSON,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -189,6 +190,12 @@ class Project(Base):
     )
     imputations: Mapped[list["ProjectImputation"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
+    )
+    quality_flags: Mapped[list["DataQualityFlag"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    embedding: Mapped["ProjectEmbedding | None"] = relationship(
+        back_populates="project", uselist=False, cascade="all, delete-orphan"
     )
 
 
@@ -831,6 +838,72 @@ class ProjectImputation(Base):
     )
     
     project: Mapped[Project] = relationship(back_populates="imputations")
+
+
+class DataQualityFlag(Base):
+    """
+    Stores anomaly detection results for projects.
+    Feature 5: AI-based Price & Area Anomaly Detection.
+    """
+    
+    __tablename__ = "data_quality_flags"
+    __table_args__ = (
+        Index("ix_data_quality_flags_project_id", "project_id"),
+        Index("ix_data_quality_flags_column_name", "column_name"),
+        Index("ix_data_quality_flags_is_reviewed", "is_reviewed"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    column_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    outlier_value: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    anomaly_score: Mapped[float | None] = mapped_column(Numeric(6, 4))
+    
+    is_reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
+    review_comment: Mapped[str | None] = mapped_column(String(255))
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    
+    project: Mapped[Project] = relationship(back_populates="quality_flags")
+
+
+class ProjectEmbedding(Base):
+    """
+    Stores vector embeddings for semantic search.
+    Feature 6: AI Chat Assistant.
+    """
+    
+    __tablename__ = "project_embeddings"
+    __table_args__ = (
+        Index("ix_project_embeddings_project_id", "project_id", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    
+    # Vector embedding (384 dimensions for MiniLM)
+    # Note: Actual vector type requires pgvector extension
+    # We store as JSON array for compatibility, migration handles vector type
+    embedding_data: Mapped[list | None] = mapped_column(JSON, doc="Vector embedding as JSON array")
+    
+    text_content: Mapped[str | None] = mapped_column(Text, doc="Source text used for embedding")
+    model_name: Mapped[str | None] = mapped_column(String(100), doc="Embedding model used")
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
+    
+    project: Mapped[Project] = relationship(back_populates="embedding")
 
 
 __all__ = [

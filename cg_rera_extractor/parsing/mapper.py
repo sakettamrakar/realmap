@@ -190,11 +190,20 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
                     logical_section_data[canonical_key] = field.value or ""
                 else:
                     # Implicit document: Label is name, Value is URL
+                    # Prioritize actual href links over button text or preview hints
+                    doc_url = "NA"
+                    if field.links:
+                        doc_url = field.links[0]  # Use actual URL from <a href="...">
+                    elif field.preview_hint and not field.preview_hint.startswith(("#", ".")):
+                        doc_url = field.preview_hint  # Fallback to preview hint if it's a URL
+                    elif field.value and field.value not in ("Preview", "Download", "View"):
+                        doc_url = field.value  # Use value only if it's not button text
+                    
                     extracted_documents.append(
                         V1Document(
                             name=field.label,
                             document_type="Unknown",
-                            url=field.value or field.preview_hint or "NA",
+                            url=doc_url,
                             uploaded_on=None,
                         )
                     )

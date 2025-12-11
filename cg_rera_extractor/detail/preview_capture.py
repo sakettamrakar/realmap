@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Tuple
 from urllib.parse import urljoin
+
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 from playwright.sync_api import (  # type: ignore
     BrowserContext,
@@ -206,7 +213,14 @@ def _process_url_preview(
 ) -> PreviewArtifact:
     new_page = context.new_page()
     try:
+        LOGGER.info(f"Opening URL preview: {target.value}")
         new_page.goto(target.value, wait_until="load", timeout=timeout_ms)
+        
+        # Capture the actual URL after any redirects
+        actual_url = new_page.url
+        artifact.source_url = actual_url
+        LOGGER.debug(f"URL resolved to: {actual_url}")
+        
         artifact = _save_page_artifact(
             new_page,
             context,
@@ -216,7 +230,17 @@ def _process_url_preview(
             prefix="preview",
         )
     except Exception as exc:  # pragma: no cover - defensive logging
+        LOGGER.error(f"URL preview failed for {target.value}: {exc}")
         artifact.notes = _merge_notes(artifact.notes, f"URL preview failed: {exc}")
+        
+        # Try HTTP fallback if playwright fails
+        artifact = _try_http_fallback(
+            target.value,
+            artifact,
+            target_dir,
+            output_base,
+            context.pages[0].url if context.pages else None
+        )
     finally:
         try:
             new_page.close()
@@ -241,9 +265,16 @@ def _process_click_preview(
         return artifact
 
     try:
+        LOGGER.info(f"Clicking preview button for: {target.label}")
         with page.expect_popup(timeout=timeout_ms) as popup_info:
             locator.click()
         new_page = popup_info.value
+        
+        # Capture the actual URL that opened
+        actual_url = new_page.url
+        artifact.source_url = actual_url
+        LOGGER.debug(f"Popup opened to: {actual_url}")
+        
         artifact = _save_page_artifact(
             new_page,
             context,
@@ -361,21 +392,115 @@ def _download_url(
     output_base: Path,
     prefix: str,
 ) -> PreviewArtifact:
-    LOGGER.info("Downloading artifact: %s", url)
+    """Download artifact with robust error handling and verification."""
+    LOGGER.info(f"[DOWNLOAD] Starting download: {url}")
+    
     try:
-        response = context.request.get(url, timeout=10_000)
+        # Try playwright request first
+        response = context.request.get(url, timeout=30_000)  # Increased timeout
         content_type = response.headers.get("content-type", "")
+        
+        LOGGER.debug(f"[DOWNLOAD] Response status: {response.status}, Content-Type: {content_type}")
+        
+        if response.status != 200:
+            raise Exception(f"HTTP {response.status}")
+        
         body = response.body()
+        
+        if not body or len(body) == 0:
+            raise Exception("Empty response body")
+        
         extension = _extension_from_content_type(content_type)
-        file_path = target_dir / f"{prefix}{extension}"
-        mode = "wb" if isinstance(body, (bytes, bytearray)) else "w"
-        with open(file_path, mode) as handle:
-            handle.write(body if mode == "wb" else str(body))
+        
+        # Generate unique filename based on field_key
+        filename = f"{artifact.field_key}{extension}" if artifact.field_key else f"{prefix}{extension}"
+        file_path = target_dir / filename
+        
+        # Ensure directory exists
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write file
+        LOGGER.debug(f"[DOWNLOAD] Writing {len(body)} bytes to {file_path}")
+        file_path.write_bytes(body)
+        
+        # Verify file was written
+        if not file_path.exists():
+            raise Exception("File not created after write")
+        
+        actual_size = file_path.stat().st_size
+        if actual_size == 0:
+            raise Exception("File is empty after write")
+        
+        LOGGER.info(f"[DOWNLOAD_OK] Saved {filename} ({actual_size:,} bytes)")
+        
         artifact.artifact_type = _artifact_type_from_content_type(content_type)
         artifact.files.append(str(file_path.relative_to(output_base)))
-    except Exception as exc:  # pragma: no cover - defensive logging
-        LOGGER.debug("Failed to download preview resource %s: %s", url, exc)
-        artifact.notes = _merge_notes(artifact.notes, f"Download failed: {exc}")
+        artifact.notes = _merge_notes(artifact.notes, f"Downloaded: {actual_size:,} bytes")
+        
+    except Exception as exc:
+        LOGGER.warning(f"[DOWNLOAD_FAIL] Playwright download failed: {exc}")
+        
+        # Try HTTP fallback
+        base_url = context.pages[0].url if context.pages else None
+        artifact = _try_http_fallback(url, artifact, target_dir, output_base, base_url)
+    
+    return artifact
+
+
+def _try_http_fallback(
+    url: str,
+    artifact: PreviewArtifact,
+    target_dir: Path,
+    output_base: Path,
+    base_url: str | None = None,
+) -> PreviewArtifact:
+    """Try direct HTTP download as fallback when browser methods fail."""
+    if not HAS_REQUESTS:
+        LOGGER.warning("[HTTP_FALLBACK] requests library not available")
+        artifact.notes = _merge_notes(artifact.notes, "HTTP fallback unavailable (no requests)")
+        return artifact
+    
+    try:
+        # Resolve relative URLs
+        if base_url and url.startswith("../"):
+            download_url = urljoin(base_url, url)
+        else:
+            download_url = url
+        
+        LOGGER.info(f"[HTTP_FALLBACK] Trying direct download: {download_url}")
+        
+        response = requests.get(download_url, timeout=30, allow_redirects=True)
+        response.raise_for_status()
+        
+        content = response.content
+        if not content or len(content) == 0:
+            raise Exception("Empty response")
+        
+        content_type = response.headers.get("content-type", "")
+        extension = _extension_from_content_type(content_type)
+        
+        # Generate filename
+        filename = f"{artifact.field_key}{extension}" if artifact.field_key else f"fallback{extension}"
+        file_path = target_dir / filename
+        
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_bytes(content)
+        
+        # Verify
+        if not file_path.exists() or file_path.stat().st_size == 0:
+            raise Exception("File verification failed")
+        
+        actual_size = file_path.stat().st_size
+        LOGGER.info(f"[HTTP_FALLBACK_OK] Saved {filename} ({actual_size:,} bytes)")
+        
+        artifact.artifact_type = _artifact_type_from_content_type(content_type)
+        artifact.files.append(str(file_path.relative_to(output_base)))
+        artifact.notes = _merge_notes(artifact.notes, f"HTTP fallback: {actual_size:,} bytes")
+        
+    except Exception as exc:
+        LOGGER.error(f"[HTTP_FALLBACK_FAIL] {exc}")
+        artifact.notes = _merge_notes(artifact.notes, f"HTTP fallback failed: {exc}")
+    
     return artifact
 
 
