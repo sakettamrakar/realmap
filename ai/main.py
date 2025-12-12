@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
 from ai.schemas import HealthCheck, AIScoreResponse
 from ai.dependencies import get_db
@@ -11,6 +12,15 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/ai/docs",
     openapi_url="/ai/openapi.json"
+)
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Feature Flags

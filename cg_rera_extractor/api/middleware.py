@@ -21,6 +21,11 @@ from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+import os
+
+# Environment variable to disable rate limiting (defaults to OFF for local development)
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true"
+
 
 # =============================================================================
 # POINT 30: Rate Limiting Configuration
@@ -65,10 +70,10 @@ RATE_LIMITS: dict[ClientTier, RateLimitConfig] = {
         burst_limit=20,
     ),
     ClientTier.ANONYMOUS: RateLimitConfig(
-        requests_per_minute=30,
-        requests_per_hour=500,
-        requests_per_day=2000,
-        burst_limit=5,
+        requests_per_minute=500,
+        requests_per_hour=10000,
+        requests_per_day=50000,
+        burst_limit=50,
     ),
 }
 
@@ -301,6 +306,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         call_next: Callable,
     ) -> Response:
         """Process request with rate limiting."""
+        
+        # Skip rate limiting entirely if disabled via environment variable
+        if not RATE_LIMIT_ENABLED:
+            return await call_next(request)
         
         # Skip rate limiting for exempt paths
         if request.url.path in self.EXEMPT_PATHS:

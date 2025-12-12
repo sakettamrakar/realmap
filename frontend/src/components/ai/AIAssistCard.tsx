@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getProjectScore } from "../../api/aiApi";
-import { AIScoreResponse } from "../../types/ai";
+import type { AIScoreResponse } from "../../types/ai";
 
 interface Props {
     projectId: number;

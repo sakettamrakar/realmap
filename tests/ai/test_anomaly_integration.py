@@ -75,12 +75,12 @@ class TestAnomalyIntegration(unittest.TestCase):
         
         # 2. Normal Units (Rate ~50-80)
         # Area 1000, Price 50000 -> Rate 50
-        u1 = UnitType(project_id=p.id, name="1BHK", saleable_area_sqmt=100.0, sale_price=5000.0)
-        u2 = UnitType(project_id=p.id, name="2BHK", saleable_area_sqmt=150.0, sale_price=7500.0) # Rate 50
+        u1 = UnitType(project_id=p.id, type_name="1BHK", saleable_area_sqmt=100.0, sale_price=5000.0)
+        u2 = UnitType(project_id=p.id, type_name="2BHK", saleable_area_sqmt=150.0, sale_price=7500.0) # Rate 50
         
         # 3. Anomaly Unit (Rate 1000)
         # Area 100, Price 100000 -> Rate 1000
-        u_bad = UnitType(project_id=p.id, name="Penthouse", saleable_area_sqmt=100.0, sale_price=100000.0)
+        u_bad = UnitType(project_id=p.id, type_name="Penthouse", saleable_area_sqmt=100.0, sale_price=100000.0)
         
         self.session.add_all([u1, u2, u_bad])
         self.session.commit()

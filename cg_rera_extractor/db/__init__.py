@@ -19,6 +19,7 @@ from .models import (
     Promoter,
     QuarterlyUpdate,
     UnitType,
+    AmenityPOI,
     # Point 28 & 29: Ops Standard
     DataProvenance,
     IngestionAudit,

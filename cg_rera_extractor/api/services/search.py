@@ -193,10 +193,12 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
     filtered: list[tuple[Project, float | None]] = []
     for project in projects:
         lat, lon, _quality = _resolve_location(project)
-        if lat is None or lon is None:
-            continue
-
+        
+        # Only require coordinates if doing a radius/location-based search
         if params.lat is not None and params.lon is not None and params.radius_km is not None:
+            # For radius search, we need coordinates
+            if lat is None or lon is None:
+                continue
             distance = _haversine_km(params.lat, params.lon, lat, lon)
             if distance > params.radius_km:
                 continue

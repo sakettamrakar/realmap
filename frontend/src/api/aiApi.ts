@@ -1,5 +1,5 @@
 import axios from "axios";
-import { AIScoreResponse, HealthCheckResponse } from "../types/ai";
+import type { AIScoreResponse, HealthCheckResponse } from "../types/ai";
 
 // Use the same base URL as the robust client for now, or a separate one if deployed differently.
 // Using relative path assuming proxy or same origin for simplicity in dev.

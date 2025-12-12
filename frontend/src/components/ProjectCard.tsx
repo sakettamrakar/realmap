@@ -3,6 +3,7 @@ import classNames from "classnames";
 import ScoreBadge from "./ScoreBadge";
 import { Card, CardBody, CardFooter } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { AnomalyBadge } from "./ai/AnomalyBadge";
 import type { ProjectSummary } from "../types/projects";
 
 interface Props {
@@ -128,6 +129,13 @@ const ProjectCard = ({
               <span className={`w-1.5 h-1.5 rounded-full ${project.status === 'Completed' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
               {project.status || "Status Unknown"}
             </span>
+            {/* Feature 5: Anomaly Detection Badge */}
+            <AnomalyBadge
+              pricePerSqft={project.min_price_per_sqft}
+              carpetArea={project.area_sqft}
+              unitType={project.project_type}
+              totalPrice={project.min_price_total}
+            />
           </div>
 
           {nearbyChips.length > 0 && (

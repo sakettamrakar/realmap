@@ -29,8 +29,9 @@ app = FastAPI(
 # MIDDLEWARE STACK (order matters - first added = outermost)
 # =============================================================================
 
-# Point 30: Rate Limiting Middleware (processes requests before CORS)
-app.add_middleware(RateLimitMiddleware)
+# Point 30: Rate Limiting Middleware (disabled for local development)
+# To re-enable in production, uncomment the line below
+# app.add_middleware(RateLimitMiddleware)
 
 # Enable CORS for frontend development
 app.add_middleware(

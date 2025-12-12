@@ -10,6 +10,7 @@ import CompareModal from "./components/CompareModal";
 import ProjectInspector from "./components/ProjectInspector";
 import { BottomNav } from "./components/mobile/BottomNav";
 import { ComplianceProgress } from "./components/mobile/ComplianceProgress";
+import { AIChatAssistant } from "./components/ai/AIChatAssistant";
 import useDebouncedValue from "./hooks/useDebouncedValue";
 import { Button } from "./components/ui/Button";
 import type { Filters } from "./types/filters";
@@ -576,6 +577,9 @@ function App() {
           onBack={() => setShowInspector(false)}
         />
       )}
+
+      {/* Feature 6: AI Chat Assistant */}
+      <AIChatAssistant onSelectProject={handleSelectProject} />
     </div>
   );
 }
