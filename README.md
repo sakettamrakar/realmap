@@ -15,6 +15,7 @@ The documentation is organized into 4 logical quadrants:
 *   **[Data Model](./docs/02-technical/Data_Model.md)**: Database schema, tables, and relationships.
 *   **[Scraper & Pipeline](./docs/02-technical/Scraper_Pipeline.md)**: How data is ingested, validated, and loaded.
 *   **[API Reference](./docs/02-technical/API_Reference.md)**: Backend endpoint documentation.
+*   **[Orchestration](./docs/02-technical/orchestration/orchestration_overview.md)**: Detailed pipeline flow, dependency graphs, and execution blueprints.
 
 ### 3. Artificial Intelligence ([docs/03-ai](./docs/03-ai/))
 *   **[AI Overview](./docs/03-ai/AI_Overview.md)**: Feature roadmap and high-level AI strategy.
