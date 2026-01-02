@@ -36,7 +36,7 @@ This section documents the complete orchestration flow of the RealMap platform, 
 
 ## 🏗️ High-Level Architecture
 
-The RealMap pipeline operates as a sequence of localized transformations, currently orchestrated by `cg_rera_extractor/runs/orchestrator.py` but designed to be modular.
+The RealMap pipeline operates as a sequence of localized transformations, orchestrated by **Apache Airflow** in production.
 
 ```mermaid
 graph TD

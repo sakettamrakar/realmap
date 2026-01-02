@@ -1,7 +1,8 @@
 # Scraper & ETL Pipeline
 
-**Version:** 1.0.0
-**Date:** 2025-12-12
+**Version:** 2.0.0  
+**Date:** 2026-01-02  
+**Status:** Live / Implemented
 
 ---
 
@@ -68,18 +69,32 @@ See [PDF Processing Documentation](./orchestration/pdf-processing.md) for detail
 ## 3. Enrichment Pipelines
 
 ### Geocoding
-*   **Tool:** `geocode_projects.py`
+*   **Tool:** `tools/geocode_projects.py`
 *   **Logic:**
     1.  Normalize address string (District -> Tehsil).
     2.  Query Nominatim/Google APIs.
     3.  Save result to `latitude`/`longitude`.
 
 ### Amenity Scoring
-*   **Tool:** `compute_project_scores.py`
+*   **Tool:** `tools/compute_project_scores.py`
 *   **Logic:**
     1.  Fetch Schools/Hospitals in 2km radius.
     2.  Calculate weighted score (0-100).
     3.  Update `project_scores` table.
+
+### Locality Aggregation
+*   **Tool:** `scripts/seed_localities.py`
+*   **Logic:**
+    1.  Group projects by normalized locality name.
+    2.  Compute aggregate metrics (Avg Price, Total Units).
+    3.  Update `localities` table.
+
+### Price Trends
+*   **Tool:** `scripts/sync_project_pricing.py`
+*   **Logic:**
+    1.  Analyze historical pricing snapshots.
+    2.  Compute quarterly trends (Up/Down/Stable).
+    3.  Update `price_trends` table.
 
 ---
 
@@ -92,3 +107,4 @@ See [PDF Processing Documentation](./orchestration/pdf-processing.md) for detail
 ## 5. Related Documents
 - [Architecture](./Architecture.md)
 - [Data Model](./Data_Model.md)
+

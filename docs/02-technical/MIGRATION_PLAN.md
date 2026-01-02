@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 # Migration Plan: Zero-Downtime Deduplication
+=======
+# [DEPRECATED] Migration Plan: Zero-Downtime Deduplication
+
+> **Note:** This migration has been implemented. See `docs/02-technical/Data_Model.md` for the current schema.
+>>>>>>> f210839f02b45ee193ae9ebf510a5b6ca40b45ec
 
 ## Phase 1: Schema Expansion (Non-Breaking)
 1. **Deploy Schema**: Run the SQL to create `parent_projects` and add `parent_project_id` to `projects`.

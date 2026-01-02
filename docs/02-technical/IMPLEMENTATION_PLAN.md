@@ -1,4 +1,7 @@
-# Schema Evolution Implementation Plan
+# [DEPRECATED] Schema Evolution Implementation Plan
+
+> **Note:** This plan has been implemented. See `docs/02-technical/Data_Model.md` for the current schema.
+
 ## RealMap → 99acres-Level Data Richness
 
 **Document Version:** 1.0  
