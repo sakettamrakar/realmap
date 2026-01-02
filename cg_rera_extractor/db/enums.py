@@ -65,6 +65,16 @@ class ReraVerificationStatus(str, enum.Enum):
     UNKNOWN = "UNKNOWN"         # Not yet checked
 
 
+class MediaCategory(str, enum.Enum):
+    """Category of project media assets. (Phase 1)"""
+    GALLERY = "GALLERY"
+    FLOOR_PLAN = "FLOOR_PLAN"
+    VIDEO = "VIDEO"
+    VIRTUAL_TOUR = "VIRTUAL_TOUR"
+    BROCHURE = "BROCHURE"
+    OTHER = "OTHER"
+
+
 __all__ = [
     "AreaUnit",
     "ProjectPhase",
@@ -72,4 +82,5 @@ __all__ = [
     "UnitStatus",
     "TagCategory",
     "ReraVerificationStatus",
+    "MediaCategory",
 ]

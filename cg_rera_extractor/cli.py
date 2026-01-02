@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from pathlib import Path
 from typing import Sequence
 
 from cg_rera_extractor.config.loader import load_config
@@ -31,15 +32,36 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
-
     config = load_config(args.config)
     if args.mode:
         override = args.mode.replace("-", "_").upper()
         config.run.mode = RunMode[override]
+    
+    # Setup logging to both console and file
+    # Create logs directory in output_base_dir
+    log_dir = Path(config.run.output_base_dir) / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate log filename with timestamp
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = log_dir / f"scraper_{timestamp}.log"
+    
+    # Configure logging with both console and file handlers
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=[
+            logging.StreamHandler(),  # Console output
+            logging.FileHandler(log_file, encoding='utf-8')  # File output
+        ]
+    )
+    
+    logging.info("="*60)
+    logging.info("Starting scraper run - log file: %s", log_file)
+    logging.info("Config: %s", args.config)
+    logging.info("="*60)
+    
     status = run_crawl(config)
     logging.info("Run %s finished with counts: %s", status.run_id, status.counts)
 

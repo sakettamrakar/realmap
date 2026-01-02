@@ -1,7 +1,8 @@
 # Scraper & ETL Pipeline
 
-**Version:** 1.0.0
-**Date:** 2025-12-12
+**Version:** 2.0.0  
+**Date:** 2026-01-02  
+**Status:** Live / Implemented
 
 ---
 
@@ -48,23 +49,52 @@ The `loader` module inserts validated JSON into PostgreSQL.
 python tools/load_run_into_db.py --run-dir outputs/runs/latest
 ```
 
+### Step 4: PDF Processing
+After database loading, PDF documents are processed to extract additional structured data:
+```bash
+# Process all PDFs from scraped runs
+python tools/process_pdfs.py --page 1
+```
+
+The PDF processing pipeline:
+1. **OCR:** Converts PDF pages to images and extracts text (Tesseract/EasyOCR)
+2. **Classification:** Identifies document type from 11 categories
+3. **LLM Extraction:** Extracts structured fields using Qwen2.5-7B
+4. **Merging:** Combines with scraped data to create enriched V2 JSON
+
+See [PDF Processing Documentation](./orchestration/pdf-processing.md) for details.
+
 ---
 
 ## 3. Enrichment Pipelines
 
 ### Geocoding
-*   **Tool:** `geocode_projects.py`
+*   **Tool:** `tools/geocode_projects.py`
 *   **Logic:**
     1.  Normalize address string (District -> Tehsil).
     2.  Query Nominatim/Google APIs.
     3.  Save result to `latitude`/`longitude`.
 
 ### Amenity Scoring
-*   **Tool:** `compute_project_scores.py`
+*   **Tool:** `tools/compute_project_scores.py`
 *   **Logic:**
     1.  Fetch Schools/Hospitals in 2km radius.
     2.  Calculate weighted score (0-100).
     3.  Update `project_scores` table.
+
+### Locality Aggregation
+*   **Tool:** `scripts/seed_localities.py`
+*   **Logic:**
+    1.  Group projects by normalized locality name.
+    2.  Compute aggregate metrics (Avg Price, Total Units).
+    3.  Update `localities` table.
+
+### Price Trends
+*   **Tool:** `scripts/sync_project_pricing.py`
+*   **Logic:**
+    1.  Analyze historical pricing snapshots.
+    2.  Compute quarterly trends (Up/Down/Stable).
+    3.  Update `price_trends` table.
 
 ---
 
@@ -77,3 +107,4 @@ python tools/load_run_into_db.py --run-dir outputs/runs/latest
 ## 5. Related Documents
 - [Architecture](./Architecture.md)
 - [Data Model](./Data_Model.md)
+

@@ -1,0 +1,66 @@
+You are an expert document extraction AI specializing in Indian Real Estate (RERA) documents.
+
+Your task is to extract structured data from a RERA Registration Certificate.
+
+## Document Type
+This is a **Registration Certificate** issued by the Real Estate Regulatory Authority.
+It certifies that a real estate project has been registered under RERA.
+
+## Fields to Extract
+
+Extract the following fields from the OCR text. Use null for fields you cannot find.
+
+### Required Fields:
+1. **registration_number**: RERA registration number (format: PCGRERA followed by digits, e.g., PCGRERA010618000020)
+2. **registration_date**: Date of registration (convert to YYYY-MM-DD format)
+3. **valid_till**: Validity end date (convert to YYYY-MM-DD format)
+4. **project_name**: Official name of the project
+5. **promoter_name**: Name of the promoter/developer company or individual
+
+### Optional Fields:
+6. **project_type**: Type of development (Residential/Commercial/Plotted Development/Mixed Use)
+7. **project_address**: Complete address of the project
+8. **project_district**: District name
+9. **project_tehsil**: Tehsil/Taluka name
+10. **total_land_area**: Total land area with unit (e.g., "5 Acres", "2000 Sq.M")
+11. **total_units**: Total number of units/plots (integer)
+12. **promoter_type**: Type (Individual/Company/Partnership/LLP/Society)
+13. **promoter_address**: Promoter's registered address
+14. **authority_seal_present**: true/false - whether official seal is mentioned or visible
+15. **signature_present**: true/false - whether authorized signature is mentioned
+
+## Date Conversion Rules
+- DD-MM-YYYY → YYYY-MM-DD
+- DD/MM/YYYY → YYYY-MM-DD
+- "15 June 2023" → 2023-06-15
+- If only partial date, include what you can find
+
+## OCR Text to Process:
+```
+{ocr_text}
+```
+
+## Output Format
+Return ONLY valid JSON matching this structure:
+```json
+{
+    "registration_number": "string or null",
+    "registration_date": "YYYY-MM-DD or null",
+    "valid_till": "YYYY-MM-DD or null",
+    "project_name": "string or null",
+    "promoter_name": "string or null",
+    "project_type": "string or null",
+    "project_address": "string or null",
+    "project_district": "string or null",
+    "project_tehsil": "string or null",
+    "total_land_area": "string or null",
+    "total_units": "integer or null",
+    "promoter_type": "string or null",
+    "promoter_address": "string or null",
+    "authority_seal_present": "boolean",
+    "signature_present": "boolean",
+    "extraction_confidence": "float 0-1"
+}
+```
+
+Extract carefully and return only the JSON object.

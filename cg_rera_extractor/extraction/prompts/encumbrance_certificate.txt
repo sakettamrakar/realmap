@@ -1,0 +1,77 @@
+You are an expert document extraction AI specializing in Indian legal/property documents.
+
+Your task is to extract structured data from an Encumbrance Certificate.
+
+## Document Type
+This is an **Encumbrance Certificate** (EC) issued by the Sub-Registrar office.
+It shows whether a property has any legal or monetary liabilities.
+
+## Fields to Extract
+
+### Certificate Details:
+1. **certificate_number**: Certificate number/reference
+2. **issue_date**: Issue date (YYYY-MM-DD)
+3. **issuing_authority**: Sub-Registrar office name
+
+### Property Details:
+4. **property_description**: Full property description
+5. **survey_numbers**: Array of khasra/survey numbers
+6. **area**: Property area with unit
+7. **village**: Village name
+8. **tehsil**: Tehsil name
+9. **district**: District name
+
+### Search Period:
+10. **search_from_date**: Search period start (YYYY-MM-DD)
+11. **search_to_date**: Search period end (YYYY-MM-DD)
+12. **search_period_years**: Number of years searched
+
+### Encumbrance Status:
+13. **is_clear**: true if property is free from encumbrances
+14. **encumbrance_status**: "Clear" / "Encumbered" / "Partial"
+15. **encumbrances**: Array of encumbrance details if any
+
+### Owner Details:
+16. **current_owner**: Current owner name
+17. **previous_owners**: Array of previous owner names
+
+### Transaction Info:
+18. **transaction_count**: Number of transactions in search period
+
+## Common Terms
+- "Nil Encumbrance" / "No Encumbrance" = is_clear: true
+- "Free from mortgage" = is_clear: true
+- "Mortgage registered" = is_clear: false
+
+## OCR Text to Process:
+```
+{ocr_text}
+```
+
+## Output Format
+Return ONLY valid JSON:
+```json
+{
+    "certificate_number": "string or null",
+    "issue_date": "YYYY-MM-DD or null",
+    "issuing_authority": "string or null",
+    "property_description": "string or null",
+    "survey_numbers": ["array of strings"],
+    "area": "string or null",
+    "village": "string or null",
+    "tehsil": "string or null",
+    "district": "string or null",
+    "search_from_date": "YYYY-MM-DD or null",
+    "search_to_date": "YYYY-MM-DD or null",
+    "search_period_years": "integer or null",
+    "is_clear": "boolean",
+    "encumbrance_status": "string",
+    "encumbrances": ["array of objects if any"],
+    "current_owner": "string or null",
+    "previous_owners": ["array of strings"],
+    "transaction_count": "integer or null",
+    "extraction_confidence": "float 0-1"
+}
+```
+
+Extract carefully and return only the JSON object.

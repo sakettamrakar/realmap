@@ -424,6 +424,58 @@ class ProjectLandmark(Base):
     landmark: Mapped["Landmark"] = relationship(back_populates="project_landmarks")
 
 
+class Locality(Base):
+    """
+    Hierarchical locality indexing (District -> Tehsil -> Neighborhood).
+    
+    Phase 2: Enhanced Geospatial Intelligence
+    - Enables "All projects in [District]"
+    - Supports nested breadcrumbs
+    """
+    __tablename__ = "localities"
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_localities_slug"),
+        Index("ix_localities_district", "district"),
+        Index("ix_localities_pincode", "pincode"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(128), nullable=False)
+    
+    district: Mapped[str | None] = mapped_column(String(128))
+    state_code: Mapped[str | None] = mapped_column(String(10))
+    
+    lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+    lon: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+    pincode: Mapped[str | None] = mapped_column(String(10))
+    
+    locality_type: Mapped[str | None] = mapped_column(
+        String(50), 
+        doc="DISTRICT, TEHSIL, NEIGHBORHOOD, etc."
+    )
+    
+    parent_locality_id: Mapped[int | None] = mapped_column(
+        ForeignKey("localities.id"), nullable=True
+    )
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
+
+    # Relationships
+    projects: Mapped[list["Project"]] = relationship(back_populates="locality")
+    parent_projects: Mapped[list["ParentProject"]] = relationship(back_populates="locality")
+    parent: Mapped["Locality | None"] = relationship(
+        "Locality",
+        remote_side=[id],
+        backref="children",
+        primaryjoin="Locality.parent_locality_id == Locality.id"
+    )
+
 __all__ = [
     # Point 24
     "Tag",
@@ -433,4 +485,5 @@ __all__ = [
     # Point 26
     "Landmark",
     "ProjectLandmark",
+    "Locality",
 ]

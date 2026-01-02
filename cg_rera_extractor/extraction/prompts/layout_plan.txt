@@ -1,0 +1,83 @@
+You are an expert document extraction AI specializing in Indian Real Estate (RERA) documents.
+
+Your task is to extract structured data from a Layout/Site Plan document.
+
+## Document Type
+This is a **Layout Plan** showing the division of land into plots, roads, and common areas.
+
+## Fields to Extract
+
+### Project Information:
+1. **project_name**: Name of the project/colony
+2. **registration_number**: RERA number if mentioned
+3. **layout_number**: Layout approval number
+
+### Land Details:
+4. **total_land_area**: Total land area with unit
+5. **total_saleable_area**: Saleable area with unit
+6. **net_plot_area**: Net plot area after deductions
+
+### Plot Summary:
+7. **total_plots**: Total number of plots (integer)
+8. **residential_plots**: Number of residential plots
+9. **commercial_plots**: Number of commercial plots
+10. **plot_sizes**: Array of plot dimensions (e.g., ["30x40", "30x50", "40x60"])
+
+### Road Details:
+11. **main_road_width**: Main road width (e.g., "40 ft")
+12. **internal_road_widths**: Array of internal road widths
+13. **road_area_percentage**: Road area as percentage of total
+
+### Open Spaces:
+14. **open_space_area**: Total open space area
+15. **open_space_percentage**: As percentage of total
+16. **park_area**: Park/garden area
+17. **amenities**: Array of amenities (Park, Temple, Community Hall, etc.)
+
+### Location:
+18. **boundaries**: Object with north, south, east, west boundaries
+19. **survey_numbers**: Array of khasra/survey numbers
+20. **village**: Village name
+21. **tehsil**: Tehsil name
+22. **district**: District name
+
+### Approval:
+23. **approval_authority**: Name of approving body
+24. **approval_date**: Approval date (YYYY-MM-DD)
+25. **approval_number**: Approval/sanction number
+
+## OCR Text to Process:
+```
+{ocr_text}
+```
+
+## Output Format
+Return ONLY valid JSON:
+```json
+{
+    "project_name": "string or null",
+    "registration_number": "string or null",
+    "layout_number": "string or null",
+    "total_land_area": "string or null",
+    "total_saleable_area": "string or null",
+    "total_plots": "integer or null",
+    "residential_plots": "integer or null",
+    "commercial_plots": "integer or null",
+    "plot_sizes": ["array of strings"],
+    "main_road_width": "string or null",
+    "internal_road_widths": ["array of strings"],
+    "road_area_percentage": "float or null",
+    "open_space_area": "string or null",
+    "open_space_percentage": "float or null",
+    "amenities": ["array of strings"],
+    "boundaries": {"north": "", "south": "", "east": "", "west": ""},
+    "survey_numbers": ["array of strings"],
+    "village": "string or null",
+    "district": "string or null",
+    "approval_authority": "string or null",
+    "approval_date": "YYYY-MM-DD or null",
+    "extraction_confidence": "float 0-1"
+}
+```
+
+Extract carefully and return only the JSON object.

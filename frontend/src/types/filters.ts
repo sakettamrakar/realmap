@@ -14,4 +14,5 @@ export interface Filters {
   tagsMatchAll: boolean;
   // Point 25: RERA verification filter
   reraVerifiedOnly: boolean;
+  groupByParent: boolean;
 }

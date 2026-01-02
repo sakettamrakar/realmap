@@ -79,7 +79,12 @@ export function ProjectHero({ project, onShowMap, onShortlist, isShortlisted }: 
                 >
                     Open RERA Page
                 </button>
-                <button className="action-btn secondary" onClick={onShowMap}>
+                <button
+                    className="action-btn secondary"
+                    onClick={onShowMap}
+                    disabled={!location?.lat || !location?.lon}
+                    title={(!location?.lat || !location?.lon) ? "Location coordinates missing" : ""}
+                >
                     Show on Map
                 </button>
                 <button

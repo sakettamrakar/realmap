@@ -1,0 +1,31 @@
+run:
+  mode: FULL
+  scraping_mode: full
+  scraping_cache_file: data/scraped_cache.json
+  output_base_dir: outputs/current_run
+  state_code: CG
+  max_search_combinations: 10
+  max_total_listings: 500
+  skip_filters: false
+
+search_filters:
+  districts:
+    - Raipur
+    - Bilaspur
+    - Durg
+  statuses:
+    - Approved
+  project_types:
+    - Residential
+
+database:
+  url: "postgresql://postgres:betsson@123@localhost:5432/realmapdb"
+
+browser:
+  driver: playwright
+  headless: true
+  default_timeout_ms: 20000
+
+geocoder:
+  provider: nominatim
+  cache_db: data/geocode_cache.sqlite

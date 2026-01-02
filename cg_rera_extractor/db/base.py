@@ -3,14 +3,31 @@ from __future__ import annotations
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
+
+# SQLAlchemy 1.4/2.0 compatibility for Base class
+try:
+    # SQLAlchemy 2.0+
+    from sqlalchemy.orm import DeclarativeBase
+    
+    class Base(DeclarativeBase):
+        """Declarative base for all ORM models (SQLAlchemy 2.0 style).
+        
+        Note: __allow_unmapped__ = True is required for compatibility with
+        Apache Airflow's model scanner when using SQLAlchemy 2.0 Mapped[] annotations.
+        """
+        __allow_unmapped__ = True
+        
+except ImportError:
+    # SQLAlchemy 1.4.x fallback
+    from sqlalchemy.orm import declarative_base
+    
+    Base = declarative_base()
+    # Add attribute for compatibility
+    Base.__allow_unmapped__ = True
 
 from cg_rera_extractor.config.env import ensure_database_url
 from cg_rera_extractor.config.models import DatabaseConfig
-
-
-class Base(DeclarativeBase):
-    """Declarative base for all ORM models."""
 
 
 def get_engine(

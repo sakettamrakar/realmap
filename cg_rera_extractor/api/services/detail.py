@@ -98,9 +98,27 @@ def fetch_project_detail(db: Session, project_id: int) -> dict[str, Any] | None:
                 "area_range": [float(ut.carpet_area_sqmt * 10.764) if ut.carpet_area_sqmt else None, None], # Convert sqmt to sqft
             })
 
+    other_registrations = []
+    if project.parent_project_id:
+        others = (
+            db.query(Project)
+            .filter(Project.parent_project_id == project.parent_project_id)
+            .filter(Project.id != project.id)
+            .all()
+        )
+        for other in others:
+            other_registrations.append({
+                "project_id": other.id,
+                "rera_number": other.rera_registration_number,
+                "status": other.status,
+                "registration_date": other.approved_date.isoformat() if other.approved_date else None,
+            })
+
     payload: dict[str, Any] = {
         "project": {
             "project_id": project.id,
+            "parent_project_id": project.parent_project_id,
+            "other_registrations": other_registrations,
             "name": project.project_name,
             "rera_number": project.rera_registration_number,
             "developer": None,

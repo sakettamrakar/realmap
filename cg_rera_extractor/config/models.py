@@ -63,6 +63,9 @@ class RunConfig(BaseModel):
     state_code: str = "CG"
     max_search_combinations: int | None = 10
     max_total_listings: int | None = 200
+    skip_to_page: int | None = None  # Skip directly to this page number (for testing pagination)
+    skip_filters: bool = False  # Skip filter application and CAPTCHA (use when listings are already visible)
+    max_pages_per_run: int | None = None  # Maximum pages to process before stopping (for parallel runs)
 
 
 class DatabaseConfig(BaseModel):

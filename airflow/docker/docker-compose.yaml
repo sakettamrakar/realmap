@@ -1,0 +1,64 @@
+name: airflow-orchestrator
+
+x-airflow-common: &airflow-common
+  # Standard Airflow image - custom builds with SQLAlchemy 2.0 cause conflicts
+  # See README.md for details on running SQLAlchemy 2.0 dependent tasks
+  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.10.4}
+  user: "${AIRFLOW_UID:-50000}:0"
+  env_file:
+    - ../.env
+  environment:
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:-postgresql+psycopg2://airflow:airflow@postgres:5432/airflow}
+    AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+    AIRFLOW__CORE__LOAD_EXAMPLES: ${AIRFLOW__CORE__LOAD_EXAMPLES:-False}
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: ${AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION:-False}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-}
+    # NOTE: PYTHONPATH is NOT set here to avoid SQLAlchemy conflicts at Airflow startup
+    # Tasks set PYTHONPATH=/opt/realmap themselves when needed for backend imports
+    # Pass through any realmap-specific env vars (used by BashOperator tasks)
+    REALMAP_RUNS_DIR: ${REALMAP_RUNS_DIR:-/opt/realmap/outputs/realcrawl/runs}
+    REALMAP_CONFIG: ${REALMAP_CONFIG:-/opt/realmap/config.example.yaml}
+  volumes:
+    - ../dags:/opt/airflow/dags
+    - ../logs:/opt/airflow/logs
+    - ../plugins:/opt/airflow/plugins
+    # Mount entire realmap repository (read-only for safety)
+    - ../../:/opt/realmap:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-airflow} -d ${POSTGRES_DB:-airflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: >
+      bash -c "airflow db migrate; airflow users create --role Admin --username \"$${_AIRFLOW_WWW_USER_USERNAME}\" --password \"$${_AIRFLOW_WWW_USER_PASSWORD}\" --firstname \"$${_AIRFLOW_WWW_USER_FIRSTNAME}\" --lastname \"$${_AIRFLOW_WWW_USER_LASTNAME}\" --email \"$${_AIRFLOW_WWW_USER_EMAIL}\" || true; exec airflow webserver"
+    ports:
+      - "${AIRFLOW_WEBSERVER_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: >
+      bash -c "airflow db migrate; exec airflow scheduler"
+    restart: unless-stopped
+
+volumes:
+  postgres-db-volume:

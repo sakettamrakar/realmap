@@ -31,8 +31,10 @@ def extract_raw_from_html(
     soup = BeautifulSoup(html, "html.parser")
     label_tags = soup.find_all("label")
 
-    section_map: "OrderedDict[str, List[FieldRecord]]" = OrderedDict()
+    # Structure: {Title: {'fields': [], 'tables': [], 'grids': []}}
+    section_map: "OrderedDict[str, dict]" = OrderedDict()
 
+    # 1. Extract Fields (Label: Value)
     for label in label_tags:
         label_text = _clean_label_text(label.get_text(" ", strip=True))
         if not label_text:
@@ -53,12 +55,81 @@ def extract_raw_from_html(
         )
 
         if section_title not in section_map:
-            section_map[section_title] = []
-        section_map[section_title].append(field_record)
+            section_map[section_title] = {"fields": [], "tables": [], "grids": []}
+        section_map[section_title]["fields"].append(field_record)
 
+    # 2. Extract Tables
+    from .schema import TableRecord, GridRecord
+
+    tables = soup.find_all("table")
+    for table in tables:
+        # Skip small layout tables if they don't look like data (heuristic: < 2 rows)
+        rows = table.find_all("tr")
+        if len(rows) < 2:
+            continue
+            
+        # Parse headers
+        headers = [th.get_text(" ", strip=True) for th in rows[0].find_all(["th", "td"])]
+        
+        # Parse data rows
+        data_rows = []
+        for tr in rows[1:]:
+            cells = [td.get_text(" ", strip=True) for td in tr.find_all("td")]
+            if any(cells):
+                data_rows.append(cells)
+        
+        if not data_rows:
+            continue
+
+        # Find section title for this table
+        section_title = _find_section_title(table)
+        
+        if section_title not in section_map:
+            section_map[section_title] = {"fields": [], "tables": [], "grids": []}
+        
+        section_map[section_title]["tables"].append(
+            TableRecord(headers=headers, rows=data_rows)
+        )
+
+    # 3. Extract Inventory Grid (Color-Coded Status)
+    inv_heading = soup.find(lambda t: _is_heading_tag(t) and "Inventory Status" in t.get_text())
+    if inv_heading:
+        section_title = inv_heading.get_text(" ", strip=True)
+        if section_title not in section_map:
+            section_map[section_title] = {"fields": [], "tables": [], "grids": []}
+            
+        grid_items = []
+        # Look forward until next heading
+        current = inv_heading.next_element
+        while current:
+            if isinstance(current, Tag):
+                if _is_heading_tag(current):
+                    break
+                
+                classes = current.get("class", [])
+                bg_class = next((c for c in classes if c.startswith("bg_ll")), None)
+                
+                if bg_class:
+                    text = current.get_text(" ", strip=True)
+                    if text:
+                        grid_items.append({"class": bg_class, "text": text})
+            
+            current = current.next_element
+
+        if grid_items:
+            section_map[section_title]["grids"].append(
+                GridRecord(items=grid_items, legend={"bg_llg": "Available", "bg_lly": "Booked/Sold"})
+            )
+
+    # Reconstruct Sections
     sections = [
-        SectionRecord(section_title_raw=title, fields=fields)
-        for title, fields in section_map.items()
+        SectionRecord(
+            section_title_raw=title, 
+            fields=data["fields"],
+            tables=data["tables"],
+            grids=data["grids"]
+        )
+        for title, data in section_map.items()
     ]
 
     return RawExtractedProject(
@@ -289,4 +360,3 @@ def _try_parse_date(value: str) -> bool:
         except ValueError:
             continue
     return False
-

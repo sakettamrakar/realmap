@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from cg_rera_extractor.db import (
     Building,
+    ParentProject,
     Project,
     ProjectDocument,
     ProjectLocation,
@@ -29,11 +30,16 @@ from cg_rera_extractor.db import (
     BankAccount,
     LandParcel,
     ProjectArtifact,
+    ProjectPricingSnapshot,
+    ProjectMedia,
+    Unit,
     get_engine,
     get_session_local,
 )
+from cg_rera_extractor.db.enums import MediaCategory
 from cg_rera_extractor.db.models import DataProvenance, IngestionAudit
 from cg_rera_extractor.geo import AddressParts, normalize_address
+from cg_rera_extractor.utils.normalize import slugify
 from cg_rera_extractor.parsing.schema import V1Project
 from cg_rera_extractor.quality.validation import (
     run_qa_validation,
@@ -59,6 +65,8 @@ class LoadStats:
     land_parcels: int = 0
     artifacts: int = 0
     locations: int = 0
+    units: int = 0               # New: Shredded units
+    media: int = 0               # New: Media files
     provenance_records: int = 0  # Point 29: Provenance tracking
     qa_passed: int = 0           # Point 27: QA tracking
     qa_warnings: int = 0
@@ -77,6 +85,8 @@ class LoadStats:
             "land_parcels": self.land_parcels,
             "artifacts": self.artifacts,
             "locations": self.locations,
+            "units": self.units,
+            "media": self.media,
             "provenance_records": self.provenance_records,
             "qa_passed": self.qa_passed,
             "qa_warnings": self.qa_warnings,
@@ -120,10 +130,10 @@ def _infer_artifact_category(field_key: str) -> str:
     """
     key_lower = field_key.lower()
     
-    legal_keywords = ['registration', 'encumbrance', 'title', 'revenue', 'deed', 'agreement', 'allotment']
-    technical_keywords = ['building', 'layout', 'structure', 'floor', 'plan', 'drawing', 'design']
-    approval_keywords = ['noc', 'approval', 'permission', 'certificate', 'commencement', 'occupancy', 'completion', 'fire', 'environment', 'airport']
-    media_keywords = ['photo', 'image', 'brochure', 'video', 'render', 'amenity']
+    legal_keywords = ['registration', 'encumbrance', 'title', 'revenue', 'deed', 'agreement', 'allotment', 'form']
+    technical_keywords = ['building', 'layout', 'structure', 'floor', 'plan', 'drawing', 'design', 'specification']
+    approval_keywords = ['noc', 'approval', 'permission', 'certificate', 'commencement', 'occupancy', 'completion', 'fire', 'environment', 'airport', 'sanction']
+    media_keywords = ['photo', 'image', 'brochure', 'video', 'render', 'amenity', 'elevation', 'view']
     
     for keyword in legal_keywords:
         if keyword in key_lower:
@@ -136,12 +146,185 @@ def _infer_artifact_category(field_key: str) -> str:
     for keyword in technical_keywords:
         if keyword in key_lower:
             return 'technical'
+            
+    for keyword in media_keywords:
+        if keyword in key_lower:
+            return 'media'
+            
+    return 'unknown'
+
+
+def _infer_media_category(field_key: str) -> MediaCategory:
+    """Infer media category from field key."""
+    key_lower = field_key.lower()
+    
+    if any(k in key_lower for k in ['floor', 'plan', 'layout']):
+        return MediaCategory.FLOOR_PLAN
+    if any(k in key_lower for k in ['video', 'tour', 'youtube', 'vimeo']):
+        return MediaCategory.VIDEO
+    if any(k in key_lower for k in ['brochure', 'pdf', 'catalog']):
+        return MediaCategory.BROCHURE
+    if any(k in key_lower for k in ['photo', 'image', 'render', 'elevation', 'view', 'gallery']):
+        return MediaCategory.GALLERY
+        
+    return MediaCategory.OTHER
+    
+    for keyword in technical_keywords:
+        if keyword in key_lower:
+            return 'technical'
     
     for keyword in media_keywords:
         if keyword in key_lower:
             return 'media'
     
     return 'unknown'
+
+
+def _process_shredded_units(
+    session: Session, 
+    project: Project, 
+    v1_project: V1Project
+) -> int:
+    """
+    Parse 'Brief Details Apartment/Flat' table and 'Inventory Status' grid
+    to populate the 'units' table.
+    """
+    raw_tables = v1_project.raw_data.tables
+    raw_grids = v1_project.raw_data.grids
+    
+    # Map: key -> Unit object
+    # We use a key to try to deduplicate or merge grid+table data
+    units_map: dict[str, Unit] = {}
+    
+    # 1. Parse Table Data
+    # Iterate all tables. If they look like unit lists, parse them.
+    for key, tables_list in raw_tables.items():
+        k_lower = key.lower()
+        # Heuristic: verify it's a unit list table
+        if not ("brief detail" in k_lower and ("apartment" in k_lower or "flat" in k_lower or "plot" in k_lower or "unit" in k_lower)):
+            continue
+            
+        for table in tables_list:
+            headers = [h.lower() for h in table.headers]
+            
+            # Map columns by keyword
+            col_map = {}
+            for idx, h in enumerate(headers):
+                if "block" in h: col_map['block'] = idx
+                elif "floor" in h: col_map['floor'] = idx
+                elif "flat" in h or "unit" in h or "shop" in h or "plot" in h: col_map['unit_no'] = idx
+                elif "type" in h: col_map['type'] = idx
+                elif "carpet" in h: col_map['carpet'] = idx
+            
+            # Must have at least a unit number
+            if 'unit_no' not in col_map:
+                logger.debug(f"Skipping table '{key}': could not identify Unit No column in {headers}")
+                continue
+                
+            for row in table.rows:
+                # Ensure row length matches headers roughly (or at least covers our indices)
+                if not row: continue
+                
+                # Safe extractor
+                def _get(col_name):
+                    idx = col_map.get(col_name)
+                    if idx is not None and idx < len(row):
+                        return row[idx]
+                    return None
+
+                unit_no = _get('unit_no')
+                if not unit_no: continue
+                
+                carpet_val = _get('carpet')
+                carpet_float = float(_to_decimal(carpet_val)) if _to_decimal(carpet_val) else None
+                
+                u = Unit(
+                    project_id=project.id,
+                    unit_no=unit_no,
+                    block_name=_get('block'),
+                    floor_no=_get('floor'),
+                    unit_type=_get('type'),
+                    carpet_area_sqm=carpet_float,
+                    status="Unknown", # Will be updated by grid if available
+                    raw_data={"source": "table", "table_key": key, "row": row}
+                )
+                
+                # Construct a key. 
+                # Ideally: block + unit. If block missing, just unit.
+                ukey = unit_no
+                if u.block_name:
+                    ukey = f"{u.block_name}_{unit_no}"
+                
+                units_map[ukey] = u
+
+    # 2. Parse Inventory Grid (Status)
+    for key, grids_list in raw_grids.items():
+        if "inventory status" not in key.lower():
+            continue
+            
+        for grid in grids_list:
+            # Build legend map
+            legend_map = {}
+            # Standard RERA classes often used: bg_llg (Available), bg_lly (Booked)
+            # Check parsed legend if available
+            if grid.legend:
+                for cls, val in grid.legend.items():
+                    val_lower = val.lower()
+                    if "available" in val_lower:
+                        legend_map[cls] = "Available"
+                    elif "booked" in val_lower or "sold" in val_lower:
+                        legend_map[cls] = "Booked"
+            
+            # Fallbacks
+            if "bg_llg" not in legend_map: legend_map["bg_llg"] = "Available"
+            if "bg_lly" not in legend_map: legend_map["bg_lly"] = "Booked"
+            
+            for item in grid.items:
+                unit_text = item.get('text', '').strip()
+                cls = item.get('class')
+                status = legend_map.get(cls, "Unknown")
+                
+                # Try to match with existing unit from table
+                # 1. Exact match on Key (if we extracted block from grid name?)
+                # Grid names often don't have block info structured, maybe in title?
+                
+                matched = False
+                
+                # Strategy: Try to find exact unit_no in our map values.
+                # If ambiguous (multiple blocks have same unit no), we might mismatch.
+                # But typically table comes first.
+                
+                # If we have a match in units_map by pure unit_no (suffix), update it.
+                candidates = [u for u in units_map.values() if u.unit_no == unit_text]
+                if len(candidates) == 1:
+                    candidates[0].status = status
+                    matched = True
+                elif len(candidates) > 1:
+                    # Ambiguous. Do we update all? Or none?
+                    # Update all is probably safer than leaving as Unknown.
+                    for c in candidates:
+                        c.status = status
+                    matched = True
+                
+                if not matched:
+                    # Create new unit from grid
+                    u = Unit(
+                        project_id=project.id,
+                        unit_no=unit_text,
+                        status=status,
+                        raw_data={"source": "grid", "grid_key": key, "class": cls}
+                    )
+                    # Use a unique key
+                    units_map[f"grid_{unit_text}_{len(units_map)}"] = u
+
+    # 3. Insert into DB
+    count = 0
+    if units_map:
+        session.execute(delete(Unit).where(Unit.project_id == project.id))
+        session.add_all(units_map.values())
+        count = len(units_map)
+        
+    return count
 
 # =============================================================================
 # POINT 27: QA Validation Gate
@@ -242,6 +425,61 @@ def _create_provenance_record(
     return provenance
 
 
+def _resolve_parent_project(session: Session, v1_project: V1Project) -> ParentProject:
+    """
+    Find or create a ParentProject based on project name, address, and promoter.
+    """
+    details = v1_project.project_details
+    promoters = v1_project.promoter_details
+    
+    name = (details.project_name or "").strip()
+    address = (details.project_address or "").strip()
+    promoter_name = (promoters[0].name if promoters else "UNKNOWN").strip()
+    
+    # Normalize for lookup
+    norm_name = name.upper()
+    norm_address = address.upper()
+    norm_promoter = promoter_name.upper()
+    
+    stmt = select(ParentProject).where(
+        func.upper(ParentProject.name) == norm_name,
+        func.upper(ParentProject.full_address) == norm_address,
+        func.upper(ParentProject.promoter_name) == norm_promoter
+    )
+    parent = session.execute(stmt).scalar_one_or_none()
+    
+    if not parent:
+        # Create new parent
+        base_slug = slugify(name)
+        if not base_slug:
+            import uuid
+            base_slug = f"project-{str(uuid.uuid4())[:8]}"
+            
+        # Ensure slug uniqueness
+        slug = base_slug
+        counter = 1
+        while True:
+            existing = session.execute(
+                select(ParentProject.id).where(ParentProject.slug == slug)
+            ).scalar_one_or_none()
+            if not existing:
+                break
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+            
+        parent = ParentProject(
+            name=name,
+            slug=slug,
+            full_address=address,
+            promoter_name=promoter_name
+        )
+        session.add(parent)
+        session.flush()
+        logger.info(f"Created new ParentProject: {name} (slug: {slug})")
+        
+    return parent
+
+
 def _load_project(
     session: Session,
     v1_project: V1Project,
@@ -277,6 +515,11 @@ def _load_project(
         )
         # Continue loading but mark the project
 
+    # =========================================================================
+    # Resolve Parent Project (Deduplication Logic)
+    # =========================================================================
+    parent_project = _resolve_parent_project(session, v1_project)
+
     stmt = select(Project).where(
         Project.state_code == v1_project.metadata.state_code,
         Project.rera_registration_number == details.registration_number,
@@ -288,10 +531,12 @@ def _load_project(
             state_code=v1_project.metadata.state_code,
             rera_registration_number=details.registration_number,
             project_name=details.project_name or details.registration_number,
+            parent_project_id=parent_project.id,
         )
         session.add(project)
     else:
         project.project_name = details.project_name or project.project_name
+        project.parent_project_id = parent_project.id
 
     # Extract extra fields from details._extra if present
     extra = getattr(details, '_extra', {}) or {}
@@ -367,9 +612,15 @@ def _load_project(
         (LandParcel, v1_project.land_details),  # AUDIT FIX: was hardcoded empty
         (ProjectArtifact, []),  # Artifacts handled via previews
         (ProjectLocation, v1_project.rera_locations),  # RERA locations from amenities
+        (ProjectPricingSnapshot, []), # Prices handled separately below
+        (Unit, []), # Units handled via _process_shredded_units
+        (ProjectMedia, []), # Media handled via previews/docs below
     ]
     for model, _ in child_tables:
         session.execute(delete(model).where(model.project_id == project.id))
+    
+    # --- Populating Units (Shredded) ---
+    stats.units = _process_shredded_units(session, project, v1_project)
 
     # --- Promoters ---
     for promoter in v1_project.promoter_details:
@@ -398,25 +649,61 @@ def _load_project(
                 number_of_floors=building.number_of_floors,
                 total_units=building.number_of_units,
                 status=None,
+                # New fields from data audit
+                basement_floors=getattr(building, 'basement_floors', 0),
+                stilt_floors=getattr(building, 'stilt_floors', 0),
+                podium_floors=getattr(building, 'podium_floors', 0),
+                height_meters=_to_decimal(getattr(building, 'building_height', None)),
+                plan_approval_number=getattr(building, 'plan_approval_number', None),
+                parking_slots_covered=getattr(building, 'parking_slots', 0),
             )
         )
         stats.buildings += 1
 
 
 
-    # --- Unit Types ---
+    # --- Unit Types & Pricing Snapshots ---
     for unit_type in v1_project.unit_types:
+        price_val = _to_decimal(unit_type.price_in_inr)
+        area_sqmt = _to_decimal(unit_type.carpet_area_sq_m)
+        built_up_sqmt = _to_decimal(unit_type.built_up_area_sq_m)
+        super_built_up_sqmt = _to_decimal(getattr(unit_type, 'super_built_up_area_sq_m', None))
+        
         session.add(
             UnitType(
                 project_id=project.id,
                 type_name=unit_type.name or "",
-                carpet_area_sqmt=_to_decimal(unit_type.carpet_area_sq_m),
-                saleable_area_sqmt=_to_decimal(unit_type.built_up_area_sq_m),
+                carpet_area_sqmt=area_sqmt,
+                saleable_area_sqmt=built_up_sqmt or super_built_up_sqmt,
+                balcony_area_sqmt=_to_decimal(unit_type.balcony_area_sq_m),
+                common_area_sqmt=_to_decimal(unit_type.common_area_sq_m),
+                terrace_area_sqmt=_to_decimal(unit_type.terrace_area_sq_m),
                 total_units=None,
-                sale_price=_to_decimal(unit_type.price_in_inr),
+                sale_price=price_val,
             )
         )
         stats.unit_types += 1
+        
+        # Add pricing snapshot
+        if price_val:
+            # Use best available area for price per sqft calculation
+            best_area_sqmt = area_sqmt or built_up_sqmt or super_built_up_sqmt
+            area_sqft = best_area_sqmt * Decimal("10.764") if best_area_sqmt else None
+            price_per_sqft = price_val / area_sqft if (price_val and area_sqft) else None
+            
+            session.add(
+                ProjectPricingSnapshot(
+                    project_id=project.id,
+                    snapshot_date=date.today(),
+                    unit_type_label=unit_type.name,
+                    min_price_total=price_val,
+                    max_price_total=price_val,
+                    min_price_per_sqft=price_per_sqft,
+                    max_price_per_sqft=price_per_sqft,
+                    source_type="v1_scraper_import",
+                    is_active=True
+                )
+            )
 
 
 
@@ -444,6 +731,12 @@ def _load_project(
                 update_date=None,
                 status=update.status,
                 summary=update.remarks,
+                overall_percent=_to_decimal(update.completion_percent),
+                foundation_percent=_to_decimal(getattr(update, 'foundation_percent', None)),
+                plinth_percent=_to_decimal(getattr(update, 'plinth_percent', None)),
+                superstructure_percent=_to_decimal(getattr(update, 'superstructure_percent', None)),
+                mep_percent=_to_decimal(getattr(update, 'mep_percent', None)),
+                finishing_percent=_to_decimal(getattr(update, 'finishing_percent', None)),
                 raw_data_json=update.model_dump(exclude_none=True),
             )
         )
@@ -462,6 +755,24 @@ def _load_project(
             )
         )
         stats.bank_accounts += 1
+
+    # --- Land Parcels ---
+    for land in v1_project.land_details:
+        session.add(
+            LandParcel(
+                project_id=project.id,
+                area_sqmt=_to_decimal(land.land_area_sq_m),
+                survey_number=land.khasra_numbers,
+                owner_name=None,
+                encumbrance_details=land.land_status,
+                # New fields from data audit
+                ward_number=getattr(land, 'ward_number', None),
+                mutation_number=getattr(land, 'mutation_number', None),
+                patwari_halka=getattr(land, 'patwari_halka', None),
+                plot_number=getattr(land, 'plot_number', None),
+            )
+        )
+        stats.land_parcels += 1
 
     # --- Artifacts (from Previews) ---
     # V1Project doesn't strongly type 'previews' yet, it's in raw_data or a dict
@@ -500,6 +811,46 @@ def _load_project(
                     )
                 )
                 stats.artifacts += 1
+
+    # --- Media (from Previews and Documents) ---
+    # 1. From Previews
+    if isinstance(previews, dict):
+        for field_key, preview_data in previews.items():
+            if isinstance(preview_data, dict):
+                notes = preview_data.get("notes")
+                file_path = notes if notes and isinstance(notes, str) else None
+                
+                if file_path:
+                    if file_path.startswith(".."):
+                        from urllib.parse import urljoin
+                        file_path = urljoin(base_url, file_path)
+                    
+                    category = _infer_media_category(field_key)
+                    
+                    session.add(
+                        ProjectMedia(
+                            project_id=project.id,
+                            category=category,
+                            title=field_key.replace("_", " ").title(),
+                            url=file_path,
+                            is_active=True,
+                        )
+                    )
+                    stats.media += 1
+
+    # 2. From Documents (if they look like media)
+    for doc in v1_project.documents:
+        if _infer_artifact_category(doc.document_type) == 'media':
+            session.add(
+                ProjectMedia(
+                    project_id=project.id,
+                    category=_infer_media_category(doc.document_type),
+                    title=doc.name or doc.document_type,
+                    url=doc.url,
+                    is_active=True,
+                )
+            )
+            stats.media += 1
 
     # --- RERA Locations (from Amenities) ---
     for rera_loc in v1_project.rera_locations:
@@ -576,7 +927,9 @@ def load_run_into_db(
             html_snapshot_path = str(html_path) if html_path.exists() else None
             
             try:
-                v1_project = V1Project.model_validate_json(path.read_text())
+                # Read JSON, removing BOM if present
+                json_text = path.read_text(encoding='utf-8-sig')
+                v1_project = V1Project.model_validate_json(json_text)
                 project_stats = _load_project(
                     working_session,
                     v1_project,
@@ -591,8 +944,11 @@ def load_run_into_db(
                 stats.documents += project_stats.documents
                 stats.quarterly_updates += project_stats.quarterly_updates
                 stats.bank_accounts += project_stats.bank_accounts
+                stats.land_parcels += project_stats.land_parcels
                 stats.artifacts += project_stats.artifacts
                 stats.locations += project_stats.locations
+                stats.units += project_stats.units
+                stats.media += project_stats.media
                 stats.provenance_records += project_stats.provenance_records
                 stats.qa_passed += project_stats.qa_passed
                 stats.qa_warnings += project_stats.qa_warnings
@@ -667,6 +1023,7 @@ def load_all_runs(
                 stats.bank_accounts += int(run_stats.get("bank_accounts", 0))
                 stats.artifacts += int(run_stats.get("artifacts", 0))
                 stats.locations += int(run_stats.get("locations", 0))
+                stats.units += int(run_stats.get("units", 0))
                 stats.provenance_records += int(run_stats.get("provenance_records", 0))
                 stats.qa_passed += int(run_stats.get("qa_passed", 0))
                 stats.qa_warnings += int(run_stats.get("qa_warnings", 0))

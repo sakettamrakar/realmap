@@ -51,6 +51,53 @@ def normalize_area_to_sqm(value: str | float | Decimal | None, unit: str = "sqft
     if value is None:
         return None
     
+    # Handle string input with potential units
+    if isinstance(value, str):
+        # Extract numeric part and unit
+        match = re.search(r"([\d\.,]+)\s*([a-zA-Z]*)", value)
+        if not match:
+            return None
+        
+        num_str = match.group(1).replace(",", "")
+        unit_str = match.group(2).lower() or unit.lower()
+        
+        try:
+            val = Decimal(num_str)
+        except (ValueError, TypeError):
+            return None
+    else:
+        val = Decimal(str(value))
+        unit_str = unit.lower()
+
+    # Apply conversion
+    if "sqm" in unit_str or "square meter" in unit_str:
+        return val
+    elif "sqft" in unit_str or "square feet" in unit_str:
+        return val * SQFT_TO_SQM
+    elif "sqyd" in unit_str or "square yard" in unit_str:
+        return val * SQYD_TO_SQM
+    elif "acre" in unit_str:
+        return val * ACRE_TO_SQM
+    elif "ha" in unit_str or "hectare" in unit_str:
+        return val * HECTARE_TO_SQM
+    elif "bigha" in unit_str:
+        return val * BIGHA_TO_SQM
+    
+    return val
+
+
+def slugify(text: str) -> str:
+    """
+    Convert text to a URL-friendly slug.
+    """
+    if not text:
+        return ""
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    return text.strip('-')
+    if value is None:
+        return None
+    
     # Handle string input with potential unit suffix
     if isinstance(value, str):
         value = value.strip().replace(",", "")

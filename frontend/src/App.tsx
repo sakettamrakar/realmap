@@ -31,6 +31,7 @@ const DEFAULT_FILTERS: Filters = {
   tags: [],
   tagsMatchAll: false,
   reraVerifiedOnly: false,
+  groupByParent: true,
 };
 
 const DEFAULT_BOUNDS: BBox = {
@@ -124,9 +125,19 @@ function App() {
     setError(null);
 
     searchProjects({
-      ...debouncedFilters,
+      district: debouncedFilters.district,
+      tehsil: debouncedFilters.tehsil,
+      project_types: debouncedFilters.projectTypes,
+      statuses: debouncedFilters.statuses,
+      q: debouncedFilters.nameQuery,
+      min_overall_score: debouncedFilters.minOverallScore,
+      min_price: debouncedFilters.minPrice,
+      max_price: debouncedFilters.maxPrice,
+      sort_by: debouncedFilters.sortBy,
+      sort_dir: debouncedFilters.sortDir,
       page: searchMeta.page,
       page_size: searchMeta.pageSize,
+      group_by_parent: debouncedFilters.groupByParent,
     })
       .then((res) => {
         if (!active) return;
@@ -539,6 +550,7 @@ function App() {
           onClose={handleCloseDetail}
           loading={detailLoading}
           onCenterOnProject={handleLocateProject}
+          onSelectProject={handleSelectProject}
         />
       )}
 

@@ -10,8 +10,8 @@ import './AreaLabel.css';
 export type AreaType = 'carpet' | 'builtup' | 'super_builtup' | 'unknown';
 
 interface AreaLabelProps {
-  /** Area value in square feet */
-  value: number;
+  /** Area value in square feet or a range string */
+  value: number | string;
   /** Type of area measurement */
   areaType: AreaType;
   /** Unit to display (default: sqft) */
@@ -22,10 +22,10 @@ interface AreaLabelProps {
   className?: string;
 }
 
-const AREA_CONFIG: Record<AreaType, { 
-  label: string; 
+const AREA_CONFIG: Record<AreaType, {
+  label: string;
   shortLabel: string;
-  tooltip: string; 
+  tooltip: string;
   className: string;
 }> = {
   carpet: {
@@ -54,24 +54,24 @@ const AREA_CONFIG: Record<AreaType, {
   },
 };
 
-export function AreaLabel({ 
-  value, 
-  areaType, 
+export function AreaLabel({
+  value,
+  areaType,
   unit = 'sqft',
   variant = 'badge',
   className = '',
 }: AreaLabelProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const config = AREA_CONFIG[areaType];
-  
-  const formattedValue = value.toLocaleString('en-IN');
+
+  const formattedValue = typeof value === 'number' ? value.toLocaleString('en-IN') : value;
   const unitLabel = unit === 'sqft' ? 'sq.ft' : 'sq.m';
 
   if (variant === 'inline') {
     return (
       <span className={`area-label-inline ${className}`}>
         {formattedValue} {unitLabel}
-        <span 
+        <span
           className={`area-type-badge ${config.className}`}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
@@ -89,7 +89,7 @@ export function AreaLabel({
     return (
       <div className={`area-label-full ${config.className} ${className}`}>
         <div className="area-value">{formattedValue} {unitLabel}</div>
-        <div 
+        <div
           className="area-type-label"
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
@@ -106,7 +106,7 @@ export function AreaLabel({
 
   // Default: badge variant
   return (
-    <div 
+    <div
       className={`area-label-badge ${config.className} ${className}`}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
@@ -136,7 +136,7 @@ interface AreaComparisonWarningProps {
 
 export function AreaComparisonWarning({ areaTypes, className = '' }: AreaComparisonWarningProps) {
   const uniqueTypes = [...new Set(areaTypes.filter(t => t !== 'unknown'))];
-  
+
   if (uniqueTypes.length <= 1) return null;
 
   return (
@@ -145,7 +145,7 @@ export function AreaComparisonWarning({ areaTypes, className = '' }: AreaCompari
       <div className="warning-content">
         <strong>Area Type Mismatch</strong>
         <p>
-          You are comparing units with different area definitions: 
+          You are comparing units with different area definitions:
           {uniqueTypes.map((t, i) => (
             <span key={t}>
               {i > 0 && (i === uniqueTypes.length - 1 ? ' and ' : ', ')}
@@ -171,7 +171,7 @@ export function normalizeToCarept(value: number, areaType: AreaType): number {
     super_builtup: 0.75, // SBUA is ~33% more than carpet
     unknown: 1.0,
   };
-  
+
   return value * CONVERSION_FACTORS[areaType];
 }
 

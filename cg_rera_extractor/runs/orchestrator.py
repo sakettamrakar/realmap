@@ -139,10 +139,27 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                     district,
                     project_status,
                     filters.project_types,
+                    run_config,
                     is_first_search=is_first_search,
                 )
                 
+                # If skip_to_page is configured, navigate to that page before processing
                 page_num = 1
+                skip_to_page = run_config.skip_to_page
+                if skip_to_page is not None and skip_to_page > 1:
+                    LOGGER.info("Skipping to page %d as configured", skip_to_page)
+                    print(f"Navigating to page {skip_to_page}...")
+                    for _ in range(skip_to_page - 1):
+                        if not _go_to_next_page(session, search_page_config.selectors):
+                            LOGGER.warning("Could not navigate to page %d", skip_to_page)
+                            print(f"Warning: Could not reach page {skip_to_page}")
+                            break
+                        page_num += 1
+                    # Get HTML of the target page
+                    if page_num == skip_to_page:
+                        listings_html = session.get_page_html()
+                        LOGGER.info("Successfully navigated to page %d", page_num)
+                
                 while True:
                     LOGGER.info("Processing page %d for %s/%s", page_num, district, project_status)
                     
@@ -241,6 +258,13 @@ def run_crawl(app_config: AppConfig) -> RunStatus:
                     
                     if should_stop_after_this_batch:
                         LOGGER.info("Stopping pagination as global limit reached.")
+                        break
+                    
+                    # Check if max_pages_per_run limit reached
+                    max_pages = run_config.max_pages_per_run
+                    if max_pages is not None and page_num >= max_pages:
+                        LOGGER.info("Stopping pagination as max_pages_per_run (%d) reached.", max_pages)
+                        print(f"  Max pages per run ({max_pages}) reached. Stopping.")
                         break
                         
                     # Try to go to next page
@@ -360,6 +384,7 @@ def _run_search_and_get_listings(
     district: str,
     project_status: str,
     project_types: Iterable[str] | None,
+    run_config,
     is_first_search: bool = True,
 ) -> str:
     """Run a search and return the HTML of the results page.
@@ -402,41 +427,49 @@ def _run_search_and_get_listings(
         except Exception:
             LOGGER.debug("Listing container not immediately visible; proceeding to apply filters")
 
-        filters = SearchFilters(
-            district=district,
-            status=project_status,
-            project_types=project_types,
-        )
-        LOGGER.info("Applying filters: district=%s, status=%s, types=%s", district, project_status, list(project_types) if project_types else "[]")
+        # Check if skip_filters mode is enabled
+        skip_filters_mode = getattr(run_config, 'skip_filters', False)
         
-        try:
-            manual_wait_handled = apply_filters_or_fallback(session, selectors, filters, LOGGER)
-        except Exception as exc:
-            LOGGER.warning("Filter application error (will try manual mode): %s", exc)
-            manual_wait_handled = manual_filter_fallback(filters)
-
-        if not manual_wait_handled and selectors.submit_button:
+        if skip_filters_mode:
+            LOGGER.info("Skip filters mode enabled - bypassing filter application and CAPTCHA")
+            print("  Skip filters mode: using pre-loaded listings without filters or CAPTCHA")
+            manual_wait_handled = True  # Pretend manual handling is done
+        else:
+            filters = SearchFilters(
+                district=district,
+                status=project_status,
+                project_types=project_types,
+            )
+            LOGGER.info("Applying filters: district=%s, status=%s, types=%s", district, project_status, list(project_types) if project_types else "[]")
+            
             try:
-                LOGGER.info("Clicking search button automatically")
-                print("  Clicking search button...")
-                session.click(selectors.submit_button)
-            except Exception as exc:  # pragma: no cover - defensive logging
-                LOGGER.warning("Automatic search click failed: %s", exc)
+                manual_wait_handled = apply_filters_or_fallback(session, selectors, filters, LOGGER)
+            except Exception as exc:
+                LOGGER.warning("Filter application error (will try manual mode): %s", exc)
                 manual_wait_handled = manual_filter_fallback(filters)
 
-        if not manual_wait_handled:
-            LOGGER.info("Waiting for CAPTCHA to be solved manually")
-            print("  Waiting for manual CAPTCHA solving...")
-            try:
-                wait_for_captcha_solved()
-            except KeyboardInterrupt:
-                LOGGER.warning("User interrupted CAPTCHA wait with Ctrl+C")
-                print("CAPTCHA solve interrupted. Retrying...")
-                manual_wait_handled = False
-            except Exception as exc:
-                LOGGER.warning("Error during CAPTCHA wait: %s", exc)
-                print(f"Error during CAPTCHA wait: {exc}")
-                manual_wait_handled = False
+            if not manual_wait_handled and selectors.submit_button:
+                try:
+                    LOGGER.info("Clicking search button automatically")
+                    print("  Clicking search button...")
+                    session.click(selectors.submit_button)
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    LOGGER.warning("Automatic search click failed: %s", exc)
+                    manual_wait_handled = manual_filter_fallback(filters)
+
+            if not manual_wait_handled:
+                LOGGER.info("Waiting for CAPTCHA to be solved manually")
+                print("  Waiting for manual CAPTCHA solving...")
+                try:
+                    wait_for_captcha_solved()
+                except KeyboardInterrupt:
+                    LOGGER.warning("User interrupted CAPTCHA wait with Ctrl+C")
+                    print("CAPTCHA solve interrupted. Retrying...")
+                    manual_wait_handled = False
+                except Exception as exc:
+                    LOGGER.warning("Error during CAPTCHA wait: %s", exc)
+                    print(f"Error during CAPTCHA wait: {exc}")
+                    manual_wait_handled = False
 
         try:
             LOGGER.info("Waiting for results table to appear: %s", table_selector)

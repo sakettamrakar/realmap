@@ -1,7 +1,8 @@
 # API Reference
 
-**Version:** 1.0.0
-**Date:** 2025-12-12
+**Version:** 2.0.0  
+**Date:** 2026-01-02  
+**Status:** Live / Implemented
 
 ---
 
@@ -15,15 +16,27 @@ The RealMap API is built with **FastAPI**. It provides read-only access to proje
 ## 2. Core Endpoints
 
 ### Projects
-*   **`GET /projects`**
-    *   **Query Params:** `district`, `limit`, `offset`, `min_score`.
-    *   **Response:** List of Project Summaries.
+*   **`GET /projects/search`**
+    *   **Query Params:** `district`, `tehsil`, `lat`, `lon`, `radius_km`, `min_price`, `max_price`, `tags`, `rera_verified_only`.
+    *   **Response:** Paginated list of projects with facets.
+*   **`GET /projects/lookup/{identifier}`**
+    *   **Path Params:** `identifier` (Database ID or RERA String).
+    *   **Query Params:** `include_hierarchy` (bool), `include_jsonld` (bool).
+    *   **Response:** Unified project identity with optional hierarchy.
 *   **`GET /projects/{id}`**
-    *   **Path Params:** `id` (Database ID or RERA String).
-    *   **Response:** Full Project Detail object (incl. amenities, documents).
+    *   **Path Params:** `id` (Database ID).
+    *   **Response:** Full Project Detail object.
 *   **`GET /projects/map`**
-    *   **Query Params:** `bbox` (min_lon, min_lat, max_lon, max_lat).
+    *   **Query Params:** `bbox` (min_lon, min_lat, max_lon, max_lat) OR `lat`/`lon`/`radius_km`.
     *   **Response:** GeoJSON feature collection for map pins.
+
+### Rich Media
+*   **`GET /projects/{id}/media`**
+    *   **Response:** Structured media assets (Gallery, Floorplans, Videos) with metadata.
+
+### Inventory
+*   **`GET /projects/{id}/inventory`**
+    *   **Response:** Detailed unit-level inventory (Available/Sold status, Area, Floor).
 
 ### Analytics & Discovery
 *   **`GET /analytics/price-trends`**
@@ -43,11 +56,22 @@ The RealMap API is built with **FastAPI**. It provides read-only access to proje
 ### ProjectSummary
 ```json
 {
-  "id": "PCGRERA...",
+  "id": 123,
+  "rera_id": "PCGRERA...",
   "name": "Super Heights",
   "min_price": 5000000,
   "overall_score": 85,
-  "location": { "lat": 21.25, "lon": 81.63 }
+  "location": { "lat": 21.25, "lon": 81.63 },
+  "tags": ["metro-connected", "ready-to-move"]
+}
+```
+
+### ProjectMediaResponse
+```json
+{
+  "project_id": 123,
+  "gallery": [{ "url": "...", "type": "gallery" }],
+  "floorplans": [{ "url": "...", "type": "floorplan" }]
 }
 ```
 

@@ -169,6 +169,16 @@ def fetch_price_trends(
     if not project:
         return None
     
+    # Determine project IDs to include (all registrations for the same parent)
+    project_ids = [entity_id]
+    if project.parent_project_id:
+        related_ids = (
+            db.query(Project.id)
+            .filter(Project.parent_project_id == project.parent_project_id)
+            .all()
+        )
+        project_ids = [r[0] for r in related_ids]
+
     # Determine date range
     start_date = _get_timeframe_start(timeframe)
     end_date = date.today()
@@ -177,7 +187,7 @@ def fetch_price_trends(
     query = (
         db.query(ProjectPricingSnapshot)
         .filter(
-            ProjectPricingSnapshot.project_id == entity_id,
+            ProjectPricingSnapshot.project_id.in_(project_ids),
             ProjectPricingSnapshot.is_active == True,
             ProjectPricingSnapshot.snapshot_date >= start_date,
             ProjectPricingSnapshot.snapshot_date <= end_date,

@@ -16,7 +16,7 @@ RealMap leverages Artificial Intelligence to transform raw real estate data into
 | :--- | :--- | :--- |
 | **Project Scoring** | ✅ Active | Assigns a 0-100 "Project Quality Score" based on amenities, location, and developer track record. |
 | **Chat Assistant** | 🚧 Beta | A natural language search interface ("Find 3BHKs near AIIMS") utilizing Vector Search. |
-| **RERA PDF Parsing** | 🚧 Beta | Extracts structured data (Completion Date, Litigation) from unstructured PDF filings. |
+| **RERA PDF Parsing** | ✅ Active | Full OCR + LLM pipeline extracts structured data from 11 document types (Registration Certificate, Layout Plan, etc.). See [PDF Processing](../02-technical/orchestration/pdf-processing.md). |
 | **Anomaly Detection** | ✅ Active | Flags listing price outliers (e.g., ₹50/sqft) to protect data integrity. |
 | **Description Gen** | 🗓️ Planned | Auto-generates SEO-friendly marketing descriptions for projects. |
 | **Price Forecasting** | 🗓️ Planned | Predicts future appreciation based on historical trends. |
@@ -37,6 +37,9 @@ graph TD
         
         ChatAgent -->|Vector Search| DB
         ChatAgent -->|LLM Response| User
+        
+        PDFProcessor -->|OCR + LLM| StructuredData
+        StructuredData -->|Enriched JSON| DB
     end
 ```
 

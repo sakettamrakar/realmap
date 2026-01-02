@@ -13,6 +13,7 @@
 |  | `docs/02-technical/Data_Model.md` | DB Schema & Provenance. |
 |  | `docs/02-technical/API_Reference.md` | Endpoints & Schemas. |
 |  | `docs/02-technical/Scraper_Pipeline.md` | ETL Logic. |
+|  | `docs/02-technical/orchestration/pdf-processing.md` | OCR + LLM Extraction Pipeline. |
 | **AI** | `docs/03-ai/AI_Overview.md` | AI Strategy & Features. |
 |  | `docs/03-ai/AI_Implementation.md` | Agents, Prompts, Models. |
 | **Operations** | `docs/04-operations/Operations_Manual.md` | Install, Deploy, Monitor. |
@@ -44,6 +45,7 @@ graph TD
     Tech --> DataModel
     Tech --> API
     Tech --> Scraper
+    Tech --> PDFProcessing[PDF Processing]
 
     AI --> AI_Overview
     AI --> AI_Impl

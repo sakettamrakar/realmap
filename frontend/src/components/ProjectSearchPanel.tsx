@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import ProjectCard from "./ProjectCard";
-import SectionHeader from "./SectionHeader";
+import { SectionHeader } from "./ui/SectionHeader";
 import type { Filters } from "../types/filters";
 import type { ProjectSummary } from "../types/projects";
 
@@ -133,10 +133,9 @@ export function ProjectSearchPanel({
   return (
     <div className="panel">
       <SectionHeader
-        eyebrow="Filters"
         title="Projects"
         subtitle="Find projects by location, score, or name"
-        actions={
+        action={
           <button className="ghost-button" onClick={onResetFilters} type="button">
             Reset filters
           </button>
