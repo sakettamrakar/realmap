@@ -85,6 +85,7 @@ class ProjectSummary(BaseModel):
     approved_date: date | None = None
     proposed_end_date: date | None = None
     extended_end_date: date | None = None
+    parent_project_id: int | None = None
 
 
 class ProjectDetail(ProjectSummary):
@@ -101,6 +102,13 @@ class ProjectDetail(ProjectSummary):
     documents: list[ProjectDocument] = Field(default_factory=list)
     quarterly_updates: list[QuarterlyUpdate] = Field(default_factory=list)
 
+
+class RelatedRegistration(BaseModel):
+    """Summary of another registration for the same parent project."""
+    project_id: int
+    rera_number: str
+    status: str | None = None
+    registration_date: str | None = None
 
 class ProjectSearchItem(BaseModel):
     """List projection for the Phase 6 search endpoint."""
@@ -132,6 +140,8 @@ class ProjectSearchItem(BaseModel):
     max_price_total: float | None = None
     min_price_per_sqft: float | None = None
     max_price_per_sqft: float | None = None
+    parent_project_id: int | None = None
+    phase_count: int | None = None
 
 
 class ProjectSearchResponse(BaseModel):
@@ -196,3 +206,34 @@ class ProjectDetailV2(BaseModel):
     pricing: dict[str, Any] | None = None
     qa: dict[str, Any]
     score_explanation: ScoreExplanation | None = None
+
+
+class UnitResponse(BaseModel):
+    """Individual unit inventory record."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    block_name: str | None = None
+    floor_no: str | None = None
+    unit_no: str | None = None
+    unit_type: str | None = None
+    carpet_area_sqm: float | None = None
+    carpet_area_sqft: float | None = None
+    super_area_sqft: float | None = None
+    saleable_area_sqft: float | None = None
+    status: str | None = None
+    raw_data: dict[str, Any] | None = None
+
+
+class InventoryStats(BaseModel):
+    """Aggregated inventory statistics."""
+    total_units: int = 0
+    available_units: int = 0
+    booked_units: int = 0
+    unknown_units: int = 0
+
+
+class ProjectInventoryResponse(BaseModel):
+    """Full inventory response with stats and list."""
+    stats: InventoryStats
+    units: list[UnitResponse] = Field(default_factory=list)

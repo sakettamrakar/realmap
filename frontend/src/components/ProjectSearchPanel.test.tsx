@@ -12,6 +12,9 @@ const sampleFilters: Filters = {
   statuses: [],
   sortBy: "overall_score",
   sortDir: "desc",
+  tags: [],
+  tagsMatchAll: false,
+  reraVerifiedOnly: false,
 };
 
 const sampleProjects: ProjectSummary[] = [

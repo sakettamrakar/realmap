@@ -129,6 +129,11 @@ const ProjectCard = ({
               <span className={`w-1.5 h-1.5 rounded-full ${project.status === 'Completed' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
               {project.status || "Status Unknown"}
             </span>
+            {project.phase_count && project.phase_count > 1 && (
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-sky-50 border border-sky-200 text-sky-700 font-bold">
+                {project.phase_count} Phases
+              </span>
+            )}
             {/* Feature 5: Anomaly Detection Badge */}
             <AnomalyBadge
               pricePerSqft={project.min_price_per_sqft}

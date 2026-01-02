@@ -83,14 +83,17 @@ def get_tags_with_counts(
     Get all active tags with project counts.
     
     This is used for faceted search sidebar to show available filters.
+    Counts unique physical projects (parent_projects) per tag.
     """
-    # Join tags with project_tags to count projects
+    # Join tags with project_tags and projects to count unique parent_projects
+    # If parent_project_id is null, we treat the project as its own parent for counting
     query = (
         select(
             Tag,
-            func.count(ProjectTag.project_id).label("project_count")
+            func.count(func.distinct(func.coalesce(Project.parent_project_id, Project.id))).label("project_count")
         )
         .outerjoin(ProjectTag, ProjectTag.tag_id == Tag.id)
+        .outerjoin(Project, Project.id == ProjectTag.project_id)
         .group_by(Tag.id)
         .order_by(Tag.sort_order, Tag.name)
     )

@@ -13,6 +13,9 @@ RealMap uses a modern ETL (Extract-Transform-Load) pipeline feeding into a high-
 flowchart LR
     A[RERA Portal] -->|Scraper| B(Raw HTML/JSON)
     B -->|Loader| C[(PostgreSQL DB)]
+    B -->|PDF Download| P[PDF Documents]
+    P -->|OCR + LLM| Q[Enriched V2 JSON]
+    Q -->|Update| C
     C -->|Geo Pipeline| D[Enriched Projects]
     C -->|Amenity Pipeline| D
     D -->|FastAPI| E[API Layer]
@@ -37,10 +40,13 @@ flowchart LR
 | :--- | :--- |
 | `cg_rera_extractor/browser/` | Playwright session management & CAPTCHA handling. |
 | `cg_rera_extractor/parsing/` | Logic to map Raw HTML -> V1 JSON Schema. |
+| `cg_rera_extractor/ocr/` | PDF to image conversion and OCR text extraction. |
+| `cg_rera_extractor/extraction/` | Document classification and LLM-based data extraction. |
+| `cg_rera_extractor/enrichment/` | Data merging and conflict resolution for V2 JSON. |
 | `cg_rera_extractor/db/` | SQLAlchemy models and Alembic migrations. |
 | `cg_rera_extractor/api/` | FastAPI routes, schemas, and service layer. |
 | `frontend/src/` | React source code (Components, Hooks, Pages). |
-| `tools/` | CLI scripts for ETL, QA, and Analysis. |
+| `tools/` | CLI scripts for ETL, QA, PDF processing, and Analysis. |
 
 ---
 
@@ -48,8 +54,9 @@ flowchart LR
 
 1.  **Ingest:** `python -m cg_rera_extractor.cli` runs the scraper. Artifacts saved to `runs/`.
 2.  **Load:** `loader.load_run_into_db` inserts data into `projects` table.
-3.  **Backfill:** `geocode_projects.py` and `compute_project_scores.py` enrich the data.
-4.  **Serve:** API reads from `projects` and `project_scores` tables to serve the UI.
+3.  **PDF Extract:** `tools/process_pdfs.py` runs OCR + LLM extraction on downloaded PDFs, creating enriched V2 JSON.
+4.  **Backfill:** `geocode_projects.py` and `compute_project_scores.py` enrich the data.
+5.  **Serve:** API reads from `projects` and `project_scores` tables to serve the UI.
 
 ---
 

@@ -29,6 +29,14 @@ graph TB
         LOADER["db/loader"]
     end
     
+    subgraph PDFPROC["PDF Processing"]
+        OCR["ocr/ocr_engine"]
+        CONV["ocr/pdf_converter"]
+        CLASS["extraction/classifier"]
+        LLMEXT["extraction/llm_extractor"]
+        MERGER["enrichment/data_merger"]
+    end
+    
     subgraph ENRICH["Enrichment"]
         GEO["geo/geocoder"]
         AMEN["amenities/scoring"]
@@ -36,6 +44,7 @@ graph TB
     
     subgraph ORCH["Orchestration"]
         RUN["runs/orchestrator"]
+        PDFRUN["runs/pdf_processor"]
     end
 
     %% Flows
@@ -52,6 +61,14 @@ graph TB
     ORM --> LOADER
     SCH --> LOADER
     LOADER --> RUN
+    
+    %% PDF Processing flows
+    CONV --> OCR
+    OCR --> CLASS
+    CLASS --> LLMEXT
+    LLMEXT --> MERGER
+    MERGER --> PDFRUN
+    PDFRUN --> LOADER
     
     ORM --> ENRICH
     GEO --> RUN
@@ -76,6 +93,27 @@ runs/orchestrator.py
 ├── quality/validation.py
 └── db/loader.py
     └── db/models.py
+```
+
+### PDF Processing Import Chain
+
+```text
+runs/pdf_processor.py
+├── ocr/
+│   ├── pdf_converter.py
+│   │   └── (pdf2image, PIL)
+│   ├── ocr_engine.py
+│   │   └── (pytesseract, easyocr)
+│   └── text_cleaner.py
+├── extraction/
+│   ├── document_classifier.py
+│   ├── llm_extractor.py
+│   │   └── ai/llm/adapter.py
+│   └── schemas/*.py
+├── enrichment/
+│   ├── conflict_resolver.py
+│   └── data_merger.py
+└── db/loader.py
 ```
 
 ## 🔄 Cyclic Dependency Risks

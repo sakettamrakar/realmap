@@ -172,22 +172,29 @@ class LLMExtractor(BasePDFProcessor):
         
         tokens = max_tokens or self.max_tokens
         
-        result = self._llm_run(
-            prompt=prompt,
-            system=system,
-            max_tokens=tokens,
-            temperature=self.temperature
-        )
-        
-        if result.get("error"):
-            logger.warning(f"LLM call failed: {result['error']}")
-            return "", result.get("tokens_used", 0), result.get("latency_ms", 0)
-        
-        return (
-            result.get("text", "").strip(),
-            result.get("tokens_used", 0),
-            result.get("latency_ms", 0)
-        )
+        try:
+            result = self._llm_run(
+                prompt=prompt,
+                system=system,
+                max_tokens=tokens,
+                temperature=self.temperature
+            )
+            
+            if result.get("error"):
+                logger.warning(f"LLM call failed: {result['error']}")
+                return "", result.get("tokens_used", 0), result.get("latency_ms", 0)
+            
+            return (
+                result.get("text", "").strip(),
+                result.get("tokens_used", 0),
+                result.get("latency_ms", 0)
+            )
+        except (KeyboardInterrupt, TimeoutError) as e:
+            logger.warning(f"LLM call interrupted/timeout: {type(e).__name__}")
+            return "", 0, 0
+        except Exception as e:
+            logger.warning(f"LLM call exception: {e}")
+            return "", 0, 0
     
     def _classify_with_llm(self, text: str) -> tuple[DocumentType, float]:
         """
@@ -196,25 +203,26 @@ class LLMExtractor(BasePDFProcessor):
         Returns:
             Tuple of (DocumentType, confidence)
         """
-        # Truncate text for classification
-        truncated_text = text[:2000]
-        prompt = DOCUMENT_CLASSIFICATION_PROMPT.format(text=truncated_text)
-        
-        response, _, _ = self._call_llm(prompt, max_tokens=50)
-        
-        if not response:
-            # Fall back to rule-based detection
-            return self.detect_document_type(text, "")
-        
-        # Parse response
-        response_upper = response.upper().strip()
-        
-        # Map response to DocumentType - match LLM output to enum values
-        type_mapping = {
-            "REGISTRATION": DocumentType.REGISTRATION_CERTIFICATE,
-            "BUILDING_PERMISSION": DocumentType.BUILDING_PERMISSION,
-            "LAYOUT_PLAN": DocumentType.LAYOUT_PLAN,
-            "CA_CERTIFICATE": DocumentType.CA_CERTIFICATE,
+        try:
+            # Truncate text for classification
+            truncated_text = text[:2000]
+            prompt = DOCUMENT_CLASSIFICATION_PROMPT.format(text=truncated_text)
+            
+            response, _, _ = self._call_llm(prompt, max_tokens=50)
+            
+            if not response:
+                # Fall back to rule-based detection
+                return self.detect_document_type(text, "")
+            
+            # Parse response
+            response_upper = response.upper().strip()
+            
+            # Map response to DocumentType - match LLM output to enum values
+            type_mapping = {
+                "REGISTRATION": DocumentType.REGISTRATION_CERTIFICATE,
+                "BUILDING_PERMISSION": DocumentType.BUILDING_PERMISSION,
+                "LAYOUT_PLAN": DocumentType.LAYOUT_PLAN,
+                "CA_CERTIFICATE": DocumentType.CA_CERTIFICATE,
             "FINANCIAL": DocumentType.CA_CERTIFICATE,  # Alias
             "NOC_FIRE": DocumentType.NOC_FIRE,
             "NOC_ENVIRONMENT": DocumentType.NOC_ENVIRONMENT,
@@ -232,13 +240,17 @@ class LLMExtractor(BasePDFProcessor):
             "ENGINEER_CERTIFICATE": DocumentType.ENGINEER_CERTIFICATE,
             "ENGINEER": DocumentType.ENGINEER_CERTIFICATE,  # Alias
             "OTHER": DocumentType.OTHER,
-        }
-        
-        for key, doc_type in type_mapping.items():
-            if key in response_upper:
-                return doc_type, 0.85  # LLM classification confidence
-        
-        return DocumentType.UNKNOWN, 0.3
+            }
+            
+            for key, doc_type in type_mapping.items():
+                if key in response_upper:
+                    return doc_type, 0.85  # LLM classification confidence
+            
+            return DocumentType.UNKNOWN, 0.3
+            
+        except Exception as e:
+            logger.warning(f"Classification failed: {e}, falling back to rule-based")
+            return self.detect_document_type(text, "")
     
     def _extract_metadata_with_llm(
         self,
@@ -253,73 +265,78 @@ class LLMExtractor(BasePDFProcessor):
         """
         metadata = ExtractedMetadata()
         
-        # Truncate text for extraction
-        truncated_text = text[:3000]
-        prompt = METADATA_EXTRACTION_PROMPT.format(
-            document_type=doc_type.value,
-            text=truncated_text
-        )
-        
-        response, _, _ = self._call_llm(
-            prompt,
-            system="Extract document information as JSON only.",
-            max_tokens=self.max_tokens
-        )
-        
-        if not response:
-            # Fall back to regex extraction
-            return self._extract_metadata_regex(text)
-        
-        # Try to parse JSON response
         try:
-            # The prompt ends with "{" so we need to prepend it
-            json_str = "{" + response.strip()
+            # Truncate text for extraction
+            truncated_text = text[:2000]  # Reduced for faster processing
+            prompt = METADATA_EXTRACTION_PROMPT.format(
+                document_type=doc_type.value,
+                text=truncated_text
+            )
             
-            # Clean up response - find JSON in response
-            json_match = re.search(r'\{[^{}]*\}', json_str)
-            if json_match:
-                data = json.loads(json_match.group())
-            else:
-                # Try full response
-                data = json.loads(json_str)
+            response, _, _ = self._call_llm(
+                prompt,
+                system="Extract document information as JSON only.",
+                max_tokens=min(self.max_tokens, 256)  # Limit tokens
+            )
             
-            # Map extracted data to metadata
-            if data.get("approval_number"):
-                metadata.approval_number = str(data["approval_number"])
-                metadata.reference_numbers = [metadata.approval_number]
+            if not response:
+                # Fall back to regex extraction
+                return self._extract_metadata_regex(text)
             
-            if data.get("approval_date"):
-                metadata.approval_date = str(data["approval_date"])
-                metadata.dates = [metadata.approval_date]
-            
-            if data.get("validity_date"):
-                metadata.validity_date = str(data["validity_date"])
-                if metadata.dates:
-                    metadata.dates.append(metadata.validity_date)
+            # Try to parse JSON response
+            try:
+                # The prompt ends with "{" so we need to prepend it
+                json_str = "{" + response.strip()
+                
+                # Clean up response - find JSON in response
+                json_match = re.search(r'\{[^{}]*\}', json_str)
+                if json_match:
+                    data = json.loads(json_match.group())
                 else:
-                    metadata.dates = [metadata.validity_date]
-            
-            if data.get("issuing_authority"):
-                metadata.issuing_authority = str(data["issuing_authority"])
-            
-            if data.get("total_area_sqft") and isinstance(data["total_area_sqft"], (int, float)):
-                metadata.total_area_sqft = float(data["total_area_sqft"])
-            
-            if data.get("total_cost") and isinstance(data["total_cost"], (int, float)):
-                metadata.total_cost = float(data["total_cost"])
-            
-            if data.get("floor_count") and isinstance(data["floor_count"], int):
-                metadata.floor_count = data["floor_count"]
-            
-            if data.get("unit_count") and isinstance(data["unit_count"], int):
-                metadata.unit_count = data["unit_count"]
-            
-            if data.get("summary"):
-                metadata.summary = str(data["summary"])
-            
-        except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse LLM JSON response: {e}")
-            # Fall back to regex
+                    # Try full response
+                    data = json.loads(json_str)
+                
+                # Map extracted data to metadata
+                if data.get("approval_number"):
+                    metadata.approval_number = str(data["approval_number"])
+                    metadata.reference_numbers = [metadata.approval_number]
+                
+                if data.get("approval_date"):
+                    metadata.approval_date = str(data["approval_date"])
+                    metadata.dates = [metadata.approval_date]
+                
+                if data.get("validity_date"):
+                    metadata.validity_date = str(data["validity_date"])
+                    if metadata.dates:
+                        metadata.dates.append(metadata.validity_date)
+                    else:
+                        metadata.dates = [metadata.validity_date]
+                
+                if data.get("issuing_authority"):
+                    metadata.issuing_authority = str(data["issuing_authority"])
+                
+                if data.get("total_area_sqft") and isinstance(data["total_area_sqft"], (int, float)):
+                    metadata.total_area_sqft = float(data["total_area_sqft"])
+                
+                if data.get("total_cost") and isinstance(data["total_cost"], (int, float)):
+                    metadata.total_cost = float(data["total_cost"])
+                
+                if data.get("floor_count") and isinstance(data["floor_count"], int):
+                    metadata.floor_count = data["floor_count"]
+                
+                if data.get("unit_count") and isinstance(data["unit_count"], int):
+                    metadata.unit_count = data["unit_count"]
+                
+                if data.get("summary"):
+                    metadata.summary = str(data["summary"])
+                
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse LLM JSON response: {e}")
+                # Fall back to regex
+                return self._extract_metadata_regex(text)
+                
+        except Exception as e:
+            logger.warning(f"Metadata extraction failed: {e}, falling back to regex")
             return self._extract_metadata_regex(text)
         
         return metadata
@@ -338,12 +355,16 @@ class LLMExtractor(BasePDFProcessor):
     
     def _generate_summary(self, text: str) -> str:
         """Generate document summary using LLM."""
-        truncated_text = text[:3000]
-        prompt = DOCUMENT_SUMMARY_PROMPT.format(text=truncated_text)
-        
-        response, _, _ = self._call_llm(prompt, max_tokens=200)
-        
-        return response if response else ""
+        try:
+            truncated_text = text[:2000]  # Reduced for faster processing
+            prompt = DOCUMENT_SUMMARY_PROMPT.format(text=truncated_text)
+            
+            response, _, _ = self._call_llm(prompt, max_tokens=150)  # Reduced tokens
+            
+            return response if response else ""
+        except Exception as e:
+            logger.warning(f"Failed to generate summary: {e}")
+            return ""
     
     def process(self, pdf_path: Path) -> ProcessingResult:
         """
@@ -430,9 +451,15 @@ class LLMExtractor(BasePDFProcessor):
                     doc_type
                 )
                 
-                # Generate summary if not already present
-                if not result.metadata.summary:
-                    result.metadata.summary = self._generate_summary(result.extracted_text)
+                # Generate summary if enabled and not already present
+                import os
+                enable_summary = os.environ.get('LLM_ENABLE_SUMMARY', 'false').lower() == 'true'
+                if enable_summary and not result.metadata.summary:
+                    try:
+                        result.metadata.summary = self._generate_summary(result.extracted_text)
+                    except Exception as e:
+                        logger.warning(f"Summary generation failed: {e}")
+                        result.metadata.summary = ""
             else:
                 # Fall back to rule-based detection for empty/minimal text
                 if not llm_available:

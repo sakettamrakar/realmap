@@ -123,73 +123,7 @@ class DeveloperProject(Base):
     # Note: Project relationship added via backref in main models.py
 
 
-# =============================================================================
-# Enhancement #2: Hierarchy Restructuring (Unit Entity)
-# =============================================================================
-
-class Unit(Base):
-    """
-    Individual sellable/rentable unit within a Building/Tower.
-    
-    Enhancement #2: Hierarchy Restructuring
-    - Enables tracking individual inventory
-    - Links: Project -> Building (Tower) -> Unit
-    - References a UnitType blueprint for configuration
-    """
-    __tablename__ = "units"
-    __table_args__ = (
-        UniqueConstraint("building_id", "unit_number", name="uq_building_unit_number"),
-        Index("ix_units_building_id", "building_id"),
-        Index("ix_units_status", "status"),
-        Index("ix_units_floor", "floor_number"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    building_id: Mapped[int] = mapped_column(
-        ForeignKey("buildings.id", ondelete="CASCADE"), nullable=False
-    )
-    unit_type_id: Mapped[int | None] = mapped_column(
-        ForeignKey("project_unit_types.id", ondelete="SET NULL")
-    )
-    
-    # Unit identification
-    unit_number: Mapped[str] = mapped_column(String(50), nullable=False)
-    floor_number: Mapped[int | None] = mapped_column(Integer)
-    wing: Mapped[str | None] = mapped_column(String(20))
-    
-    # Area measurements (Enhancement #3 alignment)
-    carpet_area_sqft: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
-    builtup_area_sqft: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
-    super_builtup_area_sqft: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
-    
-    # Status tracking
-    status: Mapped[str | None] = mapped_column(
-        String(30), 
-        default=UnitStatus.AVAILABLE.value
-    )
-    is_corner_unit: Mapped[bool | None] = mapped_column(Boolean)
-    facing_direction: Mapped[str | None] = mapped_column(String(20))  # N, S, E, W, NE, etc.
-    
-    # Pricing (unit-specific overrides)
-    base_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
-    price_per_sqft_carpet: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
-    price_per_sqft_sbua: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
-    
-    # Metadata
-    raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), onupdate=func.now()
-    )
-    
-    # Relationships
-    # building: Mapped["Building"] = relationship(back_populates="units")
-    # unit_type: Mapped["ProjectUnitType"] = relationship()
-    transactions: Mapped[list["TransactionHistory"]] = relationship(
-        back_populates="unit", cascade="all, delete-orphan"
-    )
+# Enhancement #2 was merged into the main Unit model in models.py to resolve conflicts.
 
 
 # =============================================================================
@@ -468,7 +402,7 @@ __all__ = [
     "Developer",
     "DeveloperProject",
     # Enhancement #2
-    "Unit",
+    # "Unit",
     # Enhancement #5
     "ProjectPossessionTimeline",
     # Enhancement #7

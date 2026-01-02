@@ -116,7 +116,11 @@ def capture_previews(
 def _collect_preview_targets(
     page: Page, preview_placeholders: Dict[str, PreviewArtifact]
 ) -> Tuple[List[PreviewTarget], List[Tuple[str, str]]]:
-    """Collect preview targets quickly without processing them."""
+    """Collect preview targets quickly without processing them.
+    
+    Smart optimization: PDFs are detected early and handled via URL extraction only,
+    avoiding expensive modal interaction.
+    """
 
     targets: List[PreviewTarget] = []
     missing: List[Tuple[str, str]] = []
@@ -124,6 +128,22 @@ def _collect_preview_targets(
     for placeholder in preview_placeholders.values():
         label = placeholder.notes or placeholder.field_key
 
+        # OPTIMIZATION 1: Check if notes field already contains a PDF URL
+        # This catches URLs like "../Content/ProjectDocuments/xxx.pdf"
+        if placeholder.notes and _is_pdf_url(placeholder.notes):
+            pdf_url = urljoin(page.url, placeholder.notes)
+            LOGGER.info(f"Fast-path: PDF URL detected in notes for {placeholder.field_key}, skipping modal")
+            targets.append(
+                PreviewTarget(
+                    field_key=placeholder.field_key,
+                    label=label,
+                    target_type="url",
+                    value=pdf_url,
+                )
+            )
+            continue
+
+        # OPTIMIZATION 2: Check for direct HTTP URLs
         if placeholder.notes and placeholder.notes.lower().startswith("http"):
             targets.append(
                 PreviewTarget(
@@ -142,10 +162,42 @@ def _collect_preview_targets(
             continue
 
         href: str | None = None
+        onclick: str | None = None
         try:
             href = locator.first.get_attribute("href", timeout=1_000)
+            onclick = locator.first.get_attribute("onclick", timeout=1_000)
         except Exception:
             href = None
+            onclick = None
+
+        # OPTIMIZATION 3: Check href attribute for PDF
+        if href and _is_pdf_url(href):
+            pdf_url = urljoin(page.url, href)
+            LOGGER.info(f"Fast-path: PDF detected in href for {placeholder.field_key}, skipping modal")
+            targets.append(
+                PreviewTarget(
+                    field_key=placeholder.field_key,
+                    label=label,
+                    target_type="url",
+                    value=pdf_url,
+                )
+            )
+            continue
+
+        # OPTIMIZATION 4: Check onclick attribute for PDF
+        if onclick and _is_pdf_onclick(onclick):
+            pdf_url = _extract_url_from_onclick(onclick, page.url)
+            if pdf_url:
+                LOGGER.info(f"Fast-path: PDF detected in onclick for {placeholder.field_key}, skipping modal")
+                targets.append(
+                    PreviewTarget(
+                        field_key=placeholder.field_key,
+                        label=label,
+                        target_type="url",
+                        value=pdf_url,
+                    )
+                )
+                continue
 
         if href and _is_navigable_href(href):
             targets.append(
@@ -158,6 +210,7 @@ def _collect_preview_targets(
             )
             continue
 
+        # For non-PDF content (tables, images), use click-based modal capture
         targets.append(
             PreviewTarget(
                 field_key=placeholder.field_key,
@@ -169,6 +222,41 @@ def _collect_preview_targets(
         )
 
     return targets, missing
+
+
+def _is_pdf_onclick(onclick: str) -> bool:
+    """Check if onclick JavaScript opens a PDF document."""
+    if not onclick:
+        return False
+    onclick_lower = onclick.lower()
+    return ".pdf" in onclick_lower and ("openmodel" in onclick_lower or "window.open" in onclick_lower)
+
+
+def _is_pdf_url(url: str) -> bool:
+    """Check if URL points to a PDF file."""
+    if not url:
+        return False
+    url_lower = url.lower().strip()
+    return url_lower.endswith(".pdf") or ".pdf?" in url_lower or ".pdf#" in url_lower
+
+
+def _extract_url_from_onclick(onclick: str, base_url: str) -> str | None:
+    """Extract URL from onclick JavaScript like OpenModel('documents/abc.pdf')."""
+    import re
+    
+    # Try to extract URL from OpenModel(...) or window.open(...)
+    patterns = [
+        r'''OpenModel\s*\(\s*['"]([^'"]+)['"]\s*\)''',
+        r'''window\.open\s*\(\s*['"]([^'"]+)['"]\s*\)''',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, onclick, re.IGNORECASE)
+        if match:
+            relative_url = match.group(1)
+            return urljoin(base_url, relative_url)
+    
+    return None
 
 
 def _process_preview(
@@ -515,6 +603,7 @@ def _capture_inline_modal(
     if click_needed:
         try:
             locator.click()
+            time.sleep(1)  # Wait for modal animation
         except Exception as exc:  # pragma: no cover - defensive logging
             artifact.notes = _merge_notes(artifact.notes, f"Preview click failed: {exc}")
             return artifact
@@ -524,25 +613,150 @@ def _capture_inline_modal(
         artifact.notes = _merge_notes(artifact.notes, "No preview modal detected")
         return artifact
 
-    LOGGER.info("Collecting preview images / HTML for %s (inline modal)", artifact.field_key)
+    LOGGER.info("Collecting preview content for %s (inline modal)", artifact.field_key)
+    
     try:
         inner = modal.inner_html()
-        html_path = target_dir / "modal_1.html"
+        
+        # Save raw HTML
+        html_path = target_dir / "modal.html"
         html_path.write_text(inner, encoding="utf-8")
         artifact.files.append(str(html_path.relative_to(output_base)))
-        artifact.artifact_type = "html"
+        
+        # Detect content type and handle accordingly
+        content_type = _detect_modal_content_type(inner)
+        LOGGER.info(f"Modal content type detected: {content_type}")
+        
+        if content_type == "table":
+            # Extract structured table data
+            artifact.artifact_type = "html_table"
+            try:
+                table_data = _extract_table_data(modal)
+                if table_data:
+                    json_path = target_dir / "table_data.json"
+                    json_path.write_text(
+                        json.dumps(table_data, ensure_ascii=False, indent=2),
+                        encoding="utf-8"
+                    )
+                    artifact.files.append(str(json_path.relative_to(output_base)))
+                    artifact.notes = _merge_notes(
+                        artifact.notes, 
+                        f"Extracted {len(table_data.get('rows', []))} table rows"
+                    )
+                    LOGGER.info(f"Extracted {len(table_data.get('rows', []))} rows from table")
+            except Exception as exc:
+                LOGGER.warning(f"Table extraction failed: {exc}")
+                artifact.notes = _merge_notes(artifact.notes, f"Table extraction failed: {exc}")
+        
+        elif content_type == "image":
+            # Handle image in modal
+            artifact.artifact_type = "image"
+            try:
+                img_locator = modal.locator("img").first
+                if img_locator:
+                    img_src = img_locator.get_attribute("src")
+                    if img_src:
+                        artifact.notes = _merge_notes(artifact.notes, f"Image URL: {img_src}")
+            except Exception:
+                pass
+        
+        elif content_type == "iframe":
+            # PDF or other embedded content in iframe
+            artifact.artifact_type = "iframe"
+            try:
+                iframe_locator = modal.locator("iframe").first
+                if iframe_locator:
+                    iframe_src = iframe_locator.get_attribute("src")
+                    if iframe_src:
+                        artifact.notes = _merge_notes(artifact.notes, f"Iframe URL: {iframe_src}")
+            except Exception:
+                pass
+        
+        else:
+            # Generic HTML content
+            artifact.artifact_type = "html"
+        
+        # Take screenshot for visual reference (optional)
+        try:
+            screenshot_path = target_dir / "modal_screenshot.png"
+            modal.screenshot(path=str(screenshot_path))
+            artifact.files.append(str(screenshot_path.relative_to(output_base)))
+        except Exception:
+            LOGGER.debug("Modal screenshot skipped")
+            
     except Exception as exc:  # pragma: no cover - defensive logging
         artifact.notes = _merge_notes(artifact.notes, f"Modal capture failed: {exc}")
 
-    try:
-        screenshot_path = target_dir / "modal_1.png"
-        modal.screenshot(path=str(screenshot_path))
-        artifact.files.append(str(screenshot_path.relative_to(output_base)))
-    except Exception:
-        LOGGER.debug("Modal screenshot skipped")
-
     _close_modal_if_possible(modal)
     return artifact
+
+
+def _detect_modal_content_type(html: str) -> str:
+    """Detect the type of content in the modal."""
+    html_lower = html.lower()
+    
+    if "<table" in html_lower:
+        return "table"
+    elif "<iframe" in html_lower:
+        return "iframe"
+    elif "<img" in html_lower:
+        return "image"
+    else:
+        return "html"
+
+
+def _extract_table_data(modal: Locator) -> Dict | None:
+    """Extract structured data from HTML table in modal."""
+    try:
+        # Find table element
+        table = modal.locator("table").first
+        if not table:
+            return None
+        
+        # Extract headers
+        headers = []
+        header_cells = table.locator("thead tr th, thead tr td, tr:first-child th, tr:first-child td").all()
+        for cell in header_cells:
+            headers.append(cell.inner_text().strip())
+        
+        # If no headers found, use generic column names
+        if not headers:
+            # Count columns from first row
+            first_row = table.locator("tr").first
+            if first_row:
+                cells = first_row.locator("td, th").all()
+                headers = [f"Column_{i+1}" for i in range(len(cells))]
+        
+        # Extract rows
+        rows = []
+        row_locators = table.locator("tbody tr, tr").all()
+        
+        # Skip first row if it was used for headers
+        start_idx = 1 if not table.locator("thead").count() and headers else 0
+        
+        for row_locator in row_locators[start_idx:]:
+            cells = row_locator.locator("td, th").all()
+            if not cells:
+                continue
+                
+            row_data = {}
+            for idx, cell in enumerate(cells):
+                header = headers[idx] if idx < len(headers) else f"Column_{idx+1}"
+                row_data[header] = cell.inner_text().strip()
+            
+            if any(row_data.values()):  # Skip empty rows
+                rows.append(row_data)
+        
+        return {
+            "headers": headers,
+            "rows": rows,
+            "row_count": len(rows),
+            "column_count": len(headers)
+        }
+        
+    except Exception as exc:
+        LOGGER.warning(f"Table extraction error: {exc}")
+        return None
 
 
 def _wait_for_modal(page: Page) -> Locator | None:

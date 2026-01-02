@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import "./ProjectDetailPanel.css";
 import type { ProjectDetail } from "../types/projects";
 import { ProjectHero } from "./projectDetail/ProjectHero";
 import { ProjectSnapshot } from "./projectDetail/ProjectSnapshot";
@@ -6,6 +7,8 @@ import { ScoreSummary } from "./projectDetail/ScoreSummary";
 import { AmenitiesSection } from "./projectDetail/AmenitiesSection";
 import { LocationSection } from "./projectDetail/LocationSection";
 import { PriceSection } from "./projectDetail/PriceSection";
+import { InventorySection } from "./projectDetail/InventorySection";
+import { RelatedRegistrations } from "./projectDetail/RelatedRegistrations";
 import { AIAssistCard } from "./ai/AIAssistCard";
 
 interface Props {
@@ -13,6 +16,7 @@ interface Props {
   loading?: boolean;
   onClose: () => void;
   onCenterOnProject?: (coords: { lat: number; lon: number }) => void;
+  onSelectProject?: (projectId: number) => void;
   isShortlisted?: boolean;
   onShortlist?: () => void;
 }
@@ -22,6 +26,7 @@ const ProjectDetailPanel = ({
   loading,
   onClose,
   onCenterOnProject,
+  onSelectProject,
   isShortlisted = false,
   onShortlist = () => { }
 }: Props) => {
@@ -69,10 +74,15 @@ const ProjectDetailPanel = ({
 
             {/* AI Integration */}
             <div className="px-4 mt-4">
-              <AIAssistCard projectId={project.project.id} />
+              <AIAssistCard projectId={project.project.project_id} />
             </div>
 
             <ProjectSnapshot project={project} />
+
+            <RelatedRegistrations 
+              project={project} 
+              onSelectProject={onSelectProject} 
+            />
 
             <ScoreSummary
               scores={project.scores}
@@ -88,6 +98,10 @@ const ProjectDetailPanel = ({
                 <PriceSection pricing={project.pricing} />
               </div>
             </div>
+
+            {/* Feature: Unit Level Inventory (Full Width) */}
+            <InventorySection projectId={project.project.project_id} />
+
           </div>
         )}
       </div>

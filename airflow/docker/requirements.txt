@@ -1,0 +1,16 @@
+# RealMap Airflow Dependencies
+# These are project dependencies needed by DAG tasks
+
+# Core dependencies (from realmap/requirements.txt)
+beautifulsoup4>=4.12
+pydantic>=2.0,<3.0
+pyyaml>=6.0
+requests>=2.31
+psycopg2-binary>=2.9
+
+# NOTE: SQLAlchemy is intentionally NOT installed here
+# Airflow 2.10.4 bundles SQLAlchemy 1.4.x which conflicts with SQLAlchemy 2.0
+# The backend uses BashOperator with a separate Python venv for SQLAlchemy 2.0
+
+# If you need SQLAlchemy 2.0 for backend tasks, use:
+# docker exec container_name pip install SQLAlchemy>=2.0 --target /opt/realmap/.venv

@@ -53,3 +53,15 @@ flowchart LR
 | `cg_rera_extractor/parsing/mapper.py` | 🔴 Critical | Contains the logic for interpreting varied HTML formats. |
 | `cg_rera_extractor/db/loader.py` | 🔴 Critical | Controls data integrity and DB write operations. |
 | `cg_rera_extractor/db/models.py` | 🔵 Core | Source of truth for database structure. |
+
+---
+
+## ➡️ Next Step: PDF Processing
+
+After main processing completes, run the **PDF Processing Layer** to extract additional structured data from downloaded PDF documents:
+
+```bash
+python tools/process_pdfs.py --page 1
+```
+
+See [PDF Processing](./pdf-processing.md) for full documentation.

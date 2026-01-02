@@ -16,6 +16,7 @@ The documentation is organized into 4 logical quadrants:
 *   **[Scraper & Pipeline](./docs/02-technical/Scraper_Pipeline.md)**: How data is ingested, validated, and loaded.
 *   **[API Reference](./docs/02-technical/API_Reference.md)**: Backend endpoint documentation.
 *   **[Orchestration](./docs/02-technical/orchestration/orchestration_overview.md)**: Detailed pipeline flow, dependency graphs, and execution blueprints.
+*   **[PDF Processing](./docs/02-technical/orchestration/pdf-processing.md)**: OCR + LLM extraction pipeline for RERA documents.
 
 ### 3. Artificial Intelligence ([docs/03-ai](./docs/03-ai/))
 *   **[AI Overview](./docs/03-ai/AI_Overview.md)**: Feature roadmap and high-level AI strategy.
@@ -39,9 +40,9 @@ For full details, see the **[Operations Manual](./docs/04-operations/Operations_
 
 ## 🏗️ Repository Structure
 
-*   `/cg_rera_extractor` - Core Python Logic (Scraper + API)
+*   `/cg_rera_extractor` - Core Python Logic (Scraper + API + OCR + Extraction)
 *   `/frontend` - React/Vite Web Application
-*   `/tools` - CLI Utilities for ETL and QA
+*   `/tools` - CLI Utilities for ETL, QA, and PDF Processing
 *   `/ai` - AI Microservice & Agent Specifications
 *   `/docs` - **You are here**
 

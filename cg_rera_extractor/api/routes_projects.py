@@ -6,9 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from cg_rera_extractor.api.deps import get_db
 from cg_rera_extractor.api.schemas import (
     ProjectDetailV2,
+    ProjectDetailV2,
     ProjectMapResponse,
     ProjectSearchResponse,
+    ProjectInventoryResponse,
+    InventoryStats,
+    UnitResponse,
 )
+from cg_rera_extractor.db import Unit
 from cg_rera_extractor.api.services import fetch_map_projects, fetch_project_detail, search_projects
 from cg_rera_extractor.api.services.search import SearchParams
 
@@ -38,6 +43,7 @@ def search_projects_endpoint(
     tags_match_all: bool = Query(False, description="If true, require ALL tags. If false, match ANY tag."),
     # Point 25: RERA verification filter
     rera_verified_only: bool = Query(False, description="Only show RERA-verified projects"),
+    group_by_parent: bool = Query(False, description="Group multiple registrations under one parent project"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
     sort_by: str = Query("overall_score", pattern="^(overall_score|location_score|amenity_score|value_score|registration_date|distance|price|name)$"),
@@ -110,6 +116,7 @@ def search_projects_endpoint(
         page_size=page_size,
         sort_by=sort_by,
         sort_dir=sort_dir,
+        group_by_parent=group_by_parent,
     )
 
     total, items = search_projects(db, params)
@@ -167,6 +174,51 @@ def project_detail_endpoint(project_id: int, db=Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+@router.get("/{project_id}/inventory", response_model=ProjectInventoryResponse)
+def get_project_inventory(project_id: int, db=Depends(get_db)):
+    """
+    Get detailed unit inventory for a project.
+    """
+    from cg_rera_extractor.db import Unit
+
+    units = db.query(Unit).filter(Unit.project_id == project_id).all()
+
+    # Calculate stats
+    total = len(units)
+    available = sum(1 for u in units if (u.status or "").lower() == "available")
+    booked = sum(1 for u in units if (u.status or "").lower() in ["booked", "sold"])
+    unknown = total - available - booked
+
+    # Map to response objects with sqft derived if only sqm exists
+    unit_responses: list[UnitResponse] = []
+    for u in units:
+        carpet_area_sqft = None
+        if u.carpet_area_sqm:
+            carpet_area_sqft = round(u.carpet_area_sqm * 10.7639, 2)
+
+        unit_responses.append(UnitResponse(
+            id=u.id,
+            block_name=u.block_name,
+            floor_no=u.floor_no,
+            unit_no=u.unit_no,
+            unit_type=u.unit_type,
+            carpet_area_sqm=u.carpet_area_sqm,
+            carpet_area_sqft=carpet_area_sqft,
+            status=u.status,
+            raw_data=u.raw_data,
+        ))
+
+    return ProjectInventoryResponse(
+        stats=InventoryStats(
+            total_units=total,
+            available_units=available,
+            booked_units=booked,
+            unknown_units=unknown,
+        ),
+        units=unit_responses,
+    )
 
 
 @router.get("/lookup/{identifier}")

@@ -4,6 +4,7 @@ import type {
   ProjectDetail,
   ProjectMapResponse,
   ProjectSearchResponse,
+  ProjectInventoryResponse,
   SearchProjectsParams,
 } from "../types/projects";
 import { apiClient } from "./client";
@@ -29,6 +30,7 @@ export async function searchProjects(
           district: params.district || undefined,
           sort_by: params.sort_by || undefined,
           sort_dir: params.sort_dir || undefined,
+          group_by_parent: params.group_by_parent ?? undefined,
         },
         paramsSerializer: {
           indexes: null, // No brackets for arrays: key=val&key=val
@@ -72,5 +74,23 @@ export async function getProjectsForMap(
   } catch (error) {
     console.error("Failed to fetch map pins", error);
     throw new Error("Unable to load map pins.");
+  }
+}
+
+export async function getProjectInventory(
+  projectId: number,
+): Promise<ProjectInventoryResponse> {
+  try {
+    const { data } = await apiClient.get<ProjectInventoryResponse>(
+      `/projects/${projectId}/inventory`,
+    );
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch project inventory", error);
+    // Return empty fallback instead of blocking
+    return {
+      stats: { total_units: 0, available_units: 0, booked_units: 0, unknown_units: 0 },
+      units: []
+    };
   }
 }

@@ -27,7 +27,8 @@ const getBucket = (score: number | null | undefined, status?: string) => {
 };
 
 const getLabel = (bucket: string, status?: string) => {
-  if (status === 'insufficient_data' || status === 'partial') return "Incomplete";
+  if (status === 'insufficient_data') return "Incomplete";
+  if (status === 'partial') return "Scoring Partial";
   switch (bucket) {
     case "excellent":
       return "Excellent";

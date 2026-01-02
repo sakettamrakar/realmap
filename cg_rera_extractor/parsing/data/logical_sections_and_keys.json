@@ -168,7 +168,7 @@
         "company details"
       ],
       "keys": {
-        "promoter_name": [
+        "name": [
           "promoter name",
           "name",
           "developer name",
@@ -177,7 +177,7 @@
           "firm name",
           "name of promoter"
         ],
-        "promoter_type": [
+        "organisation_type": [
           "promoter type",
           "application type",
           "organisation type",
@@ -188,7 +188,7 @@
           "applicant type",
           "company type"
         ],
-        "promoter_address": [
+        "address": [
           "promoter address",
           "address",
           "registered address",
@@ -198,7 +198,7 @@
           "registered office address",
           "corporate address"
         ],
-        "promoter_email": [
+        "email": [
           "promoter email",
           "email",
           "email id",
@@ -206,7 +206,7 @@
           "email address",
           "mail id"
         ],
-        "promoter_phone": [
+        "phone": [
           "promoter phone",
           "contact number",
           "mobile",
@@ -220,14 +220,14 @@
           "contact no",
           "tel"
         ],
-        "promoter_pan": [
+        "pan": [
           "promoter pan",
           "pan",
           "pan no",
           "pan number",
           "permanent account number"
         ],
-        "promoter_cin": [
+        "cin": [
           "promoter cin",
           "cin",
           "cin no",
@@ -331,7 +331,7 @@
         "structure details"
       ],
       "keys": {
-        "building_name": [
+        "name": [
           "building name",
           "tower name",
           "block name",
@@ -401,46 +401,46 @@
         "unit mix"
       ],
       "keys": {
-        "unit_type_name": [
+        "name": [
           "unit type",
           "type",
           "configuration",
           "flat type"
         ],
-        "unit_carpet_area_sq_m": [
+        "carpet_area_sq_m": [
           "carpet area (sq m)",
           "carpet area",
           "carpet"
         ],
-        "unit_built_up_area_sq_m": [
+        "built_up_area_sq_m": [
           "built-up area (sq m)",
           "built up area",
           "built-up area",
           "builtup area"
         ],
-        "unit_super_built_up_area": [
+        "super_built_up_area_sq_m": [
           "super built-up area",
           "super builtup area",
           "sbua",
           "super area"
         ],
-        "unit_price_in_inr": [
+        "price_in_inr": [
           "unit price (inr)",
           "unit price",
           "price",
           "rate",
           "price per unit"
         ],
-        "balcony_area": [
+        "balcony_area_sq_m": [
           "balcony area",
           "balcony"
         ],
-        "terrace_area": [
+        "terrace_area_sq_m": [
           "terrace area",
           "terrace",
           "exclusive terrace"
         ],
-        "common_area": [
+        "common_area_sq_m": [
           "common area",
           "common"
         ]

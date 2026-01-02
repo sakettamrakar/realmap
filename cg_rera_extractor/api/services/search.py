@@ -43,6 +43,7 @@ class SearchParams:
         page_size: int = 20,
         sort_by: str = "overall_score",
         sort_dir: str = "desc",
+        group_by_parent: bool = False,
     ) -> None:
         self.district = district
         self.tehsil = tehsil
@@ -68,6 +69,7 @@ class SearchParams:
         self.page_size = page_size
         self.sort_by = sort_by
         self.sort_dir = sort_dir
+        self.group_by_parent = group_by_parent
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -325,6 +327,25 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
 
     final_projects.sort(key=sort_key, reverse=reverse)
 
+    # Group by parent if requested
+    phase_counts = {}
+    if params.group_by_parent:
+        grouped_projects = []
+        seen_parents = set()
+        for project, distance in final_projects:
+            parent_id = project.parent_project_id
+            # DEBUG
+            # print(f"Project {project.id} parent_id: {parent_id}")
+            if parent_id is None:
+                # If no parent, treat as unique
+                grouped_projects.append((project, distance))
+            else:
+                phase_counts[parent_id] = phase_counts.get(parent_id, 0) + 1
+                if parent_id not in seen_parents:
+                    grouped_projects.append((project, distance))
+                    seen_parents.add(parent_id)
+        final_projects = grouped_projects
+
     total = len(final_projects)
     start = (params.page - 1) * params.page_size
     end = start + params.page_size
@@ -412,6 +433,8 @@ def search_projects(db: Session, params: SearchParams) -> tuple[int, list[dict]]
                 # Point 24-25: Discovery data
                 "tags": project_tags_map.get(project.id, []),
                 "rera_verification_status": project_verification_map.get(project.id),
+                "parent_project_id": project.parent_project_id,
+                "phase_count": phase_counts.get(project.parent_project_id) if params.group_by_parent and project.parent_project_id else None,
             }
         )
 

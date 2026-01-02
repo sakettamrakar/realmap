@@ -7,9 +7,5 @@
 export { 
   AreaLabel, 
   AreaComparisonWarning,
-  formatAreaWithUnit,
-  sqftToSqm,
-  sqmToSqft,
   type AreaType,
-  type AreaLabelProps 
 } from './AreaLabel';

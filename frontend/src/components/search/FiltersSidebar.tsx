@@ -186,6 +186,46 @@ export function FiltersSidebar({
                         className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-500"
                     />
                 </div>
+
+                {/* Advanced Options */}
+                <div className="space-y-3 pt-4 border-t border-slate-100">
+                    <label className="text-sm font-semibold text-slate-700">Advanced Options</label>
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                checked={filters.groupByParent}
+                                onChange={(e) => onFiltersChange({ groupByParent: e.target.checked })}
+                            />
+                            <div className="flex flex-col">
+                                <span className="text-sm text-slate-700 font-medium group-hover:text-slate-900 transition-colors">
+                                    Group by Project
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                    Consolidate multiple RERA phases
+                                </span>
+                            </div>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                            <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                                checked={filters.reraVerifiedOnly}
+                                onChange={(e) => onFiltersChange({ reraVerifiedOnly: e.target.checked })}
+                            />
+                            <div className="flex flex-col">
+                                <span className="text-sm text-slate-700 font-medium group-hover:text-slate-900 transition-colors">
+                                    RERA Verified Only
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                    Show only trust-verified listings
+                                </span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             {resultsCount !== undefined && (

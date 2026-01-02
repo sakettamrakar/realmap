@@ -1,3 +1,4 @@
+import { IndianRupee, LayoutList } from "lucide-react";
 import type { ProjectDetail } from "../../types/projects";
 import { AreaLabel, type AreaType } from "../shared/AreaLabel";
 import "../shared/AreaLabel.css";
@@ -19,9 +20,14 @@ export function PriceSection({ pricing, areaType = "carpet" }: Props) {
         : "Price on Request";
 
     return (
-        <div className="detail-section">
-            <h3 className="section-title">Pricing</h3>
-            <div className="price-band-large">{priceBand}</div>
+        <div className="detail-section pricing-section">
+            <h3 className="section-title">
+                <IndianRupee size={20} className="text-indigo-600" />
+                Pricing
+            </h3>
+            <div className="price-band-large flex items-center gap-2 text-2xl font-extrabold text-slate-900 mb-6 px-3 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                {priceBand}
+            </div>
 
             {unit_types && unit_types.length > 0 ? (
                 <>
@@ -40,12 +46,11 @@ export function PriceSection({ pricing, areaType = "carpet" }: Props) {
                                     <td>
                                         {u.area_range && (u.area_range[0] || u.area_range[1]) ? (
                                             <AreaLabel
-                                                value={u.area_range[0] && u.area_range[1] 
+                                                value={u.area_range[0] && u.area_range[1]
                                                     ? `${u.area_range[0]} - ${u.area_range[1]}`
                                                     : String(u.area_range[0] || u.area_range[1])}
                                                 areaType={areaType}
                                                 variant="inline"
-                                                showTooltip={true}
                                             />
                                         ) : (
                                             "N/A"
@@ -61,12 +66,12 @@ export function PriceSection({ pricing, areaType = "carpet" }: Props) {
                             value=""
                             areaType={areaType}
                             variant="badge"
-                            showTooltip={true}
                         />
-                        <span className="note-text">
-                            All areas shown in {areaType === "carpet" ? "Carpet Area (RERA Standard)" 
-                                : areaType === "builtup" ? "Built-up Area" 
-                                : "Super Built-up Area"}
+                        <span className="note-text flex items-center gap-1.5 ml-auto text-xs text-slate-400">
+                            <LayoutList size={14} className="text-indigo-400" />
+                            All areas shown in {areaType === "carpet" ? "Carpet Area (RERA Standard)"
+                                : areaType === "builtup" ? "Built-up Area"
+                                    : "Super Built-up Area"}
                         </span>
                     </div>
                 </>

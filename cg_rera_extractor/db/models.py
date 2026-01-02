@@ -16,11 +16,45 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Float,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from .base import Base
+from .enums import MediaCategory
+from sqlalchemy import Enum as SQLEnum
+
+
+class ParentProject(Base):
+    """Canonical project entity that groups multiple RERA registrations/phases."""
+
+    __tablename__ = "parent_projects"
+    __table_args__ = (
+        UniqueConstraint(
+            "name", "full_address", "promoter_name", name="uq_parent_project_identity"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    full_address: Mapped[str] = mapped_column(Text, nullable=False)
+    promoter_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    locality_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("localities.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    projects: Mapped[list["Project"]] = relationship(back_populates="parent_project")
+    locality: Mapped["Locality | None"] = relationship(back_populates="parent_projects")
 
 
 class Project(Base):
@@ -138,14 +172,59 @@ class Project(Base):
         default=0,
         doc="Number of complaints resolved"
     )
+    
+    # Phase 3: Financial & Legal Trust
+    rera_status: Mapped[str | None] = mapped_column(
+        String(32), 
+        doc="ACTIVE | REVOKED | EXPIRED | WITHDRAWN",
+        server_default="ACTIVE"
+    )
+    construction_completion_percent: Mapped[Numeric | None] = mapped_column(
+        Numeric(5, 2),
+        doc="Percentage of project construction completed"
+    )
+    last_financial_audit_date: Mapped[date | None] = mapped_column(
+        Date,
+        doc="Date of last financial audit/QPR filing"
+    )
+    
+    parent_project_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("parent_projects.id", ondelete="SET NULL"),
+        doc="Link to the canonical parent project"
+    )
+
     locality_id: Mapped[int | None] = mapped_column(
         Integer,
+        ForeignKey("localities.id", ondelete="SET NULL"),
         doc="Foreign key to localities table (normalized location)"
     )
+
+    # Phase 0: Foundations
+    listing_type: Mapped[str | None] = mapped_column(
+        String(30), doc="new_launch | under_construction | ready_to_move"
+    )
+    property_type: Mapped[str | None] = mapped_column(
+        String(50), doc="apartment | villa | plot | commercial"
+    )
+    view_count: Mapped[int] = mapped_column(Integer, default=0)
+    featured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    meta_description: Mapped[str | None] = mapped_column(Text)
+    slug: Mapped[str | None] = mapped_column(String(200), unique=True, index=True)
+    stamp_duty_rate: Mapped[Numeric | None] = mapped_column(
+        Numeric(5, 2), default=7.0, doc="State stamp duty percentage"
+    )
+    registration_rate: Mapped[Numeric | None] = mapped_column(
+        Numeric(5, 2), default=1.0, doc="Registration percentage"
+    )
+    gst_applicable: Mapped[bool | None] = mapped_column(Boolean)
+    gst_rate: Mapped[Numeric | None] = mapped_column(Numeric(5, 2))
 
     promoters: Mapped[list["Promoter"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    parent_project: Mapped["ParentProject | None"] = relationship(back_populates="projects")
+    locality: Mapped["Locality | None"] = relationship(back_populates="projects")
     buildings: Mapped[list["Building"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
@@ -179,6 +258,9 @@ class Project(Base):
     project_unit_types: Mapped[list["ProjectUnitType"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    units: Mapped[list["Unit"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
     pricing_snapshots: Mapped[list["ProjectPricingSnapshot"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
@@ -196,6 +278,9 @@ class Project(Base):
     )
     embedding: Mapped["ProjectEmbedding | None"] = relationship(
         back_populates="project", uselist=False, cascade="all, delete-orphan"
+    )
+    media: Mapped[list["ProjectMedia"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
     )
 
 
@@ -253,6 +338,10 @@ class UnitType(Base):
     type_name: Mapped[str] = mapped_column(String(100), nullable=False)
     carpet_area_sqmt: Mapped[Numeric | None] = mapped_column(Numeric(12, 2))
     saleable_area_sqmt: Mapped[Numeric | None] = mapped_column(Numeric(12, 2))
+    # DATA AUDIT: New area breakdown columns
+    balcony_area_sqmt: Mapped[Numeric | None] = mapped_column(Numeric(12, 2))
+    common_area_sqmt: Mapped[Numeric | None] = mapped_column(Numeric(12, 2))
+    terrace_area_sqmt: Mapped[Numeric | None] = mapped_column(Numeric(12, 2))
     total_units: Mapped[int | None] = mapped_column(Integer)
     sale_price: Mapped[Numeric | None] = mapped_column(Numeric(14, 2))
 
@@ -355,6 +444,44 @@ class ProjectArtifact(Base):
     floor_plan_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, doc="Structured room dimensions and layout data")
 
     project: Mapped[Project] = relationship(back_populates="artifacts")
+
+
+class ProjectMedia(Base):
+    """Visual media assets for the project (Gallery, Videos, Tours)."""
+
+    __tablename__ = "project_media"
+    __table_args__ = (
+        Index("ix_project_media_project_id", "project_id"),
+        Index("ix_project_media_category", "media_category"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    media_category: Mapped[MediaCategory] = mapped_column(
+        SQLEnum(MediaCategory), 
+        nullable=False,
+        default=MediaCategory.GALLERY
+    )
+    url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    thumbnail_url: Mapped[str | None] = mapped_column(String(1024))
+    title: Mapped[str | None] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text)
+    
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_external: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    raw_source: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, doc="Traces where this media was extracted from"
+    )
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    project: Mapped[Project] = relationship(back_populates="media")
 
 
 class AmenityPOI(Base):
@@ -549,6 +676,13 @@ class ProjectUnitType(Base):
         Numeric(8, 2), doc="Maintenance fee per sqft"
     )
     
+    # Phase 0: Foundations
+    base_price_inr: Mapped[Numeric | None] = mapped_column(Numeric(14, 2))
+    price_per_sqft_carpet: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    price_per_sqft_super: Mapped[Numeric | None] = mapped_column(Numeric(10, 2))
+    floor_plan_image_url: Mapped[str | None] = mapped_column(String(1024))
+    has_3d_view: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
@@ -559,6 +693,53 @@ class ProjectUnitType(Base):
     )
 
     project: Mapped[Project] = relationship(back_populates="project_unit_types")
+
+
+class Unit(Base):
+    """
+    Individual unit inventory record (the "shredded" high-res data).
+    
+    Captures specific flat/plot details:
+    - Identity: Unit No ("904"), Block ("A")
+    - Specs: Floor, Type ("3 BHK"), Area
+    - Status: "Available", "Sold", "Booked" (from visual grid)
+    """
+    __tablename__ = "units"
+    __table_args__ = (
+        Index("ix_units_project_id", "project_id"),
+        Index("ix_units_status", "status"),
+        Index("ix_units_block_unit", "block_name", "unit_no"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    
+    # Location/Identity
+    block_name: Mapped[str | None] = mapped_column(String(64), doc="Tower/Block name")
+    floor_no: Mapped[str | None] = mapped_column(String(32))
+    unit_no: Mapped[str | None] = mapped_column(String(64), doc="Flat/Shop number")
+    
+    # Specs
+    unit_type: Mapped[str | None] = mapped_column(String(64), doc="e.g. 3 BHK, Shop")
+    carpet_area_sqm: Mapped[float | None] = mapped_column(Float)
+    
+    # Inventory Status
+    status: Mapped[str | None] = mapped_column(String(32), doc="Available, Sold, Booked")
+    
+    # Metadata
+    raw_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
+    
+    project: Mapped[Project] = relationship(back_populates="units")
+    transactions: Mapped[list] = relationship("TransactionHistory", back_populates="unit")
+
 
 
 # =============================================================================
@@ -793,6 +974,17 @@ class ReraFiling(Base):
     extracted_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     raw_text: Mapped[str | None] = mapped_column(String, doc="Full OCR extracted text")
     
+    # Phase 3: Financial & Legal Trust
+    is_certified: Mapped[bool] = mapped_column(
+        Boolean, 
+        default=False,
+        doc="Whether extraction is human-verified"
+    )
+    financial_summary: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON,
+        doc="Structured financial markers (Total Collection, Expenditure, Balance)"
+    )
+    
     # AI/Model Metadata
     model_name: Mapped[str | None] = mapped_column(String(100))
     model_version: Mapped[str | None] = mapped_column(String(50))
@@ -907,6 +1099,7 @@ class ProjectEmbedding(Base):
 
 
 __all__ = [
+    "ParentProject",
     "Project",
     "Promoter",
     "Building",
@@ -921,9 +1114,15 @@ __all__ = [
     "ProjectScores",
     "ProjectLocation",
     "ProjectUnitType",
+    "Unit",
     "ProjectPricingSnapshot",
     # Point 28 & 29: Ops Standard
     "DataProvenance",
     "IngestionAudit",
     "ReraFiling",
+    "ProjectImputation",
+    "DataQualityFlag",
+    "ProjectEmbedding",
+    "ProjectMedia",
+    "Locality",
 ]

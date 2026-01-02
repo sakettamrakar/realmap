@@ -48,6 +48,21 @@ The `loader` module inserts validated JSON into PostgreSQL.
 python tools/load_run_into_db.py --run-dir outputs/runs/latest
 ```
 
+### Step 4: PDF Processing (NEW)
+After database loading, PDF documents are processed to extract additional structured data:
+```bash
+# Process all PDFs from scraped runs
+python tools/process_pdfs.py --page 1
+```
+
+The PDF processing pipeline:
+1. **OCR:** Converts PDF pages to images and extracts text (Tesseract/EasyOCR)
+2. **Classification:** Identifies document type from 11 categories
+3. **LLM Extraction:** Extracts structured fields using Qwen2.5-7B
+4. **Merging:** Combines with scraped data to create enriched V2 JSON
+
+See [PDF Processing Documentation](./orchestration/pdf-processing.md) for details.
+
 ---
 
 ## 3. Enrichment Pipelines

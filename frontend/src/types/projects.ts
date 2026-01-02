@@ -35,6 +35,8 @@ export interface ProjectSummary {
   max_price_total?: number;
   min_price_per_sqft?: number;
   max_price_per_sqft?: number;
+  parent_project_id?: number;
+  phase_count?: number;
 }
 
 export interface ProjectSearchResponse {
@@ -70,6 +72,13 @@ export interface ScoreExplanation {
 export interface ProjectDetail {
   project: {
     project_id: number;
+    parent_project_id?: number;
+    other_registrations?: Array<{
+      project_id: number;
+      rera_number: string;
+      status: string;
+      registration_date?: string;
+    }>;
     name: string;
     rera_number?: string;
     developer?: string;
@@ -154,6 +163,7 @@ export interface SearchProjectsParams {
   sort_dir?: "asc" | "desc";
   page?: number;
   page_size?: number;
+  group_by_parent?: boolean;
 }
 
 export interface MapPinsParams {
@@ -172,4 +182,30 @@ export interface BBox {
   minLon: number;
   maxLat: number;
   maxLon: number;
+}
+
+export interface UnitResponse {
+  id: number;
+  block_name?: string;
+  floor_no?: string;
+  unit_no?: string;
+  unit_type?: string;
+  carpet_area_sqm?: number;
+  carpet_area_sqft?: number;
+  super_area_sqft?: number;
+  saleable_area_sqft?: number;
+  status?: string;
+  raw_data?: Record<string, unknown>;
+}
+
+export interface InventoryStats {
+  total_units: number;
+  available_units: number;
+  booked_units: number;
+  unknown_units: number;
+}
+
+export interface ProjectInventoryResponse {
+  stats: InventoryStats;
+  units: UnitResponse[];
 }

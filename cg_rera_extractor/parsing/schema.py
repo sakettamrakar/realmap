@@ -28,11 +28,27 @@ class FieldRecord(BaseModel):
     preview_hint: Optional[str] = None
 
 
+class TableRecord(BaseModel):
+    """Represents a data table extracted from a section."""
+    
+    headers: list[str] = Field(default_factory=list)
+    rows: list[list[str]] = Field(default_factory=list)
+
+
+class GridRecord(BaseModel):
+    """Represents a visual grid (like inventory status) extracted from a section."""
+    
+    items: list[dict[str, str]] = Field(default_factory=list)
+    legend: dict[str, str] = Field(default_factory=dict)
+
+
 class SectionRecord(BaseModel):
     """Collection of fields grouped under the same section heading."""
 
     section_title_raw: str
     fields: list[FieldRecord] = Field(default_factory=list)
+    tables: list[TableRecord] = Field(default_factory=list)
+    grids: list[GridRecord] = Field(default_factory=list)
 
 
 class RawExtractedProject(BaseModel):
@@ -64,6 +80,8 @@ class V1ProjectDetails(BaseModel):
     project_status: Optional[str] = None
     district: Optional[str] = None
     tehsil: Optional[str] = None
+    village_or_locality: Optional[str] = None
+    pincode: Optional[str] = None
     project_address: Optional[str] = None
     project_website_url: Optional[str] = None  # Website URL from listing page
     total_units: Optional[int] = None
@@ -102,6 +120,10 @@ class V1UnitType(BaseModel):
     name: Optional[str] = None
     carpet_area_sq_m: Optional[float] = None
     built_up_area_sq_m: Optional[float] = None
+    super_built_up_area_sq_m: Optional[float] = None
+    balcony_area_sq_m: Optional[float] = None
+    common_area_sq_m: Optional[float] = None
+    terrace_area_sq_m: Optional[float] = None
     price_in_inr: Optional[float] = None
 
 
@@ -151,6 +173,8 @@ class PreviewArtifact(BaseModel):
 
 class V1RawData(BaseModel):
     sections: dict[str, dict[str, str]] = Field(default_factory=dict)
+    tables: dict[str, list[TableRecord]] = Field(default_factory=dict)
+    grids: dict[str, list[GridRecord]] = Field(default_factory=dict)
     unmapped_sections: dict[str, dict[str, str]] = Field(default_factory=dict)
 
 

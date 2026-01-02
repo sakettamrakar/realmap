@@ -8,8 +8,10 @@ from importlib import resources
 from typing import Dict, List, Tuple
 
 from .schema import (
+    GridRecord,
     PreviewArtifact,
     RawExtractedProject,
+    TableRecord,
     V1BankDetails,
     V1BuildingDetails,
     V1Document,
@@ -36,7 +38,7 @@ def _normalize(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]", "", cleaned.lower())
 
 
-def _load_logical_section_mapping() -> Tuple[Dict[str, str], Dict[str, Dict[str, str]]]:
+def _load_logical_section_mapping() -> Tuple[Dict[str, str], Dict[str, Dict[str, str]], Dict[str, Dict[str, List[str]]]]:
     resource = resources.files("cg_rera_extractor.parsing.data").joinpath(
         _LOGICAL_SECTIONS_RESOURCE
     )
@@ -44,21 +46,36 @@ def _load_logical_section_mapping() -> Tuple[Dict[str, str], Dict[str, Dict[str,
 
     title_lookup: Dict[str, str] = {}
     key_lookup: Dict[str, Dict[str, str]] = {}
+    table_lookup: Dict[str, Dict[str, List[str]]] = {}
     for section in data.get("sections", []):
         logical_name = section["logical_section"]
         section_titles = section.get("section_title_variants", [])
         for title in section_titles:
             title_lookup[_normalize(title)] = logical_name
+        
         canonical_map: Dict[str, str] = {}
+        table_map: Dict[str, List[str]] = {}
         for canonical_key, variants in section.get("keys", {}).items():
+            table_map[canonical_key] = variants
             for variant in variants:
                 canonical_map[_normalize(variant)] = canonical_key
+        
         key_lookup[logical_name] = canonical_map
+        table_lookup[logical_name] = table_map
 
-    return title_lookup, key_lookup
+    return title_lookup, key_lookup, table_lookup
 
 
-_SECTION_LOOKUP, _KEY_LOOKUP = _load_logical_section_mapping()
+_SECTION_LOOKUP, _KEY_LOOKUP, _TABLE_LOOKUP = _load_logical_section_mapping()
+
+_MODEL_MAP = {
+    "promoter_details": V1PromoterDetails,
+    "land_details": V1LandDetails,
+    "building_details": V1BuildingDetails,
+    "unit_types": V1UnitType,
+    "bank_details": V1BankDetails,
+    "quarterly_updates": V1QuarterlyUpdate,
+}
 
 
 def _to_int(value: str | None) -> int | None:
@@ -92,11 +109,7 @@ def _to_float(value: str | None) -> float | None:
 def _normalize_date(value: str | None) -> str | None:
     """Normalize date strings to ISO format (YYYY-MM-DD).
     
-    Handles common Indian date formats:
-    - DD/MM/YYYY
-    - DD-MM-YYYY
-    - DD.MM.YYYY
-    - YYYY-MM-DD (already ISO)
+    Handles common Indian date formats and extracts dates from strings.
     """
     if not value:
         return None
@@ -104,6 +117,12 @@ def _normalize_date(value: str | None) -> str | None:
     if not value:
         return None
     
+    # Try to extract something that looks like a date first
+    # Matches DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, etc.
+    date_match = re.search(r'(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})|(\d{4}-\d{2}-\d{2})', value)
+    if date_match:
+        value = date_match.group(0)
+
     # Try multiple date formats
     date_formats = (
         "%d/%m/%Y",
@@ -113,17 +132,71 @@ def _normalize_date(value: str | None) -> str | None:
         "%d %b %Y",
         "%d %B %Y",
         "%Y/%m/%d",
+        "%m/%d/%Y", # Fallback for some US-style dates if any
     )
     
     for fmt in date_formats:
         try:
             dt = datetime.strptime(value, fmt)
+            # Handle 2-digit years
+            if dt.year < 100:
+                if dt.year > 50:
+                    dt = dt.replace(year=1900 + dt.year)
+                else:
+                    dt = dt.replace(year=2000 + dt.year)
             return dt.strftime("%Y-%m-%d")
         except ValueError:
             continue
     
-    # Return as-is if no format matched (for logging/debugging)
+    # Return None if no format matched
     return None
+
+
+def _map_table_to_model(table: TableRecord, model_class: type, mapping: Dict[str, str]) -> List[any]:
+    """Map a TableRecord to a list of Pydantic models based on header mapping."""
+    results = []
+    headers = [h.lower() for h in table.headers]
+    
+    # Create index map: canonical_key -> column_index
+    col_map = {}
+    for canonical_key, variants in mapping.items():
+        for variant in variants:
+            variant_norm = variant.lower()
+            for idx, h in enumerate(headers):
+                if variant_norm in h:
+                    col_map[canonical_key] = idx
+                    break
+            if canonical_key in col_map:
+                break
+                
+    if not col_map:
+        return []
+        
+    for row in table.rows:
+        if not row:
+            continue
+            
+        data = {}
+        for key, idx in col_map.items():
+            if idx < len(row):
+                val = row[idx]
+                # Basic type conversion based on field name heuristics
+                if any(k in key for k in ["area", "price", "percent", "amount"]):
+                    data[key] = _to_float(val)
+                elif any(k in key for k in ["number", "units", "floors", "year"]):
+                    data[key] = _to_int(val)
+                elif "date" in key:
+                    data[key] = _normalize_date(val)
+                else:
+                    data[key] = val
+        
+        try:
+            results.append(model_class(**data))
+        except Exception:
+            # Skip rows that fail validation
+            continue
+            
+    return results
 
 
 def _extract_pincode(address: str | None) -> str | None:
@@ -168,13 +241,41 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
 
     section_data: Dict[str, Dict[str, str]] = {}
     unmapped_sections: Dict[str, Dict[str, str]] = {}
+    raw_tables: Dict[str, List[TableRecord]] = {}
+    raw_grids: Dict[str, List[GridRecord]] = {}
     previews: Dict[str, PreviewArtifact] = {}
     extracted_documents: List[V1Document] = []
+    
+    # Lists to hold multiple records from tables
+    promoter_details: List[V1PromoterDetails] = []
+    land_details: List[V1LandDetails] = []
+    building_details: List[V1BuildingDetails] = []
+    unit_types: List[V1UnitType] = []
+    bank_details: List[V1BankDetails] = []
+    quarterly_updates: List[V1QuarterlyUpdate] = []
 
     for section in raw.sections:
+        if section.tables:
+            raw_tables[section.section_title_raw] = section.tables
+        if section.grids:
+            raw_grids[section.section_title_raw] = section.grids
+            
         normalized_title = _normalize(section.section_title_raw)
         logical_section = _SECTION_LOOKUP.get(normalized_title)
         
+        # Process tables for known logical sections
+        if logical_section in _MODEL_MAP:
+            model_class = _MODEL_MAP[logical_section]
+            table_mapping = _TABLE_LOOKUP.get(logical_section, {})
+            for table in section.tables:
+                records = _map_table_to_model(table, model_class, table_mapping)
+                if logical_section == "promoter_details": promoter_details.extend(records)
+                elif logical_section == "land_details": land_details.extend(records)
+                elif logical_section == "building_details": building_details.extend(records)
+                elif logical_section == "unit_types": unit_types.extend(records)
+                elif logical_section == "bank_details": bank_details.extend(records)
+                elif logical_section == "quarterly_updates": quarterly_updates.extend(records)
+
         if logical_section == "documents":
             canonical_map = _KEY_LOOKUP.get(logical_section, {})
             logical_section_data = section_data.setdefault(logical_section, {})
@@ -190,14 +291,13 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
                     logical_section_data[canonical_key] = field.value or ""
                 else:
                     # Implicit document: Label is name, Value is URL
-                    # Prioritize actual href links over button text or preview hints
                     doc_url = "NA"
                     if field.links:
-                        doc_url = field.links[0]  # Use actual URL from <a href="...">
+                        doc_url = field.links[0]
                     elif field.preview_hint and not field.preview_hint.startswith(("#", ".")):
-                        doc_url = field.preview_hint  # Fallback to preview hint if it's a URL
+                        doc_url = field.preview_hint
                     elif field.value and field.value not in ("Preview", "Download", "View"):
-                        doc_url = field.value  # Use value only if it's not button text
+                        doc_url = field.value
                     
                     extracted_documents.append(
                         V1Document(
@@ -224,7 +324,6 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
             for field in section.fields:
                 if field.label:
                     target[field.label] = field.value or ""
-                    # Capture preview placeholders for unmapped section fields
                     if field.preview_present:
                         field_key = _normalize(field.label)
                         if field_key not in previews:
@@ -254,7 +353,6 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
                 target = unmapped_sections.setdefault(section.section_title_raw, {})
                 if field.label:
                     target[field.label] = field.value or ""
-                    # Capture preview placeholders for unmapped fields
                     if field.preview_present:
                         field_key = _normalize(field.label)
                         if field_key not in previews:
@@ -271,18 +369,11 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
         scraped_at=raw.scraped_at,
     )
 
+    # --- Project Details ---
     project_section = section_data.get("project_details", {})
     project_address = project_section.get("project_address")
-    
-    # Extract pincode from address if not provided separately
-    pincode = project_section.get("pincode")
-    if not pincode and project_address:
-        pincode = _extract_pincode(project_address)
-    
-    # Extract village/locality
+    pincode = project_section.get("pincode") or _extract_pincode(project_address)
     village_or_locality = project_section.get("village_or_locality")
-    
-    # Extract project website
     project_website_url = project_section.get("project_website")
     
     project_details = V1ProjectDetails(
@@ -292,6 +383,8 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
         project_status=project_section.get("project_status"),
         district=project_section.get("district"),
         tehsil=project_section.get("tehsil"),
+        village_or_locality=village_or_locality,
+        pincode=pincode,
         project_address=project_address,
         project_website_url=project_website_url,
         total_units=_to_int(project_section.get("total_units")),
@@ -299,76 +392,45 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
         launch_date=_normalize_date(project_section.get("launch_date")),
         expected_completion_date=_normalize_date(project_section.get("expected_completion_date")),
     )
-    # Store extracted fields for loader to use
     project_details._extra = {
         "pincode": pincode,
         "village_or_locality": village_or_locality,
         "project_website_url": project_website_url,
     }
 
-    promoter_details = []
-    promoter_section = section_data.get("promoter_details")
-    if promoter_section:
-        promoter_details.append(
-            V1PromoterDetails(
-                name=promoter_section.get("promoter_name"),
-                organisation_type=promoter_section.get("promoter_type"),
-                address=promoter_section.get("promoter_address"),
-                email=promoter_section.get("promoter_email"),
-                phone=promoter_section.get("promoter_phone"),
-                pan=promoter_section.get("promoter_pan"),
-                cin=promoter_section.get("promoter_cin"),
-            )
-        )
+    # --- Merge Field-based data with Table-based data ---
+    def _merge_fields(logical_name, current_list, model_class):
+        fields = section_data.get(logical_name)
+        if fields:
+            try:
+                # Convert types for fields
+                typed_fields = {}
+                for k, v in fields.items():
+                    if any(x in k for x in ["area", "price", "percent", "amount"]):
+                        typed_fields[k] = _to_float(v)
+                    elif any(x in k for x in ["number", "units", "floors", "year"]):
+                        typed_fields[k] = _to_int(v)
+                    elif "date" in k:
+                        typed_fields[k] = _normalize_date(v)
+                    else:
+                        typed_fields[k] = v
+                
+                obj = model_class(**typed_fields)
+                # Only add if it has some meaningful data and not already present
+                if any(getattr(obj, f) for f in obj.model_fields if getattr(obj, f)):
+                    current_list.insert(0, obj)
+            except Exception:
+                pass
+        return current_list
 
-    land_details = []
-    land_section = section_data.get("land_details")
-    if land_section:
-        land_details.append(
-            V1LandDetails(
-                land_area_sq_m=_to_float(land_section.get("land_area_sq_m")),
-                land_status=land_section.get("land_status"),
-                land_address=land_section.get("land_address"),
-                khasra_numbers=land_section.get("khasra_numbers"),
-            )
-        )
+    promoter_details = _merge_fields("promoter_details", promoter_details, V1PromoterDetails)
+    land_details = _merge_fields("land_details", land_details, V1LandDetails)
+    building_details = _merge_fields("building_details", building_details, V1BuildingDetails)
+    unit_types = _merge_fields("unit_types", unit_types, V1UnitType)
+    bank_details = _merge_fields("bank_details", bank_details, V1BankDetails)
+    quarterly_updates = _merge_fields("quarterly_updates", quarterly_updates, V1QuarterlyUpdate)
 
-    building_details = []
-    building_section = section_data.get("building_details")
-    if building_section:
-        building_details.append(
-            V1BuildingDetails(
-                name=building_section.get("building_name"),
-                number_of_floors=_to_int(building_section.get("number_of_floors")),
-                number_of_units=_to_int(building_section.get("number_of_units")),
-                carpet_area_sq_m=_to_float(building_section.get("carpet_area_sq_m")),
-            )
-        )
-
-    unit_types = []
-    unit_section = section_data.get("unit_types")
-    if unit_section:
-        unit_types.append(
-            V1UnitType(
-                name=unit_section.get("unit_type_name"),
-                carpet_area_sq_m=_to_float(unit_section.get("unit_carpet_area_sq_m")),
-                built_up_area_sq_m=_to_float(unit_section.get("unit_built_up_area_sq_m")),
-                price_in_inr=_to_float(unit_section.get("unit_price_in_inr")),
-            )
-        )
-
-    bank_details = []
-    bank_section = section_data.get("bank_details")
-    if bank_section:
-        bank_details.append(
-            V1BankDetails(
-                bank_name=bank_section.get("bank_name"),
-                branch_name=bank_section.get("branch_name"),
-                account_number=bank_section.get("account_number"),
-                ifsc_code=bank_section.get("ifsc_code"),
-            )
-        )
-
+    # --- Documents ---
     documents = list(extracted_documents)
     document_section = section_data.get("documents")
     if document_section:
@@ -381,20 +443,12 @@ def map_raw_to_v1(raw: RawExtractedProject, state_code: str = "CG") -> V1Project
             )
         )
 
-    quarterly_updates = []
-    update_section = section_data.get("quarterly_updates")
-    if update_section:
-        quarterly_updates.append(
-            V1QuarterlyUpdate(
-                quarter=update_section.get("quarter"),
-                year=update_section.get("year"),
-                status=update_section.get("status"),
-                completion_percent=_to_float(update_section.get("completion_percent")),
-                remarks=update_section.get("remarks"),
-            )
-        )
-
-    raw_data = V1RawData(sections=section_data, unmapped_sections=unmapped_sections)
+    raw_data = V1RawData(
+        sections=section_data, 
+        unmapped_sections=unmapped_sections,
+        tables=raw_tables,
+        grids=raw_grids
+    )
 
     return V1Project(
         metadata=metadata,

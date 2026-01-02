@@ -14,17 +14,22 @@ This section documents the complete orchestration flow of the RealMap platform, 
    * Raw extraction & Schema mapping (V1 JSON)
    * QA Validation & Data Normalization
    * Database Loader
-3. **[Post-Processing Layer](./post_processing.md)**
+3. **[PDF Processing Layer](./pdf-processing.md)** ✨ NEW
+   * OCR text extraction (Tesseract/EasyOCR)
+   * Document classification (11 types)
+   * LLM-based structured extraction
+   * Data merging & enrichment (V2 JSON)
+4. **[Post-Processing Layer](./post_processing.md)**
    * Geocoding & Amenity Enrichment
    * AI Scoring & Microservices
    * API Serving & Frontend
-4. **[Dependency Graph](./dependency_graph.md)**
+5. **[Dependency Graph](./dependency_graph.md)**
    * Module dependency visualization
    * Execution DAGs
-5. **[Future Architecture](./future_architecture.md)**
+6. **[Future Architecture](./future_architecture.md)**
    * Recommendations for moving to Airflow/Prefect
    * Proposed DAG designs
-6. **[Unused Files Report](./unused_files.md)**
+7. **[Unused Files Report](./unused_files.md)**
    * Audit of orphaned scripts and cleanup candidates
 
 ---
@@ -49,6 +54,15 @@ graph TD
         H --> I[(PostgreSQL DB)]
     end
 
+    subgraph PDF[PDF Processing]
+        I --> O[PDF Downloader]
+        O --> P[OCR Engine]
+        P --> Q[Document Classifier]
+        Q --> R[LLM Extractor]
+        R --> S[Data Merger]
+        S --> I
+    end
+
     subgraph POST[Post-Processing]
         I --> J[Geocoding]
         I --> K[Amenity Stats]
@@ -57,5 +71,5 @@ graph TD
         M --> N[API Layer]
     end
 
-    PRE --> MAIN --> POST
+    PRE --> MAIN --> PDF --> POST
 ```

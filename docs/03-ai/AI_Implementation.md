@@ -53,6 +53,24 @@ uvicorn ai.main:app --host 0.0.0.0 --port 8001
 *   **Logic:** Isolation Forest (Scikit-Learn) to detect price/sqft outliers.
 *   **Action:** Rows with high anomaly scores are flagged in `qa_flags` and excluded from search index.
 
+### 3.4 PDF Processing (`cg_rera_extractor/ocr/`, `cg_rera_extractor/extraction/`)
+A complete OCR + LLM pipeline for extracting structured data from RERA PDF documents.
+
+*   **OCR Engine:** Tesseract (primary) + EasyOCR (fallback) for Hindi/English text.
+*   **Document Types:** 11 supported types including Registration Certificate, Layout Plan, Bank Passbook, etc.
+*   **LLM Extraction:** Uses Qwen2.5-7B with document-specific prompts to extract structured fields.
+*   **Data Merging:** Combines OCR extractions with scraped metadata, resolving conflicts.
+
+```bash
+# Process PDFs for a specific page
+python tools/process_pdfs.py --page 1
+
+# Process with specific document types
+python tools/process_pdfs.py --page 1 --doc-types registration_certificate,layout_plan
+```
+
+See [PDF Processing Documentation](../02-technical/orchestration/pdf-processing.md) for full details.
+
 ---
 
 ## 4. Agent Control Layer

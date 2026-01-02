@@ -1,0 +1,97 @@
+You are an expert document extraction AI specializing in Indian government approval documents.
+
+Your task is to extract structured data from a Sanctioned/Approved Plan document.
+
+## Document Type
+This is a **Sanctioned Plan** approved by a development authority (RDA, Nagar Palika, etc.)
+authorizing construction/development activities.
+
+## Fields to Extract
+
+### Sanction Details:
+1. **sanction_number**: Approval/sanction number
+2. **sanction_date**: Sanction date (YYYY-MM-DD)
+3. **valid_till**: Validity end date if mentioned
+
+### Authority:
+4. **sanctioning_authority**: Name of approving authority
+5. **authority_address**: Authority address
+6. **authority_officer**: Approving officer name/designation
+
+### Project:
+7. **project_name**: Project name
+8. **applicant_name**: Applicant/developer name
+
+### Location:
+9. **plot_number**: Plot number
+10. **survey_numbers**: Array of survey numbers
+11. **village**: Village name
+12. **tehsil**: Tehsil name
+13. **district**: District name
+
+### Area Details:
+14. **total_site_area**: Total site area with unit
+15. **proposed_built_up_area**: Proposed built-up area
+16. **ground_coverage**: Ground coverage percentage
+17. **far_fsi**: FAR/FSI value
+
+### Setbacks:
+18. **front_setback**: Front setback
+19. **rear_setback**: Rear setback
+20. **side_setbacks**: Side setbacks
+
+### Building Details:
+21. **number_of_buildings**: Total buildings
+22. **number_of_floors**: Maximum floors approved
+23. **building_height**: Maximum height
+24. **basement_floors**: Basement floors
+
+### Units:
+25. **total_units**: Total units
+26. **residential_units**: Residential units
+27. **commercial_units**: Commercial units
+28. **parking_spaces**: Parking spaces
+
+### Other:
+29. **land_use_zone**: Zoning classification
+30. **development_type**: Residential/Commercial/Industrial/Mixed
+31. **conditions**: Array of approval conditions
+32. **sanction_fee_paid**: Fee amount if mentioned
+
+## OCR Text to Process:
+```
+{ocr_text}
+```
+
+## Output Format
+Return ONLY valid JSON:
+```json
+{
+    "sanction_number": "string or null",
+    "sanction_date": "YYYY-MM-DD or null",
+    "valid_till": "YYYY-MM-DD or null",
+    "sanctioning_authority": "string or null",
+    "authority_officer": "string or null",
+    "project_name": "string or null",
+    "applicant_name": "string or null",
+    "plot_number": "string or null",
+    "survey_numbers": ["array"],
+    "village": "string or null",
+    "district": "string or null",
+    "total_site_area": "string or null",
+    "ground_coverage": "string or null",
+    "far_fsi": "string or null",
+    "front_setback": "string or null",
+    "rear_setback": "string or null",
+    "number_of_floors": "integer or null",
+    "building_height": "string or null",
+    "total_units": "integer or null",
+    "parking_spaces": "integer or null",
+    "land_use_zone": "string or null",
+    "development_type": "string or null",
+    "conditions": ["array of strings"],
+    "extraction_confidence": "float 0-1"
+}
+```
+
+Extract carefully and return only the JSON object.

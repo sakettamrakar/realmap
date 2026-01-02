@@ -44,5 +44,14 @@ graph TD
 |------|---------|
 | `cg_rera_extractor/geo/geocoder.py` | Critical for map functionality. |
 | `tools/compute_project_scores.py` | The batch job that updates project scores. |
+| `tools/process_pdfs.py` | OCR + LLM extraction from PDF documents. |
 | `ai/scoring/logic.py` | The "brain" of the AI assessment. |
 | `cg_rera_extractor/api/routes_projects.py` | The primary endpoint consumed by the frontend. |
+
+---
+
+## 🔗 Prerequisites
+
+Before running post-processing, ensure:
+1. **Main Processing** completed (V1 JSON loaded to database)
+2. **PDF Processing** completed (enriched V2 JSON available) - See [PDF Processing](./pdf-processing.md)
